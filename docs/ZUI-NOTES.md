@@ -289,6 +289,10 @@ vendor power HAL's, not in these jars.
   `getSelectedItemInfos()` (status 2 picked, 1 unpicked); its OK (`L`) moves apps between the
   folder and the home screen, its Cancel (`K(launcher, view, view)`) closes with its motion. It is
   a window of the home activity; the drawer is a `TYPE_APPLICATION_OVERLAY` window above it.
+- In the tablet's desktop mode ZUI's all-apps button opens the home's own drawer
+  (`LauncherState.ALL_APPS` on `CustomModeLauncher`), not the taskbar's; ZUI's own
+  `expandFolder` checks for it and closes it with `getStateManager().goToState(NORMAL)`. The log
+  of 12:44 shows the start button taking that for no drawer and opening the taskbar's as well.
 - ZUI's compact popup works beside any view: `popup_container_zui` +
   `populateAndShowRowsZui(view, 0, [], shortcuts)` - no app shortcuts asked for, no placeholder
   rows (`ZuiNavPopupController` does the same for its buttons).

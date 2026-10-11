@@ -61,6 +61,8 @@ final class TaskbarStart {
     private static final Map<StartButton, Boolean> BUTTONS = new WeakHashMap<>();
     /** ZUI's drawer sheets that are up, by the display each came up on. Main thread only. */
     private static final Map<View, Integer> SHEETS = new WeakHashMap<>();
+    /** ZUI's home screens whose own drawer is up ({@code LauncherState.ALL_APPS}), by display. */
+    private static final Map<Object, Integer> HOMES = new WeakHashMap<>();
 
     private TaskbarStart() {
     }
@@ -75,6 +77,12 @@ final class TaskbarStart {
      * <p>ZUI makes a new sheet on every open, so the eyes follow whether any sheet is up, not the
      * last event: opened again quickly, the old sheet's window can go after the new sheet has
      * come, and taking that as the drawer closing left the eyes small with the drawer open.
+     *
+     * <p>In the tablet's desktop mode ZUI's button opens the home screen's own drawer instead
+     * ({@code LauncherState.ALL_APPS}, which ZUI's own {@code expandFolder} checks for): its
+     * state changes ({@code Launcher.onStateSetStart}) count as a drawer too. Missing it, the
+     * start button took the first press as opening nothing and opened the taskbar's drawer as
+     * well - two drawers (12:44).
      */
     static void install(ClassLoader loader) {
         try {
@@ -90,6 +98,7 @@ final class TaskbarStart {
             hooked += XposedBridge.hookAllMethods(sheet, "handleClose", drawerHook(false)).size();
             hooked += XposedBridge.hookAllMethods(sheet, "onDetachedFromWindow",
                     drawerHook(false)).size();
+            hooked += hookHomeDrawer(loader);
             L.i("taskbar start: the robot's eyes follow ZUI's drawer x" + hooked);
         } catch (Throwable t) {
             L.w("taskbar start: the robot's eyes not following ZUI's drawer (" + t + ")");
@@ -110,12 +119,7 @@ final class TaskbarStart {
                     if (open) {
                         SHEETS.put(sheet, display);
                     }
-                    for (StartButton button : BUTTONS.keySet()) {
-                        if (button.isAttachedToWindow()
-                                && TaskbarTray.displayIdOf(button) == display) {
-                            button.drawerShown(drawerUp(display));
-                        }
-                    }
+                    eyesOn(display);
                 } catch (Throwable t) {
                     L.d("taskbar start: eyes not moved (" + t + ")");
                 }
@@ -123,9 +127,63 @@ final class TaskbarStart {
         };
     }
 
-    /** Whether one of ZUI's drawer sheets is up on this display. */
+    /** The home screen's own drawer, as ZUI's state machine sets it. */
+    private static int hookHomeDrawer(ClassLoader loader) {
+        try {
+            Class<?> launcher = Reflect.findClass("com.android.launcher3.Launcher", loader);
+            Class<?> state = Reflect.findClass("com.android.launcher3.LauncherState", loader);
+            if (launcher == null || state == null) {
+                L.w("taskbar start: ZUI's home states not found, its own drawer not followed");
+                return 0;
+            }
+            Object allApps = state.getField("ALL_APPS").get(null);
+            return XposedBridge.hookAllMethods(launcher, "onStateSetStart", new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    try {
+                        Context home = (Context) param.thisObject;
+                        Integer was = HOMES.remove(home);
+                        if (param.args.length > 0 && param.args[0] == allApps
+                                && home.getDisplay() != null) {
+                            HOMES.put(home, home.getDisplay().getDisplayId());
+                            eyesOn(home.getDisplay().getDisplayId());
+                        } else if (was != null) {
+                            eyesOn(was);
+                        }
+                    } catch (Throwable t) {
+                        L.d("taskbar start: home drawer not followed (" + t + ")");
+                    }
+                }
+            }).size();
+        } catch (Throwable t) {
+            L.w("taskbar start: ZUI's home drawer not followed (" + t + ")");
+            return 0;
+        }
+    }
+
+    /** The eyes of this display's start buttons, as its drawers are. */
+    private static void eyesOn(int display) {
+        boolean up = drawerUp(display);
+        for (StartButton button : BUTTONS.keySet()) {
+            if (button.isAttachedToWindow() && TaskbarTray.displayIdOf(button) == display) {
+                button.drawerShown(up);
+            }
+        }
+    }
+
+    /** Whether one of ZUI's drawers is up on this display: the taskbar's, or the home's own. */
     private static boolean drawerUp(int display) {
-        return SHEETS.containsValue(display);
+        return SHEETS.containsValue(display) || HOMES.containsValue(display);
+    }
+
+    /** ZUI's home on this display with its own drawer up, or null. */
+    private static Object homeWithDrawer(int display) {
+        for (Map.Entry<Object, Integer> e : HOMES.entrySet()) {
+            if (e.getValue() == display) {
+                return e.getKey();
+            }
+        }
+        return null;
     }
 
     /** Puts our button on this bar, or ZUI's back, following the setting and the bar. */
@@ -659,6 +717,14 @@ final class TaskbarStart {
                         + (mZui.hasOnClickListeners() ? " with" : " without")
                         + " a click listener"));
             }
+            Object home = homeWithDrawer(display);
+            if (home != null) {
+                // The home screen's own drawer: closed as ZUI's own taskbar closes it
+                // (expandFolder: its state manager back to NORMAL).
+                PRESSED.delete(display);
+                L.i("start button: " + closeHomeDrawer(home) + " on display " + display);
+                return;
+            }
             if (TaskbarBridge.isStockDrawerOpen(display)) {
                 // A second press closes it, as a start button does.
                 PRESSED.delete(display);
@@ -678,7 +744,7 @@ final class TaskbarStart {
             }
             boolean handled = zui.performClick();
             postDelayed(() -> {
-                if (TaskbarBridge.isStockDrawerOpen(display)) {
+                if (TaskbarBridge.isStockDrawerOpen(display) || drawerUp(display)) {
                     L.i("start button: ZUI's button opened the drawer on display " + display);
                     return;
                 }
@@ -691,6 +757,25 @@ final class TaskbarStart {
                         + " the press on display " + display + " and no drawer came up; "
                         + how);
             }, 450L);
+        }
+
+        /** The home screen's own drawer closed through ZUI's state manager. */
+        private static String closeHomeDrawer(Object home) {
+            try {
+                ClassLoader loader = home.getClass().getClassLoader();
+                Object normal = Class.forName("com.android.launcher3.LauncherState", false,
+                        loader).getField("NORMAL").get(null);
+                Object states = home.getClass().getMethod("getStateManager").invoke(home);
+                for (java.lang.reflect.Method m : states.getClass().getMethods()) {
+                    if (m.getName().equals("goToState") && m.getParameterCount() == 1) {
+                        m.invoke(states, normal);
+                        return "closed the home screen's drawer";
+                    }
+                }
+                return "found no way to close the home screen's drawer";
+            } catch (Throwable t) {
+                return "could not close the home screen's drawer (" + t + ")";
+            }
         }
 
         /** This bar's button opens nothing; its drawer's controller is asked straight away. */
