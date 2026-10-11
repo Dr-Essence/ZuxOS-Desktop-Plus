@@ -379,19 +379,15 @@ final class TaskbarStart {
         View keys = monitorKeys(dragLayer);
         int left = keys != null ? frameLeft(dragLayer, keys) + keysAfter(keys, width)
                 : navEnd(dragLayer);
-        int top = reference.getTop() + (reference.getHeight() - height) / 2;
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) button.getLayoutParams();
-        int gravity = Gravity.TOP | Gravity.START;
-        if (lp.gravity == gravity && lp.width == width && lp.height == height
-                && lp.leftMargin == left && lp.topMargin == top) {
+        // Centred on the row and on the bar by gravity, as ZUI's rows are.
+        boolean moved = TaskbarTray.onRow(lp, reference, height, Gravity.START);
+        if (!moved && lp.width == width && lp.leftMargin == left) {
             // Placed from layout listeners: unchanged params must not ask for another pass.
             return;
         }
-        lp.gravity = gravity;
         lp.width = width;
-        lp.height = height;
         lp.leftMargin = left;
-        lp.topMargin = top;
         button.setLayoutParams(lp);
     }
 

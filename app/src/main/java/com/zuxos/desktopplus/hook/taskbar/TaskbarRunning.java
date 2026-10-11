@@ -873,21 +873,12 @@ public final class TaskbarRunning {
                 return;
             }
             FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) raw;
-            int gravity;
-            int height;
-            int top;
-            if (reference != null && reference.getHeight() > 0) {
-                gravity = Gravity.TOP;
-                height = reference.getHeight();
-                top = reference.getTop();
-            } else {
-                // Without the row's geometry, the bottom of the drag layer is the bar; the top
-                // of it is a row of icons floating in the middle of the screen.
-                gravity = Gravity.BOTTOM;
-                height = ViewGroup.LayoutParams.WRAP_CONTENT;
-                top = 0;
-            }
+            // On the bar by gravity, as ZUI's rows are. Without the row's height, wrapped: the
+            // bar's edge of the drag layer is still the bar.
+            int height = reference != null && reference.getHeight() > 0
+                    ? reference.getHeight() : ViewGroup.LayoutParams.WRAP_CONTENT;
             int edge = leftEdge(dragLayer);
+            int horizontal;
             int left;
             int right = rightGap(dragLayer, edge, reference);
             int width;
@@ -896,26 +887,23 @@ public final class TaskbarRunning {
                 // on the right - and as wide as whatever lies between, worked out by the layout
                 // pass itself. A width computed here went stale whenever the button or the tray
                 // moved after it was measured, which is how icons ended up over the tray.
-                gravity |= Gravity.START;
+                horizontal = Gravity.START;
                 left = edge;
                 width = ViewGroup.LayoutParams.MATCH_PARENT;
             } else {
                 // No icons to sit beside - a bar of navigation buttons only. Beside the tray is
                 // then the only place left that is not on top of something else.
-                gravity |= Gravity.END;
+                horizontal = Gravity.END;
                 left = 0;
                 width = ViewGroup.LayoutParams.WRAP_CONTENT;
             }
-            if (lp.gravity == gravity && lp.height == height && lp.topMargin == top
-                    && lp.leftMargin == left && lp.rightMargin == right && lp.width == width) {
+            boolean moved = TaskbarTray.onRow(lp, reference, height, horizontal);
+            if (!moved && lp.leftMargin == left && lp.rightMargin == right && lp.width == width) {
                 // Nothing moved. This runs from a layout listener, and setting layout params
                 // asks for another layout whether or not they changed - which would be a pass
                 // per frame, for ever, over a row that was already in the right place.
                 return;
             }
-            lp.gravity = gravity;
-            lp.height = height;
-            lp.topMargin = top;
             lp.leftMargin = left;
             lp.rightMargin = right;
             lp.width = width;

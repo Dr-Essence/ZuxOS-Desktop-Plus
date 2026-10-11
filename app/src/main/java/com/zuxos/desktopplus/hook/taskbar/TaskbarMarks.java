@@ -191,15 +191,10 @@ final class TaskbarMarks {
                 return;
             }
             FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) raw;
-            int top = reference.getTop();
-            int height = reference.getHeight();
-            if (lp.topMargin == top && lp.height == height) {
+            if (!TaskbarTray.onRow(lp, reference, reference.getHeight(), Gravity.START)) {
                 // Setting them again would ask for another layout, from inside a layout.
                 return;
             }
-            lp.gravity = Gravity.TOP | Gravity.START;
-            lp.topMargin = top;
-            lp.height = height;
             setLayoutParams(lp);
         }
 

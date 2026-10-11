@@ -627,10 +627,12 @@ public final class TaskbarGlass {
                 // one covering the whole drag layer is the "glass took over the screen" bug.
                 return;
             }
+            boolean moved = TaskbarTray.onRow(lp, reference, reference.getHeight(),
+                    Gravity.START);
+            if (!moved && lp.width == ViewGroup.LayoutParams.MATCH_PARENT) {
+                return;
+            }
             lp.width = ViewGroup.LayoutParams.MATCH_PARENT;
-            lp.gravity = Gravity.TOP | Gravity.START;
-            lp.height = reference.getHeight();
-            lp.topMargin = reference.getTop();
             pane.setLayoutParams(lp);
         } catch (Throwable t) {
             L.d("taskbar glass: could not place the pane (" + t + ")");

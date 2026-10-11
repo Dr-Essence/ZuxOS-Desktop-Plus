@@ -183,6 +183,13 @@ public final class ZuiFolders {
      * home screen's motion, as in ZUX Home's drawer. Only should there be no Launcher at all do
      * they fall back to ZUI's own {@code getAnimatorZui}, which asks where the folder is at each
      * step - and to no motion rather than a crash (01:32) should that fail too.
+     *
+     * <p>The home motion scales the folder's apps by the home screen's workspace
+     * ({@code Workspace.getNewScaleFolder()}, about 0.89 while the drawer is up), and only a
+     * folder whose own context is the {@code Launcher} is scaled to match when it ends. Ours, in
+     * the drawer's window, ended at 1.0, so its apps grew with the panel to 0.89 and then
+     * snapped to full size (23:05). While ZUI builds the motion for one of ours, the home
+     * screen's scale reads 1.0: the scale ZUI ends a folder off the home screen at.
      */
     private static int hookAnimator(ClassLoader loader, Class<?> folderCls) {
         Class<?> manager = Reflect.findClass(FOLDER + "AnimationManager", loader);
@@ -205,15 +212,20 @@ public final class ZuiFolders {
         if (ofFolder == null) {
             return 0;
         }
-        return XposedBridge.hookAllMethods(manager, "getAnimator", new XC_MethodHook() {
+        int hooked = hookHomeScale(loader);
+        return hooked + XposedBridge.hookAllMethods(manager, "getAnimator", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 try {
                     Object folder = ofFolder.get(param.thisObject);
                     Object where = folder == null ? null : sFolderActivity.get(folder);
-                    if (!isOurs(folder) || isLauncher(where) || bar.isInstance(where)
-                            || launcher() != null) {
-                        // With ZUI's Launcher at hand our folders take its home motion (below).
+                    if (!isOurs(folder) || isLauncher(where) || bar.isInstance(where)) {
+                        return;
+                    }
+                    if (launcher() != null) {
+                        // With ZUI's Launcher at hand our folders take its home motion, at the
+                        // scale they end at.
+                        sUnscaled = hooked > 0;
                         return;
                     }
                     try {
@@ -227,7 +239,39 @@ public final class ZuiFolders {
                     L.d("zui folders: motion not chosen (" + t + ")");
                 }
             }
+
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                sUnscaled = false;
+            }
         }).size();
+    }
+
+    /** Set on the main thread while ZUI builds the home motion for one of our folders. */
+    private static boolean sUnscaled;
+
+    /** The home screen's folder scale read as 1.0 while {@link #sUnscaled}; see hookAnimator. */
+    private static int hookHomeScale(ClassLoader loader) {
+        try {
+            Class<?> workspace = Reflect.findClass("com.android.launcher3.Workspace", loader);
+            int hooked = workspace == null ? 0 : XposedBridge.hookAllMethods(workspace,
+                    "getNewScaleFolder", new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            if (sUnscaled && param.getResult() instanceof Float) {
+                                param.setResult(1f);
+                            }
+                        }
+                    }).size();
+            if (hooked == 0) {
+                L.w("zui folders: the home screen's folder scale not found - drawer folder apps "
+                        + "snap to size as they open");
+            }
+            return hooked;
+        } catch (Throwable t) {
+            L.w("zui folders: the home screen's folder scale not hooked (" + t + ")");
+            return 0;
+        }
     }
 
     /** The folder delegates of our folders outside ZUX Home (the taskbar's drawer). */

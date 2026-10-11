@@ -413,6 +413,49 @@ public final class TaskbarTray {
     }
 
     /**
+     * Puts one of ours on the bar's row the way ZUI keeps its own rows there: by gravity, at the
+     * row's edge of the window, never by a top measured once.
+     *
+     * <p>ZUI's rows are {@code layout_gravity="bottom"} ({@code taskbar.xml}; top where
+     * {@link TaskbarEdge} moved the monitor's bar up), so the frame layout keeps them on the bar
+     * whatever size ZUI gives the window. Ours copied the row's top instead, from layout
+     * listeners: when the window grew from the transient bar's height to full screen without one
+     * of them firing (23:04), our row stayed 167 px from the top of the screen and a folder
+     * opened from there.
+     *
+     * @param height     our view's height; centred on the row when shorter than it
+     * @param horizontal our view's horizontal gravity, kept as it is
+     * @return whether the params changed, so an unchanged view asks for no layout
+     */
+    static boolean onRow(FrameLayout.LayoutParams lp, View reference, int height,
+            int horizontal) {
+        int vertical = Gravity.BOTTOM;
+        int edge = 0;
+        if (reference != null && reference.getLayoutParams() instanceof FrameLayout.LayoutParams) {
+            FrameLayout.LayoutParams row = (FrameLayout.LayoutParams) reference.getLayoutParams();
+            // Unspecified is the frame layout's own default, the top.
+            int its = row.gravity == -1 ? Gravity.TOP : row.gravity & Gravity.VERTICAL_GRAVITY_MASK;
+            vertical = its == Gravity.TOP ? Gravity.TOP : Gravity.BOTTOM;
+            edge = vertical == Gravity.TOP ? row.topMargin : row.bottomMargin;
+            if (height > 0 && reference.getHeight() > height) {
+                edge += (reference.getHeight() - height) / 2;
+            }
+        }
+        int gravity = vertical | horizontal;
+        int top = vertical == Gravity.TOP ? edge : 0;
+        int bottom = vertical == Gravity.TOP ? 0 : edge;
+        if (lp.gravity == gravity && lp.height == height && lp.topMargin == top
+                && lp.bottomMargin == bottom) {
+            return false;
+        }
+        lp.gravity = gravity;
+        lp.height = height;
+        lp.topMargin = top;
+        lp.bottomMargin = bottom;
+        return true;
+    }
+
+    /**
      * Layout params the drag layer will accept, or null when they cannot be reproduced.
      *
      * <p>Launcher3's drag layer is an {@code InsettableFrameLayout}, which casts every child's
@@ -458,16 +501,15 @@ public final class TaskbarTray {
                 return;
             }
             FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) raw;
-            lp.gravity = Gravity.TOP | Gravity.END;
-            lp.rightMargin = Ui.dp(dragLayer.getContext(), EDGE_MARGIN_DP);
-            if (reference != null && reference.getHeight() > 0) {
-                lp.height = reference.getHeight();
-                lp.topMargin = reference.getTop();
-            } else {
-                lp.gravity = Gravity.BOTTOM | Gravity.END;
-                lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
-                lp.topMargin = 0;
+            int right = Ui.dp(dragLayer.getContext(), EDGE_MARGIN_DP);
+            int height = reference != null && reference.getHeight() > 0
+                    ? reference.getHeight() : ViewGroup.LayoutParams.WRAP_CONTENT;
+            boolean moved = onRow(lp, reference, height, Gravity.END);
+            if (!moved && lp.rightMargin == right) {
+                // Placed from a layout listener: unchanged params must not ask for another pass.
+                return;
             }
+            lp.rightMargin = right;
             tray.setLayoutParams(lp);
         } catch (Throwable t) {
             L.d("tray: could not place the tray (" + t + ")");

@@ -108,12 +108,9 @@ final class TaskbarDrop {
                 return;
             }
             FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) raw;
-            if (lp.topMargin == reference.getTop() && lp.height == reference.getHeight()) {
+            if (!TaskbarTray.onRow(lp, reference, reference.getHeight(), Gravity.START)) {
                 return;
             }
-            lp.gravity = Gravity.TOP | Gravity.START;
-            lp.topMargin = reference.getTop();
-            lp.height = reference.getHeight();
             setLayoutParams(lp);
         }
 

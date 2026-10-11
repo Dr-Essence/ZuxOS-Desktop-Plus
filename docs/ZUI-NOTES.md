@@ -230,6 +230,12 @@ vendor power HAL's, not in these jars.
   Launcher (`Launcher.ACTIVITY_TRACKER.getCreatedContext()`, as `expandFolder` reads it) it is
   drawn and moves as in ZUX Home's drawer, its Launcher-only effects still behind
   `isFromLauncher()` (the folder's own context).
+- The home motion (`getZuiFolderAnimator`) scales the stand-in apps (`w()` -> `B()`) by
+  `Workspace.getNewScaleFolder()` (the workspace's state scale, about 0.89 while the taskbar
+  drawer is up) from the icon to their place, and at its end (`a.onAnimationEnd`) scales the
+  folder by the same only when `isFromLauncher()`; any other folder ends at 1.0. A folder of
+  ours in the drawer's window therefore had its apps snap from 0.89 to 1.0 as the motion ended;
+  the module reads that scale as 1.0 while ZUI builds the motion for one of ours (0.0.215).
 - The taskbar's drawer takes back by registering itself with its window's
   `OnBackInvokedDispatcher` (`TaskbarAllAppsSlideInView`); a `Folder` registers nothing there, so
   back skips it. `AbstractFloatingView` is an `OnBackAnimationCallback` whose `onBackInvoked`
@@ -554,6 +560,11 @@ device.
     height less the bar's). The rows in `taskbar.xml` (`taskbar_view`, `navbuttons_view`) are
     `layout_gravity="bottom"`, and no code sets their gravity again (only `end_nav_buttons`'
     horizontal gravity).
+    `transient_taskbar.xml` and `customizable_taskbar.xml` keep them at the bottom too, with
+    `transient_taskbar_bottom_margin` under `taskbar_view`. So anything of ours on the bar sits
+    there by the same gravity (`TaskbarTray.onRow`), never by a top measured once: with the
+    drawer open the window is the transient bar's 305 px, and our row kept that top when it went
+    full screen (0.0.215).
   - The renderer's fields are renamed in this build (`context` is `a`, the heights `f` and `n`),
     so its bar is found by type.
 
