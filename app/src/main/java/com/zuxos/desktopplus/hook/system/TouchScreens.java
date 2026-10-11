@@ -5,6 +5,7 @@ import android.view.InputDevice;
 
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
+import com.zuxos.desktopplus.core.Reflect;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -154,7 +155,8 @@ public final class TouchScreens {
      */
     private static boolean onTheMonitor(InputDevice device) {
         return device != null && device.isExternal() && !device.isVirtual()
-                && device.getBluetoothAddress() == null
+                // getBluetoothAddress is hidden from the SDK: by name.
+                && Reflect.call(device, "getBluetoothAddress") == null
                 && (device.supportsSource(InputDevice.SOURCE_TOUCHSCREEN)
                 || device.supportsSource(InputDevice.SOURCE_STYLUS));
     }
