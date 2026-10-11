@@ -284,18 +284,32 @@ this app on the bar" questions on its own.
 
 ## Known limits
 
-- **Taskbar menus are blurred glass, not refracting glass.** They float over other apps' windows,
-  and Android does not let one app read another app's pixels, so there is nothing to bend. The
-  desktop's menus and panels are over the launcher's own content, so they refract.
-- **The wallpaper is blurred but not refracted.** It is drawn by the system, not by any view, so
-  nothing can capture it.
-- **ZUI's own folder view cannot be reused.** It needs the launcher's activity and its data
-  model behind every icon, so the module's folders copy its look and motion instead.
-- **Root is needed for the navigation keys** (the launcher is refused `INJECT_EVENTS`), and for
-  some quick-settings toggles. Everything else works without it.
+Once limits, now worked around:
+
+- **Glass refracts what is behind it, other apps included.** Android does not let one app read
+  another's pixels, but the window manager can capture the screen for the device's recents app,
+  and ZUI's launcher is that app. So the panels and menus capture what is behind them live -
+  apps, other windows and the wallpaper - and bend it, only while they are on screen. If a device
+  refuses the capture, the panes fall back to the system's blur, and the log says so.
+- **ZUI's own folders are reused** in both of the tablet's drawers - the home's and the taskbar's
+  - with ZUI's own icon, view and motion (ZUI's Add apps dialog in them is built, awaiting
+  test).
+
+Still limits:
+
+- **The monitor's folders are still the module's own**, drawn to look and move like ZUI's.
+  Moving them onto ZUI's own folders is next on the roadmap.
+- **Root is needed for the monitor's navigation keys** (the launcher is refused
+  `INJECT_EVENTS`, and the system would otherwise act on the tablet), and for some
+  quick-settings toggles. The tablet's own keys stay ZUI's, and everything else works without
+  root.
+- **System hooks need System Framework ticked in LSPosed** and a reboot: the monitor's
+  touchscreen and pen on the monitor, and keeping the monitor's apps alive.
 - **The layout is stored per kind of display** (external or tablet), not per monitor.
 - **Widgets need the launcher to be allowed to bind them.** System launchers normally are; if
   not, Android's own "allow this widget?" dialog appears.
+- **Work mode is not touched.** It makes a different app the home (Work Launcher), which the
+  module does not load into.
 
 ---
 
