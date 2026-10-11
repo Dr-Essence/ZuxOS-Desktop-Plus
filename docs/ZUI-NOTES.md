@@ -318,6 +318,33 @@ vendor power HAL's, not in these jars.
 - ZUI's compact popup works beside any view: `popup_container_zui` +
   `populateAndShowRowsZui(view, 0, [], shortcuts)` - no app shortcuts asked for, no placeholder
   rows (`ZuiNavPopupController` does the same for its buttons).
+  With 0 app shortcuts ZUI loads no shortcut icons itself: each row's icon is exactly the
+  bitmap handed in. ZUI loads an app shortcut's icon with `CacheableShortcutInfo.getIcon(ctx,
+  info, dpi, true)` (Android's icon in ZUI's icon theme); when the app gives none its icon cache
+  falls back to a default icon.
+- Closing the taskbar drawer's window the ZUI way (`TaskbarOverlayController.hideWindow`) closes
+  every view open in it (`AbstractFloatingView.closeAllOpenViews`), and the window stays while
+  any view is open. Closing only the sheet (`TaskbarAllAppsSlideInView.close`) leaves a folder
+  open in it over the home screen.
+- ZUI's `FolderIcon` name (`folder_icon_name`, a `BubbleTextView`) is laid out for the home
+  screen and does not shorten to its width; ZUI's own drawer names do (`all_app_item_text_color`,
+  their own size, lines and ellipsis).
+- The taskbar drawer's list with 3-button navigation: ZUI pads its bottom by the bar's height
+  (`AdapterHolder.c`, `rect.bottom` outside `TaskbarActivityContext`) but sets its bottom margin
+  to 0 and draws its nav-bar cover only in `Launcher`'s drawer, so rows scroll under the bar.
+- Folder blur: in `Launcher` ZUI cuts the folder's shape out of the home's views
+  (`makeFolderBlurClipOutRect`) and blurs the wallpaper behind it with a blur region on the
+  home's window (`setWallpaperBlur` -> `LauncherBlurAreaData` -> `Launcher.updateAreaBlur` ->
+  `setBlurRegions`); on the bar it is a region on the bar's window
+  (`TaskbarActivityContext.setFolderBlurParams`). A folder in the drawer's overlay gets neither,
+  and a window region could not blur the drawer anyway: the sheet is in the same window.
+- ZUI's bar opens a folder with `TaskbarActivityContext.expandFolder(FolderIcon)`: bar window
+  full screen, then `animateOpen` posted, then ZUI's own click and hold on every item inside
+  (`x0`, `mapOverItems`). Nothing needs the icon to be in `TaskbarView` (parents are checked
+  with `instanceof`; placement is `getDescendantRectRelativeToSelf`), and full screen ends by
+  itself when the folder leaves the drag layer (`TaskbarDragLayer.onViewRemoved` -> `r1`).
+  `createAddAppButton` needs a `Launcher` from the folder's delegate, so bar folders have no Add
+  apps button.
 
 ## Two USB-C ports: which one charges (`services.jar` 16)
 

@@ -384,6 +384,11 @@ public final class Cfg {
         return getBool(Const.KEY_KEEP_ALIVE, true);
     }
 
+    /** The tablet taskbar drawer's app list ends at the bar, not under its icons. */
+    public static boolean drawerAboveBar() {
+        return getBool(Const.KEY_DRAWER_ABOVE_BAR, true);
+    }
+
     /** The monitor's touchscreen tied to the monitor by the system, at every plug. */
     public static boolean monitorTouch() {
         return getBool(Const.KEY_MONITOR_TOUCH, true);

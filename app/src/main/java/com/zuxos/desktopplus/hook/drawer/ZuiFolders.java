@@ -14,6 +14,7 @@ import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.hook.IconPress;
 import com.zuxos.desktopplus.hook.Mirror;
+import com.zuxos.desktopplus.hook.ZuiMenu;
 import com.zuxos.desktopplus.model.DrawerStore;
 import com.zuxos.desktopplus.model.Item;
 
@@ -164,8 +165,10 @@ public final class ZuiFolders {
             hooked += hookAnimator(loader, folder);
             hooked += hookHomeContext(loader);
             hooked += hookBack(folder);
+            hooked += hookDrawerClose(loader);
             ZuiFolderWrites.install(loader);
             ZuiFolderAdd.install(loader, folder);
+            ZuiFolderBlur.install(folder);
             Health.hooked("drawer: our folders as ZUI's", hooked);
             L.i("zui folders: our drawer folders as ZUI's own on the tablet x" + hooked);
         } catch (Throwable t) {
@@ -380,6 +383,84 @@ public final class ZuiFolders {
         }
     }
 
+    /**
+     * Our folder closes with the taskbar's drawer. ZUI's own close of the drawer's window
+     * ({@code TaskbarOverlayController.hideWindow}) closes every view open in it
+     * ({@code AbstractFloatingView.closeAllOpenViews}), and the window stays while any is open;
+     * the drawer's sheet closed on its own - our start button, a swipe - left our folder over the
+     * home screen for a second, then shrinking to nowhere (14:12). So as the sheet starts to
+     * close, any folder open in its window closes with it, the way ZUI closes its views there
+     * ({@code closeOpenViews(context, animate, TYPE_FOLDER)}).
+     */
+    private static int hookDrawerClose(ClassLoader loader) {
+        try {
+            Class<?> sheet = Reflect.findClass(
+                    "com.android.launcher3.taskbar.allapps.TaskbarAllAppsSlideInView", loader);
+            Class<?> floating = Reflect.findClass("com.android.launcher3.AbstractFloatingView",
+                    loader);
+            if (sheet == null || floating == null) {
+                L.w("zui folders: the drawer's sheet not found - folders close on their own");
+                return 0;
+            }
+            Method close = null;
+            for (Method m : floating.getMethods()) {
+                if (m.getName().equals("closeOpenViews") && m.getParameterCount() == 3) {
+                    close = m;
+                }
+            }
+            if (close == null) {
+                L.w("zui folders: ZUI's closeOpenViews not found - folders close on their own");
+                return 0;
+            }
+            int folderType = floating.getField("TYPE_FOLDER").getInt(null);
+            Method closeViews = close;
+            return XposedBridge.hookAllMethods(sheet, "handleClose", new XC_MethodHook() {
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) {
+                    try {
+                        Object activity = Reflect.field(param.thisObject, "mActivityContext");
+                        if (activity == null || isLauncher(activity) || isBar(activity)
+                                || !anyOursOpen(activity)) {
+                            return;
+                        }
+                        boolean animate = param.args.length == 0
+                                || !(param.args[0] instanceof Boolean)
+                                || (Boolean) param.args[0];
+                        closeViews.invoke(null, activity, animate, folderType);
+                    } catch (Throwable t) {
+                        L.d("zui folders: not closed with the drawer (" + t + ")");
+                    }
+                }
+            }).size();
+        } catch (Throwable t) {
+            L.w("zui folders: drawer close not watched (" + t + ")");
+            return 0;
+        }
+    }
+
+    /** Whether one of our folders is open in this context. */
+    private static boolean anyOursOpen(Object activity) {
+        Map<String, Built> mine = BUILT.get(activity);
+        if (mine == null) {
+            return false;
+        }
+        for (Built built : mine.values()) {
+            if (isOpen(built)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The context a folder of ZUI's was made in, or null. */
+    static Object contextOf(Object folder) {
+        try {
+            return sFolderActivity == null || folder == null ? null : sFolderActivity.get(folder);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     /** Whether a folder of ZUI's is one of ours. */
     static boolean isOurs(Object folder) {
         try {
@@ -532,7 +613,8 @@ public final class ZuiFolders {
      * ZUI lays its folder icon out with the home screen's sizes; in the drawer its box was a
      * tenth bigger than the apps beside it and sat higher (01:43). Measured once laid out: the
      * folder's preview ({@code getPreviewBounds}) is scaled to a drawer icon's size and moved to
-     * where that icon is drawn (its top compound drawable, at its top padding). Its name follows.
+     * where that icon is drawn (its top compound drawable, at its top padding). Its name follows
+     * ({@link #fitName}).
      */
     private static void align(View icon) {
         icon.post(() -> {
@@ -540,23 +622,24 @@ public final class ZuiFolders {
                 ViewGroup list = icon.getParent() != null
                         && icon.getParent().getParent() instanceof ViewGroup
                         ? (ViewGroup) icon.getParent().getParent() : null;
-                int[] drawer = drawerIconIn(list);
+                Look drawer = drawerIconIn(list);
                 android.graphics.Rect preview = new android.graphics.Rect();
                 icon.getClass().getMethod("getPreviewBounds", android.graphics.Rect.class)
                         .invoke(icon, preview);
                 if (drawer == null || preview.width() <= 0) {
                     return;
                 }
-                float scale = drawer[0] / (float) preview.width();
+                float scale = drawer.size / (float) preview.width();
                 icon.setPivotX(preview.exactCenterX());
                 icon.setPivotY(preview.top);
                 icon.setScaleX(scale);
                 icon.setScaleY(scale);
-                icon.setTranslationY(drawer[1] - preview.top - icon.getTop());
+                icon.setTranslationY(drawer.top - preview.top - icon.getTop());
+                fitName(icon, drawer, scale);
                 if (!sSaidAlign) {
                     sSaidAlign = true;
                     L.i("zui folders: preview " + preview.width() + "px at " + preview.top
-                            + " to the drawer's " + drawer[0] + "px at " + drawer[1]
+                            + " to the drawer's " + drawer.size + "px at " + drawer.top
                             + " (x" + scale + ")");
                 }
             } catch (Throwable t) {
@@ -567,14 +650,64 @@ public final class ZuiFolders {
 
     private static boolean sSaidAlign;
 
-    /** Each drawer list's icon size and top, as measured on one of ZUI's own icons in it. */
-    private static final Map<ViewGroup, int[]> DRAWER_ICON = new WeakHashMap<>();
+    /**
+     * The folder's name as ZUI writes the app names beside it. ZUI's folder name is made for the
+     * home screen and does not shorten to its width, so in a portrait drawer, narrower than a
+     * home cell and scaled with the icon, long names ran out of the cell on both sides (14:12).
+     * It takes the cell's width and the drawer names' size, lines and shortening, each divided by
+     * the icon's scale so that, scaled, it is exactly as wide and as large as ZUI's own.
+     */
+    private static void fitName(View icon, Look drawer, float scale) {
+        int id = icon.getResources().getIdentifier("folder_icon_name", "id",
+                icon.getContext().getPackageName());
+        View view = id != 0 ? icon.findViewById(id) : null;
+        if (!(view instanceof android.widget.TextView) || icon.getWidth() <= 0 || scale <= 0f) {
+            return;
+        }
+        android.widget.TextView name = (android.widget.TextView) view;
+        int width = Math.round(icon.getWidth() / scale);
+        ViewGroup.LayoutParams lp = name.getLayoutParams();
+        if (lp instanceof FrameLayout.LayoutParams && lp.width != width) {
+            FrameLayout.LayoutParams frame = (FrameLayout.LayoutParams) lp;
+            frame.width = width;
+            frame.leftMargin = 0;
+            frame.rightMargin = 0;
+            frame.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+            name.setLayoutParams(frame);
+        }
+        name.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, drawer.textPx / scale);
+        name.setMaxLines(drawer.lines);
+        name.setEllipsize(drawer.ellipsize);
+    }
+
+    /** ZUI's own app icons in a drawer list: icon size and top, and how their names are set. */
+    private static final class Look {
+        final int size;
+        final int top;
+        final float textPx;
+        final int lines;
+        final android.text.TextUtils.TruncateAt ellipsize;
+
+        Look(android.widget.TextView app, int size) {
+            this.size = size;
+            this.top = app.getPaddingTop();
+            this.textPx = app.getTextSize();
+            // -1 when ZUI sets no limit; a name never takes more than two lines of a cell.
+            this.lines = app.getMaxLines() > 0 ? Math.min(app.getMaxLines(), 2) : 1;
+            this.ellipsize = app.getEllipsize() != null ? app.getEllipsize()
+                    : android.text.TextUtils.TruncateAt.END;
+        }
+    }
+
+    /** Each drawer list's look, as measured on one of ZUI's own icons in it. */
+    private static final Map<ViewGroup, Look> DRAWER_ICON = new WeakHashMap<>();
 
     /**
-     * The size and top of ZUI's own app icons in a drawer list, measured on one of them (its top
-     * compound drawable, drawn at its top padding) and kept for when none is on screen.
+     * The look of ZUI's own app icons in a drawer list, measured on one of them (its top
+     * compound drawable, drawn at its top padding, and its name) and kept for when none is on
+     * screen.
      */
-    private static int[] drawerIconIn(ViewGroup list) {
+    private static Look drawerIconIn(ViewGroup list) {
         if (list == null) {
             return null;
         }
@@ -584,7 +717,8 @@ public final class ZuiFolders {
                 android.graphics.drawable.Drawable art =
                         ((android.widget.TextView) c).getCompoundDrawables()[1];
                 if (art != null && art.getBounds().width() > 0) {
-                    int[] measured = {art.getBounds().width(), c.getPaddingTop()};
+                    Look measured = new Look((android.widget.TextView) c,
+                            art.getBounds().width());
                     DRAWER_ICON.put(list, measured);
                     return measured;
                 }
@@ -624,6 +758,117 @@ public final class ZuiFolders {
         icon.setOnLongClickListener(v -> true);
         mine.put(folder.id, new Built(icon, version));
         return icon;
+    }
+
+    // --- the tablet's bar ----------------------------------------------------
+
+    private static boolean sSaidBar;
+
+    /**
+     * One of our folders pinned to the tablet's bar, as ZUI's own folder icon there: built as
+     * ZUI's {@code TaskbarView} builds its folders ({@code inflateFolderAndIcon} in the bar's
+     * context, name hidden), so its preview, its folder, the motion and blur of its opening and
+     * ZUI's own click and popup on each app inside are ZUI's bar's. Our row keeps the tap, the
+     * hold menu and the drag; a tap opens it through {@link #openOnBar}. Null when it cannot be
+     * ZUI's - the bar then keeps our own folder icon and window.
+     */
+    public static View barIcon(Context ctx, Item folder) {
+        try {
+            Object activity = on() ? lookup(ctx) : null;
+            if (!isBar(activity) || !(activity instanceof Context)) {
+                return null;
+            }
+            Context bar = (Context) activity;
+            Context app = AppCtx.get() != null ? AppCtx.get() : bar;
+            int version = DrawerStore.shared(app).version();
+            Map<String, Built> mine = BUILT.get(bar);
+            if (mine == null) {
+                mine = new HashMap<>();
+                BUILT.put(bar, mine);
+            }
+            Built built = mine.get(folder.id);
+            View icon;
+            if (built != null && (built.version == version || isOpen(built))) {
+                icon = built.icon;
+            } else {
+                Object info = folderInfo(bar, folder);
+                if (info == null) {
+                    return null;
+                }
+                int layout = bar.getResources().getIdentifier("folder_icon", "layout",
+                        bar.getPackageName());
+                icon = (View) sInflate.invoke(null, layout, bar, null, info);
+                icon.getClass().getMethod("setTextVisible", boolean.class).invoke(icon, false);
+                mine.put(folder.id, new Built(icon, version));
+            }
+            if (icon.getParent() instanceof ViewGroup) {
+                ((ViewGroup) icon.getParent()).removeView(icon);
+            }
+            icon.setOnClickListener(ZuiFolders::openOnBar);
+            if (!sSaidBar) {
+                sSaidBar = true;
+                L.i("zui folders: the bar's pinned folders are ZUI's own folder icons");
+            }
+            return icon;
+        } catch (Throwable t) {
+            L.w("zui folders: the bar keeps our folder for " + folder.label + " (" + t + ")");
+            return null;
+        }
+    }
+
+    /** Whether a view is one of our folders as ZUI's folder icon. */
+    public static boolean isZuiFolder(View view) {
+        return view != null && sInflate != null
+                && sInflate.getDeclaringClass().isInstance(view);
+    }
+
+    /**
+     * Opens one of our bar folders as ZUI's bar opens its own ({@code expandFolder}: the bar's
+     * window full screen, then the folder, with ZUI's click and hold on every app inside). The
+     * window is made full screen first and the folder asked for only once it has grown: our row
+     * finds its place in the bigger window a layout later than ZUI's own icons, and a folder
+     * opened before that would open from where the bar used to be.
+     */
+    public static void openOnBar(View icon) {
+        IconPress.release(icon);
+        boolean asked = ZuiMenu.withRoom(icon, (activity, dragLayer) -> {
+            try {
+                Method expand = null;
+                for (Method m : activity.getClass().getMethods()) {
+                    if (m.getName().equals("expandFolder") && m.getParameterCount() == 1
+                            && m.getParameterTypes()[0].isInstance(icon)) {
+                        expand = m;
+                    }
+                }
+                if (expand == null) {
+                    L.w("zui folders: ZUI's bar cannot open folders here (no expandFolder)");
+                    return false;
+                }
+                expand.invoke(activity, icon);
+                // ZUI opens it on its next frame; should it not (the notification shade down),
+                // the bar gets its size back.
+                Object folder = icon.getClass().getMethod("getFolder").invoke(icon);
+                dragLayer.post(() -> {
+                    try {
+                        if (!Boolean.TRUE.equals(folder.getClass().getMethod("isOpen")
+                                .invoke(folder))) {
+                            activity.getClass().getMethod("setTaskbarWindowFullscreen",
+                                    boolean.class).invoke(activity, false);
+                        }
+                    } catch (Throwable ignored) {
+                        // The bar is gone with its window.
+                    }
+                });
+                L.i("zui folders: opened on the bar, as ZUI's bar opens its folders");
+                return true;
+            } catch (Throwable t) {
+                L.w("zui folders: could not open on the bar (" + t + ")");
+                return false;
+            }
+        });
+        if (!asked) {
+            L.d("zui folders: the bar's folder not opened - not in ZUI's bar");
+        }
     }
 
     /**
@@ -929,7 +1174,7 @@ public final class ZuiFolders {
     }
 
     /** Whether a context is ZUI's bar itself, which handles its own folders' back. */
-    private static boolean isBar(Object activity) {
+    static boolean isBar(Object activity) {
         try {
             return activity != null && Class.forName(
                     "com.android.launcher3.taskbar.TaskbarActivityContext", false,

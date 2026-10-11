@@ -22,6 +22,7 @@ import com.zuxos.desktopplus.hook.recents.TaskOverview;
 import com.zuxos.desktopplus.hook.system.SystemBridge;
 import com.zuxos.desktopplus.hook.system.SystemNewWindow;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -421,25 +422,65 @@ public final class TaskbarApps {
     }
 
     /**
-     * The shortcut's own icon, the one the app drew for it.
+     * The shortcut's own icon, loaded as ZUI's own popup loads it.
      *
-     * <p>Falls back to a plain shortcut glyph rather than to one guessed from the title: a
-     * shortcut called "New chat" is not an "add" button, whatever the word suggests.
+     * <p>First through ZUI ({@code CacheableShortcutInfo.getIcon}, in ZUI's icon theme), then as
+     * Android hands it over; when the app gave none, the app's own icon, as ZUI falls back to one.
+     * Our plain glyph only should even that be missing: white, it made blank cells in ZUI's light
+     * popup (Claude, 14:12). Never one guessed from the title: a shortcut called "New chat" is not
+     * an "add" button, whatever the word suggests.
      */
     static android.graphics.drawable.Drawable shortcutIcon(Context ctx,
             ShortcutInfo shortcut) {
+        int dpi = ctx.getResources().getDisplayMetrics().densityDpi;
+        try {
+            Method zui = zuiShortcutIcon(ctx);
+            Object icon = zui == null ? null : zui.invoke(null, ctx, shortcut, dpi, true);
+            if (icon instanceof android.graphics.drawable.Drawable) {
+                return (android.graphics.drawable.Drawable) icon;
+            }
+        } catch (Throwable t) {
+            L.d("taskbar apps: ZUI gave no icon for shortcut " + shortcut.getId() + " (" + t
+                    + ")");
+        }
         try {
             LauncherApps apps = (LauncherApps) ctx.getSystemService(Context.LAUNCHER_APPS_SERVICE);
             android.graphics.drawable.Drawable icon = apps == null ? null
-                    : apps.getShortcutIconDrawable(shortcut,
-                            ctx.getResources().getDisplayMetrics().densityDpi);
+                    : apps.getShortcutIconDrawable(shortcut, dpi);
             if (icon != null) {
                 return icon;
             }
         } catch (Throwable t) {
             L.d("taskbar apps: no icon for shortcut " + shortcut.getId() + " (" + t + ")");
         }
-        return Glyphs.of(Glyphs.SHORTCUT);
+        if (SAID_NO_ICON.add(shortcut.getPackage())) {
+            L.i("taskbar apps: " + shortcut.getPackage() + "'s shortcuts have no icon of their"
+                    + " own - the app's icon instead");
+        }
+        try {
+            return ctx.getPackageManager().getApplicationIcon(shortcut.getPackage());
+        } catch (Throwable t) {
+            return Glyphs.of(Glyphs.SHORTCUT);
+        }
+    }
+
+    private static final java.util.Set<String> SAID_NO_ICON = new java.util.HashSet<>();
+    private static Method sZuiShortcutIcon;
+    private static boolean sNoZuiShortcutIcon;
+
+    /** ZUI's own shortcut icon loader, or null where the launcher has none. */
+    private static Method zuiShortcutIcon(Context ctx) {
+        if (sZuiShortcutIcon == null && !sNoZuiShortcutIcon) {
+            try {
+                sZuiShortcutIcon = Class.forName("com.android.launcher3.icons.CacheableShortcutInfo",
+                        false, ctx.getClassLoader()).getMethod("getIcon", Context.class,
+                        ShortcutInfo.class, int.class, boolean.class);
+            } catch (Throwable t) {
+                sNoZuiShortcutIcon = true;
+                L.d("taskbar apps: ZUI's shortcut icon loader not found (" + t + ")");
+            }
+        }
+        return sZuiShortcutIcon;
     }
 
     /**

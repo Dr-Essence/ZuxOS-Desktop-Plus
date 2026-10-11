@@ -89,6 +89,7 @@ public final class NativeDrawerHooks {
         }
         sInstalled = true;
         DrawerLetters.install(loader);
+        DrawerAboveBar.install(loader);
         ZuiFolders.install(loader);
 
         Class<?> listCls = Reflect.findClass(

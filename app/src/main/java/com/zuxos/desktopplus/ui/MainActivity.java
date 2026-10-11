@@ -186,6 +186,10 @@ public class MainActivity extends Activity {
                         + "Android could send them to the tablet. Needs System Framework ticked "
                         + "for this module in LSPosed; takes effect at the next plug",
                 Const.KEY_MONITOR_TOUCH, true);
+        addSwitch("Tablet drawer ends at the taskbar",
+                "The taskbar drawer's apps scroll up to the bar and stop there, instead of "
+                        + "passing under the bar's icons",
+                Const.KEY_DRAWER_ABOVE_BAR, true);
         addSwitch("Drawer button on the left",
                 "Moves the launcher's own all-apps button to the left of the taskbar, beside the "
                         + "navigation keys, instead of leaving it in the middle of the icons",

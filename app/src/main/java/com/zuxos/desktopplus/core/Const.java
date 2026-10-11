@@ -114,6 +114,8 @@ public final class Const {
     public static final String KEY_KEEP_ALIVE = "keep_alive";
     /** The monitor's touchscreen acts on the monitor, tied to it at every plug. */
     public static final String KEY_MONITOR_TOUCH = "monitor_touch";
+    /** The tablet taskbar drawer's app list ends at the bar instead of under its icons. */
+    public static final String KEY_DRAWER_ABOVE_BAR = "drawer_above_bar";
     /** Show notifications in the quick panel, through the module's own listener. */
     public static final String KEY_NOTIFICATIONS = "notifications";
     /** A new notification pops up on the monitor, above the tray. */

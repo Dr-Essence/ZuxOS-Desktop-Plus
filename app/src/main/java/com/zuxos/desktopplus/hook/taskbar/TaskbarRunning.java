@@ -30,6 +30,7 @@ import com.zuxos.desktopplus.hook.Tasks;
 import com.zuxos.desktopplus.hook.Windows;
 import com.zuxos.desktopplus.hook.drawer.DrawerFolderWindow;
 import com.zuxos.desktopplus.hook.drawer.NativeDrawerHooks;
+import com.zuxos.desktopplus.hook.drawer.ZuiFolders;
 import com.zuxos.desktopplus.hook.panel.QuickTiles;
 import com.zuxos.desktopplus.hook.recents.TaskOverview;
 import com.zuxos.desktopplus.logic.PinList;
@@ -1603,12 +1604,21 @@ public final class TaskbarRunning {
     }
 
     /**
-     * A folder pinned to the bar, drawn the way folders are drawn everywhere else here.
+     * A folder pinned to the bar.
      *
-     * <p>Opening it is the window the stock drawer's folders already use, so a folder behaves the
-     * same whether it is in the drawer or on the taskbar.
+     * <p>On the tablet's bar it is ZUI's own folder ({@link ZuiFolders#barIcon}). On the monitor,
+     * or should ZUI's not be had, it is drawn the way folders are drawn everywhere else here and
+     * opens in the window the monitor's drawer folders use.
      */
     private static View folderIcon(Context ctx, Item folder, int size, int displayId) {
+        if (displayId == android.view.Display.DEFAULT_DISPLAY) {
+            // The tablet's bar: ZUI's own folder, opened as ZUI's bar opens its folders.
+            View zui = ZuiFolders.barIcon(ctx, folder);
+            if (zui != null) {
+                TaskbarPreview.attachHover(zui);
+                return zui;
+            }
+        }
         try {
             List<Drawable> previews = new ArrayList<>();
             for (Item child : folder.children) {
@@ -1638,6 +1648,10 @@ public final class TaskbarRunning {
     }
 
     private static void openFolder(Context ctx, View icon, Item folder, int displayId) {
+        if (ZuiFolders.isZuiFolder(icon)) {
+            ZuiFolders.openOnBar(icon);
+            return;
+        }
         try {
             // The same repository the drawer's own folders open with, rather than a second one.
             DrawerFolderWindow.show(ctx, folder, NativeDrawerHooks.repo(ctx), displayId,

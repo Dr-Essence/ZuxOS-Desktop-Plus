@@ -71,6 +71,26 @@ public final class ZuiMenu {
         if (!ZuiShortcuts.ready()) {
             return false;
         }
+        ClassLoader loader = source.getContext().getClassLoader();
+        return withRoom(source, (activity, dragLayer) ->
+                open(anchor, rows, activity, dragLayer, loader, closed));
+    }
+
+    /** What opens over a taskbar once its window has the room; false when nothing opened. */
+    public interface Opener {
+        boolean open(Object activity, View dragLayer);
+    }
+
+    /**
+     * Opens something of ZUI's over the taskbar the way ZUI opens its own: the bar's window full
+     * screen first, and the thing opened only once the window has grown, so whatever it is placed
+     * beside is already where the bar is in the bigger window. Anywhere else - a window already
+     * full screen, or one that is not a taskbar - it opens at once. Should nothing open, the bar
+     * gets its size back, as nothing of ZUI's would give it back.
+     *
+     * @return false when the source is in none of ZUI's contexts, or it opened nothing at once
+     */
+    public static boolean withRoom(View source, Opener opener) {
         try {
             ClassLoader loader = source.getContext().getClassLoader();
             Class<?> contextClass = Class.forName(CONTEXT, false, loader);
@@ -85,7 +105,7 @@ public final class ZuiMenu {
             Method isFull = taskbarMethod(activity, "isTaskbarWindowFullscreen");
             if (fullscreen == null || isFull == null
                     || Boolean.TRUE.equals(isFull.invoke(activity))) {
-                return open(anchor, rows, activity, dragLayer, loader, closed);
+                return opener.open(activity, dragLayer);
             }
             fullscreen.invoke(activity, true);
             Runnable[] once = new Runnable[1];
@@ -93,7 +113,7 @@ public final class ZuiMenu {
             once[0] = () -> {
                 dragLayer.removeOnLayoutChangeListener(laid[0]);
                 dragLayer.removeCallbacks(once[0]);
-                if (!open(anchor, rows, activity, dragLayer, loader, closed)) {
+                if (!opener.open(activity, dragLayer)) {
                     // Nothing shown, so nothing of ZUI's will give the bar its size back.
                     try {
                         fullscreen.invoke(activity, false);
@@ -108,11 +128,11 @@ public final class ZuiMenu {
                 }
             };
             dragLayer.addOnLayoutChangeListener(laid[0]);
-            // Should the window be laid out without a change of size, the popup still comes.
+            // Should the window be laid out without a change of size, it still opens.
             dragLayer.postDelayed(once[0], ROOM_WAIT_MS);
             return true;
         } catch (Throwable t) {
-            L.w("zui menu: ZUI's popup not built (" + t + ")");
+            L.w("zui menu: nothing of ZUI's opened over the bar (" + t + ")");
             return false;
         }
     }
