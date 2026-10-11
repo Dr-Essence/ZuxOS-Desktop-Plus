@@ -19,6 +19,7 @@ import com.zuxos.desktopplus.hook.system.SystemFullscreen;
 import com.zuxos.desktopplus.hook.system.SystemKeepAlive;
 import com.zuxos.desktopplus.hook.system.SystemNewWindow;
 import com.zuxos.desktopplus.hook.system.SystemTrace;
+import com.zuxos.desktopplus.hook.systemui.ClosedWindowInfo;
 import com.zuxos.desktopplus.hook.systemui.MonitorStatusBar;
 import com.zuxos.desktopplus.hook.systemui.StableBounds;
 import com.zuxos.desktopplus.hook.systemui.WindowCaptions;
@@ -64,6 +65,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     MonitorStatusBar.install(lpparam.classLoader);
                     WindowCaptions.install(lpparam.classLoader);
                     StableBounds.install(lpparam.classLoader);
+                    ClosedWindowInfo.install(lpparam.classLoader);
                 }
                 return;
             }

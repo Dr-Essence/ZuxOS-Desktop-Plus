@@ -284,7 +284,8 @@ public final class HotseatButton {
                 return;
             }
             ViewGroup dock = (ViewGroup) view;
-            if (Cfg.enabled() && Cfg.startButtonLeft() && showsNothing(dock)) {
+            if (Cfg.enabled() && ((Cfg.startButtonLeft() && showsNothing(dock))
+                    || appsOnTheBar(dock))) {
                 param.setResult(null);
                 if (!sSkipSaid) {
                     sSkipSaid = true;
@@ -353,6 +354,35 @@ public final class HotseatButton {
             return false;
         }
         return true;
+    }
+
+    private static Method sSwitchOpen;
+    private static boolean sSwitchLooked;
+
+    /**
+     * Whether the dock's apps are the tablet bar's to show: ZUI's taskbar is on
+     * ({@code TaskbarUtilities.isTaskbarSwitchOpen}) and our bar keeps them off it. Launcher3
+     * hands the dock's icons to the bar while the bar lines up with them, and gives them back to
+     * the dock whenever the bar's icons step aside - as the taskbar's drawer opens, the dock's
+     * apps (Calculator, Clock) came up under our row, bigger than its icons (12:21, 02:14). Kept
+     * off the bar, they are not drawn in the dock either.
+     */
+    private static boolean appsOnTheBar(ViewGroup dock) {
+        if (!Cfg.taskbarRunningOnly()) {
+            return false;
+        }
+        try {
+            if (!sSwitchLooked) {
+                sSwitchLooked = true;
+                sSwitchOpen = Class.forName("com.zui.launcher.utils.TaskbarUtilities", false,
+                        dock.getClass().getClassLoader()).getMethod("isTaskbarSwitchOpen",
+                        android.content.Context.class);
+            }
+            return sSwitchOpen != null
+                    && Boolean.TRUE.equals(sSwitchOpen.invoke(null, dock.getContext()));
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     /** Marks a button we hid, so turning the setting off shows only what we took away. */

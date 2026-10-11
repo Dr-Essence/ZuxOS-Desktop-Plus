@@ -70,7 +70,9 @@ public final class RoadmapProbe {
             "zui_desktop_window_decor_freeform", "pcmode_window_decor", "desktop_mode_app_header"};
 
     /**
-     * Read through root, and only read. Where ZUI's and Lenovo's apps are (#10, #11, #18 - and
+     * Read through root - and one switch set, for the next read: SystemUI's own log of its
+     * window decorations ({@code log.tag.OVC}, until reboot), which the window menu on the wrong
+     * screen cannot be traced without. Where ZUI's and Lenovo's apps are (#10, #11, #18 - and
      * which files to copy for decompiling), the settings that speak of the taskbar, desktop mode,
      * windows and animation (#10, #11, #14), the window manager's feature flags, work mode's keys
      * and whether Work Launcher is the home, running or showing a window (#19), SystemUI's windows
@@ -108,6 +110,9 @@ public final class RoadmapProbe {
             dumpsys window windows 2>/dev/null | awk '/^  Window #/ { w = $0 } /mDisplayId=/ { if (w ~ /StatusBar|Notification|HeadsUp|Shade|systemui/) { match($0, /mDisplayId=[0-9]+/); print substr($0, RSTART, RLENGTH) " " w } }' | head -30
             echo "--- SystemUI's window decorations, as it logged them (window menu on the wrong screen)"
             logcat -d -b main 2>/dev/null | grep -E 'OVC *: *(WindowDecoration|OvHandleMenu)' | tail -40
+            if [ "$(getprop log.tag.OVC)" != "D" ]; then
+              setprop log.tag.OVC D && echo "SystemUI's own log of them was off: on now, until reboot (OvcLog reads it each time) - a probe right after the menu goes wrong has them"
+            fi
             echo "--- resource overlays on SystemUI (#10 window looks, #16)"
             cmd overlay list com.android.systemui 2>/dev/null | head -30
             echo "fabricated overlays offered: $(cmd overlay help 2>/dev/null | grep -c fabricate)"

@@ -293,6 +293,17 @@ vendor power HAL's, not in these jars.
   (`LauncherState.ALL_APPS` on `CustomModeLauncher`), not the taskbar's; ZUI's own
   `expandFolder` checks for it and closes it with `getStateManager().goToState(NORMAL)`. The log
   of 12:44 shows the start button taking that for no drawer and opening the taskbar's as well.
+- The home's dock (`ZuiHotseat`) hands its icons to the tablet's bar while the bar lines up
+  with it (`TaskbarLauncherStateController`, `Hotseat.setIconsAlpha`, channel
+  `ALPHA_CHANNEL_TASKBAR_ALIGNMENT`) and takes them back whenever the bar's icons step aside -
+  the taskbar's drawer opening is one. With the dock's apps kept off our bar, they surfaced
+  under it then. `TaskbarUtilities.isTaskbarSwitchOpen(context)` says whether ZUI's tablet bar
+  is on (always in desktop mode).
+- SystemUI loads a title bar's name and icons off the main thread
+  (`DesktopModeWindowDecoration$$ExternalSyntheticLambda0`): the veil icon only after checking
+  `isClosed`, the name and header icon without, and `WindowDecorTaskResourceLoader` throws for a
+  closed one ("non-existent decoration") - a crash of SystemUI seen as the monitor was unplugged.
+- `OvcLog` reads `log.tag.OVC` on every call, so `setprop log.tag.OVC D` takes effect at once.
 - ZUI's compact popup works beside any view: `popup_container_zui` +
   `populateAndShowRowsZui(view, 0, [], shortcuts)` - no app shortcuts asked for, no placeholder
   rows (`ZuiNavPopupController` does the same for its buttons).
