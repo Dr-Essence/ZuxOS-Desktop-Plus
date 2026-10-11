@@ -1,6 +1,5 @@
 package com.zuxos.desktopplus.hook.system;
 
-import android.hardware.display.DisplayViewport;
 import android.os.Binder;
 import android.view.InputDevice;
 
@@ -152,15 +151,19 @@ public final class TouchScreens {
         List<?> viewports = (List<?>) sViewports.get(input);
         String found = null;
         synchronized (viewports) {
-            for (Object o : viewports) {
-                DisplayViewport viewport = (DisplayViewport) o;
-                if (viewport.type != EXTERNAL || !viewport.valid || viewport.uniqueId == null) {
+            for (Object viewport : viewports) {
+                // DisplayViewport is hidden from apps: its public fields, by name.
+                Class<?> c = viewport.getClass();
+                Object uniqueId = c.getField("uniqueId").get(viewport);
+                if (c.getField("type").getInt(viewport) != EXTERNAL
+                        || !c.getField("valid").getBoolean(viewport)
+                        || !(uniqueId instanceof String)) {
                     continue;
                 }
-                if (found != null && !found.equals(viewport.uniqueId)) {
+                if (found != null && !found.equals(uniqueId)) {
                     return null;
                 }
-                found = viewport.uniqueId;
+                found = (String) uniqueId;
             }
         }
         return found;
