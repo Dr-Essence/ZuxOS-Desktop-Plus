@@ -151,6 +151,17 @@ final class TaskbarMarks {
         private WeakReference<ViewGroup> mIcons = new WeakReference<>(null);
         private Set<String> mRunning = Collections.emptySet();
 
+        /**
+         * Night mode switched: drawn again in the new colour at once. The screen's own change
+         * reaches every view of the bar's window; ZUI's call on its bar alone came too late or
+         * not at all, so the marks only turned when the bar was made again (owner, 1.0.212).
+         */
+        @Override
+        protected void onConfigurationChanged(android.content.res.Configuration config) {
+            super.onConfigurationChanged(config);
+            invalidate();
+        }
+
         MarkView(Context ctx, ViewGroup dragLayer, View reference) {
             super(ctx);
             mDragLayer = new WeakReference<>(dragLayer);

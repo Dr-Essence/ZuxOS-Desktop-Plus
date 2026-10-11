@@ -507,6 +507,13 @@ public final class TaskbarTray {
      */
     private static final class TrayView extends LinearLayout {
 
+        /** Night mode switched: its text in the new tone at once, as the marks. */
+        @Override
+        protected void onConfigurationChanged(android.content.res.Configuration config) {
+            super.onConfigurationChanged(config);
+            render();
+        }
+
         private final int mDisplayId;
         /** Which theme it was last dressed in, once it has been. */
         private Boolean mRetro;
