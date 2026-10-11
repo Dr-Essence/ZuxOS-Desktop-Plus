@@ -31,6 +31,39 @@ mode along the way.
 - The tablet bar's pins live in this module's own row. An attempt to hand them to ZUI's bar broke it, and was taken out.
 - Bugs fixed, and which the owner has confirmed on the device: [`docs/ROADMAP.md`](docs/ROADMAP.md), "Fixed".
 
+**Known bugs, still open**
+
+- **Window "…" menu on the wrong screen:** a window's menu can open on the tablet instead of the monitor, after the window has moved between screens. It is being traced through SystemUI's own window log.
+- **Monitor touch after a replug:** fixed in 1.0.201-1.0.203, awaiting a test on the device.
+- **Bar at the top of the monitor:** the notification and quick-settings panels may not show when pressed (traced, waiting for a log).
+- **Game Assistant:** its overlay does not come up over games on the monitor.
+- **Bypass charging:** it holds at rest, but under heavy load the battery still gives current.
+- **Charging port:** charging from the USB 2.0 port while the fast port carries a hub without PD pass-through (the kernel picks the port).
+- **Folders:** not yet ZUI's own on the monitor, and not yet draggable inside the tablet drawers.
+
+**Roadmap, in order**
+
+1. Drag and drop inside the tablet drawers: reorder, apps in and out of folders, out to the bar and home.
+2. The monitor's folders as ZUI's own, themed Glass or Retro.
+3. Seamless unplug and replug of the monitor.
+4. Customise the UI: taskbar, drawer, folders, menus, panels - colour, shape, transparency. The foundation is built.
+5. Editing the quick panel's tiles, like Android's own.
+6. Animations for every control.
+7. Notification pop-ups on the monitor (built, awaiting test), then live notifications and their customisation.
+8. Taskbar position on the monitor: top is built; left and right are planned. Then taskbar colours of your choosing.
+9. Window looks and animations: colours, corners, title bars, a full-screen button, and a window manager editor.
+10. A start animation when the monitor connects, and a boot animation.
+11. Less CPU, GPU and heat; the tablet's own heat management (both being measured).
+12. Adapting to ZUI updates on its own.
+
+Built and awaiting the owner's test:
+- apps on the monitor never killed;
+- no status bar on the monitor's desktop;
+- the Retro theme;
+- maximise and full screen.
+
+The full list, with every step's status and what each fix was: [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
 **At a glance**
 
 - A home screen with free icon placement, pages, folders, widgets and shortcuts.
