@@ -1,13 +1,7 @@
 package com.zuxos.desktopplus.hook.taskbar;
 
-import android.app.PendingIntent;
-import android.app.RemoteAction;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Icon;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -22,17 +16,15 @@ import com.zuxos.desktopplus.core.Ui;
 import com.zuxos.desktopplus.core.icons.Glyphs;
 import com.zuxos.desktopplus.hook.IconInfo;
 import com.zuxos.desktopplus.hook.ZuiLook;
+import com.zuxos.desktopplus.hook.ZuiShortcuts;
 import com.zuxos.desktopplus.hook.drawer.ZuiFolders;
 import com.zuxos.desktopplus.logic.PinList;
 import com.zuxos.desktopplus.model.Item;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -45,9 +37,8 @@ import de.robv.android.xposed.XposedBridge;
  * {@code ZuiPopupContainerWithArrow.populateAndShowRowsZui}, which lays them out (one row, or its
  * icon strip, or its grid past five), styles and animates them. Our actions join that list as
  * {@code RemoteActionShortcut}s - the shortcut Launcher3 has for actions from outside it, such as
- * Digital Wellbeing's - with ZUI's own icons in ZUI's shortcut colour. Nothing of ZUI's menu is
- * touched after it is built. A tap on one of ours runs our action instead of sending its intent,
- * and closes the menu as ZUI's own shortcuts do ({@code dismissTaskMenuView}).
+ * Digital Wellbeing's - with ZUI's own icons in ZUI's shortcut colour ({@link ZuiShortcuts}).
+ * Nothing of ZUI's menu is touched after it is built.
  *
  * <p>Ours: pin to the taskbar (or unpin), and for an app with a window on the tablet, a new window
  * and close. The monitor keeps its own menus.
@@ -55,7 +46,6 @@ import de.robv.android.xposed.XposedBridge;
 final class ZuiAppRows {
 
     private static final String POPUP = "com.zui.launcher.views.ZuiPopupContainerWithArrow";
-    private static final String REMOTE = "com.android.launcher3.popup.RemoteActionShortcut";
     private static final String CONTEXT = "com.android.launcher3.views.ActivityContext";
     private static final String TASKBAR_CONTEXT = "com.android.launcher3.taskbar.BaseTaskbarContext";
     private static final String FACTORY = "com.android.launcher3.popup.SystemShortcut$Factory";
@@ -75,13 +65,7 @@ final class ZuiAppRows {
             {"com.zui.launcher.uiextend.ZuiSystemShortcuts", "CASTING"},
     };
 
-    /** Our actions, by the {@link RemoteAction} each of our shortcuts carries. Main thread only. */
-    private static final Map<RemoteAction, Runnable> OURS = new WeakHashMap<>();
-
-    private static Constructor<?> sMake;
-    private static Field sAction;
     private static Method sLookup;
-    private static PendingIntent sNothing;
     private static boolean sSaid;
     private static Class<?> sTaskbarContext;
     private static Method sGetShortcut;
@@ -95,42 +79,14 @@ final class ZuiAppRows {
     static void install(ClassLoader loader) {
         try {
             Class<?> popup = Reflect.findClass(POPUP, loader);
-            Class<?> remote = Reflect.findClass(REMOTE, loader);
             Class<?> context = Reflect.findClass(CONTEXT, loader);
-            if (popup == null || remote == null || context == null) {
-                L.w("zui app rows: ZUI's popup not found, its menu left as it is");
+            ZuiShortcuts.install(loader);
+            if (popup == null || context == null || !ZuiShortcuts.ready()) {
+                L.w("zui app rows: ZUI's popup or shortcuts not found, its menu left as it is");
                 return;
-            }
-            for (Constructor<?> c : remote.getConstructors()) {
-                if (c.getParameterCount() == 4 && c.getParameterTypes()[0] == RemoteAction.class) {
-                    sMake = c;
-                }
-            }
-            for (Field f : remote.getDeclaredFields()) {
-                if (f.getType() == RemoteAction.class) {
-                    f.setAccessible(true);
-                    sAction = f;
-                }
             }
             sLookup = context.getMethod("lookupContext", Context.class);
             findZuiOwn(loader);
-            if (sMake == null || sAction == null) {
-                L.w("zui app rows: ZUI's RemoteActionShortcut is not as expected, menu left as it is");
-                return;
-            }
-            // The tap first: without it our shortcuts would do nothing, so none are added.
-            int clicks = XposedBridge.hookAllMethods(remote, "onClick", new XC_MethodHook() {
-                @Override
-                protected void beforeHookedMethod(MethodHookParam param) {
-                    if (!OURS.isEmpty() && tapped(param.thisObject)) {
-                        param.setResult(null);
-                    }
-                }
-            }).size();
-            if (clicks == 0) {
-                L.w("zui app rows: no tap to hook, menu left as it is");
-                return;
-            }
             int hooked = XposedBridge.hookAllMethods(popup, "populateAndShowRowsZui",
                     new XC_MethodHook() {
                         @Override
@@ -213,22 +169,6 @@ final class ZuiAppRows {
         }
     }
 
-    /** One of ours tapped: ZUI's menu closes as for its own shortcuts, then the action runs. */
-    private static boolean tapped(Object shortcut) {
-        try {
-            Runnable action = OURS.get((RemoteAction) sAction.get(shortcut));
-            if (action == null) {
-                return false;
-            }
-            shortcut.getClass().getMethod("dismissTaskMenuView").invoke(shortcut);
-            action.run();
-            return true;
-        } catch (Throwable t) {
-            L.d("zui app rows: tap not handled (" + t + ")");
-            return false;
-        }
-    }
-
     @SuppressWarnings("unchecked")
     private static void addTo(XC_MethodHook.MethodHookParam param) {
         try {
@@ -262,10 +202,8 @@ final class ZuiAppRows {
             // is - for ZUI's icons of ours, some drawn in a fixed colour, and our one glyph.
             int colour = ZuiLook.shortcutIcon(((View) param.thisObject).getContext());
             for (Row row : rowsFor(ctx, info, pkg, component)) {
-                RemoteAction action = new RemoteAction(iconFor(ctx, row, colour), row.title,
-                        row.title, nothing(ctx));
-                OURS.put(action, row.action);
-                all.add(sMake.newInstance(action, target, info, icon));
+                all.add(ZuiShortcuts.make(ctx, row.title, iconFor(ctx, row, colour), row.action,
+                        target, info, icon));
             }
             param.args[3] = all;
             if (!sSaid) {
@@ -357,33 +295,9 @@ final class ZuiAppRows {
     private static Icon iconFor(Context ctx, Row row, int colour) {
         int id = row.zuiIcon.isEmpty() ? 0 : ctx.getResources().getIdentifier(row.zuiIcon,
                 "drawable", ctx.getPackageName());
-        Icon icon;
-        if (id != 0) {
-            icon = Icon.createWithResource(ctx, id);
-        } else {
-            Drawable glyph = Glyphs.forTitle(row.title);
-            int size = Ui.dp(ctx, 24);
-            Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-            if (glyph != null) {
-                glyph.setBounds(0, 0, size, size);
-                glyph.draw(new Canvas(bitmap));
-            }
-            icon = Icon.createWithBitmap(bitmap);
-        }
+        Icon icon = id != 0 ? Icon.createWithResource(ctx, id)
+                : ZuiShortcuts.iconOf(Glyphs.forTitle(row.title), Ui.dp(ctx, 24));
         return icon.setTint(colour);
-    }
-
-    /**
-     * The intent a {@link RemoteAction} must carry. Never sent: a tap on ours runs our action
-     * instead. One for all of them, made once.
-     */
-    private static PendingIntent nothing(Context ctx) {
-        if (sNothing == null) {
-            sNothing = PendingIntent.getBroadcast(ctx, 0,
-                    new Intent("com.zuxos.desktopplus.ZUI_ROW").setPackage(ctx.getPackageName()),
-                    PendingIntent.FLAG_IMMUTABLE);
-        }
-        return sNothing;
     }
 
     /** The app an icon starts, as ZUI's item says: {@code getTargetComponent()}. */

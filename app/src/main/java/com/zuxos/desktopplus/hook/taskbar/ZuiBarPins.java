@@ -17,6 +17,9 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
+import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XposedBridge;
+
 /**
  * Our pins on the tablet's bar, as ZUI's own items.
  *
@@ -40,14 +43,47 @@ final class ZuiBarPins {
     /** The items last made, for as long as the pins they were made from have not changed. */
     private static Object sMade;
     private static String sMadeFrom;
+    /** The last build left pins out, their apps not yet handed to ZUI's bar. */
+    private static boolean sShort;
 
     /** The bar's last build, to build it again when our pins change. */
     private static WeakReference<View> sBar;
     private static Method sBuild;
     private static Object[] sArgs;
-    private static boolean sSaid;
+    private static String sSaid;
 
     private ZuiBarPins() {
+    }
+
+    /**
+     * ZUI's bar builds its row before it is handed its apps ({@code TaskbarPopupController.setApps},
+     * from {@code bindAllApplications}), so the first build after a start finds none of them: the
+     * log of 12:24 said "0 of 8 pins". When ZUI hands them over, a build that came up short is
+     * done again.
+     */
+    static void install(ClassLoader loader) {
+        try {
+            Class<?> popups = Reflect.findClass(
+                    "com.android.launcher3.taskbar.TaskbarPopupController", loader);
+            if (popups == null) {
+                L.w("zui bar pins: ZUI's popup controller not found, pins built only as the bar is");
+                return;
+            }
+            XposedBridge.hookAllMethods(popups, "setApps", new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    try {
+                        if (sShort) {
+                            rebuild();
+                        }
+                    } catch (Throwable t) {
+                        L.d("zui bar pins: not rebuilt with ZUI's apps (" + t + ")");
+                    }
+                }
+            });
+        } catch (Throwable t) {
+            L.w("zui bar pins: ZUI's apps not watched (" + t + ")");
+        }
     }
 
     /** Whether ZUI's bar holds our pins on this bar's screen, so our row leaves them out. */
@@ -101,11 +137,14 @@ final class ZuiBarPins {
                 Array.set(array, i, made.get(i));
             }
             sMade = array;
-            sMadeFrom = from;
-            if (!sSaid) {
-                sSaid = true;
-                L.i("zui bar pins: " + made.size() + " of " + pins.size()
-                        + " pins built by ZUI's own bar");
+            // Short of pins: made again, not kept, once ZUI has its apps.
+            sShort = made.size() < pins.size();
+            sMadeFrom = sShort ? null : from;
+            String said = made.size() + " of " + pins.size();
+            if (!said.equals(sSaid)) {
+                // Once per count: the first build, and the one after ZUI's apps came.
+                sSaid = said;
+                L.i("zui bar pins: " + said + " pins built by ZUI's own bar");
             }
             return array;
         } catch (Throwable t) {

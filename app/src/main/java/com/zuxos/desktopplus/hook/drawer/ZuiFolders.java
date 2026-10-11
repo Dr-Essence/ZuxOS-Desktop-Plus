@@ -161,22 +161,11 @@ public final class ZuiFolders {
                     }
                 }
             }).size();
-            hooked += XposedBridge.hookAllMethods(folder, "createAddAppButton",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-                            // ZUI's Add apps moves apps between a folder and its home screen
-                            // (BigFolderIconSelectDialog): not for ours until it is routed to
-                            // our drawer.
-                            if (isOurs(param.thisObject)) {
-                                param.setResult(null);
-                            }
-                        }
-                    }).size();
             hooked += hookAnimator(loader, folder);
             hooked += hookHomeContext(loader);
             hooked += hookBack(folder);
             ZuiFolderWrites.install(loader);
+            ZuiFolderAdd.install(loader, folder);
             Health.hooked("drawer: our folders as ZUI's", hooked);
             L.i("zui folders: our drawer folders as ZUI's own on the tablet x" + hooked);
         } catch (Throwable t) {
@@ -291,7 +280,7 @@ public final class ZuiFolders {
     }
 
     /** ZUI's tablet Launcher, as ZUI's own taskbar reads it; null when there is none. */
-    private static Object launcher() {
+    static Object launcher() {
         try {
             return sTracked == null ? null : sTracked.invoke(sTracker);
         } catch (Throwable t) {
@@ -300,16 +289,29 @@ public final class ZuiFolders {
     }
 
     /** Our folders open in the taskbar's drawer, with the back callback each registered. */
-    private static final Map<Object, android.window.OnBackInvokedDispatcher> BACK =
-            new WeakHashMap<>();
+    private static final Map<Object, Back> BACK = new WeakHashMap<>();
+
+    /** Where a folder's back callback was registered, to take it off again. */
+    private static final class Back {
+        final android.window.OnBackInvokedDispatcher dispatcher;
+        final android.window.OnBackInvokedCallback callback;
+
+        Back(android.window.OnBackInvokedDispatcher dispatcher,
+                android.window.OnBackInvokedCallback callback) {
+            this.dispatcher = dispatcher;
+            this.callback = callback;
+        }
+    }
 
     /**
-     * Back closes our open folder in the taskbar's drawer before the drawer. The drawer takes
-     * back by registering itself with its window ({@code TaskbarAllAppsSlideInView}); ZUI's
-     * folder registers nothing there, so back closed the drawer and left the folder (02:14).
-     * Ours registers itself the same way while it is open - ZUI's folder is a back callback
-     * ({@code AbstractFloatingView}), whose {@code onBackInvoked} closes it - and the last one
-     * registered is the one called.
+     * Back closes what is on top in the taskbar's drawer while our folder is open: an app's popup
+     * over the folder first, then the folder, then the drawer. The drawer takes back by
+     * registering itself with its window ({@code TaskbarAllAppsSlideInView}); ZUI's folder and
+     * popups register nothing there, so back closed the drawer and left the folder (02:14), and
+     * then the folder and left its popup (12:21). While our folder is open a callback is
+     * registered the same way - the last one registered is the one called - and it does what
+     * ZUI's drawer does with a back key ({@code TaskbarOverlayDragLayer.dispatchKeyEvent}):
+     * closes ZUI's top open view ({@code AbstractFloatingView.getTopOpenView}).
      */
     private static int hookBack(Class<?> folderCls) {
         int hooked = XposedBridge.hookAllMethods(folderCls, "onAttachedToWindow",
@@ -338,22 +340,40 @@ public final class ZuiFolders {
             android.window.OnBackInvokedDispatcher dispatcher =
                     ((View) folder).findOnBackInvokedDispatcher();
             if (dispatcher != null && !BACK.containsKey(folder)) {
+                android.window.OnBackInvokedCallback callback = () -> closeTop(folder, where);
                 dispatcher.registerOnBackInvokedCallback(
-                        android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
-                        (android.window.OnBackInvokedCallback) folder);
-                BACK.put(folder, dispatcher);
+                        android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback);
+                BACK.put(folder, new Back(dispatcher, callback));
             }
         } catch (Throwable t) {
             L.d("zui folders: back not given to the folder (" + t + ")");
         }
     }
 
+    /** ZUI's top open view in the drawer, closed as a back key closes it; else the folder. */
+    private static void closeTop(Object folder, Object activity) {
+        try {
+            Class<?> floating = Class.forName("com.android.launcher3.AbstractFloatingView", false,
+                    folder.getClass().getClassLoader());
+            Class<?> context = Class.forName("com.android.launcher3.views.ActivityContext", false,
+                    folder.getClass().getClassLoader());
+            Object top = floating.getMethod("getTopOpenView", context).invoke(null, activity);
+            if (top != null && Boolean.TRUE.equals(
+                    floating.getMethod("canHandleBack").invoke(top))) {
+                floating.getMethod("onBackInvoked").invoke(top);
+                return;
+            }
+        } catch (Throwable t) {
+            L.d("zui folders: top view not found for back (" + t + ")");
+        }
+        ((android.window.OnBackInvokedCallback) folder).onBackInvoked();
+    }
+
     private static void unregisterBack(Object folder) {
-        android.window.OnBackInvokedDispatcher dispatcher = BACK.remove(folder);
-        if (dispatcher != null) {
+        Back back = BACK.remove(folder);
+        if (back != null) {
             try {
-                dispatcher.unregisterOnBackInvokedCallback(
-                        (android.window.OnBackInvokedCallback) folder);
+                back.dispatcher.unregisterOnBackInvokedCallback(back.callback);
             } catch (Throwable t) {
                 L.d("zui folders: back callback not removed (" + t + ")");
             }
@@ -361,7 +381,7 @@ public final class ZuiFolders {
     }
 
     /** Whether a folder of ZUI's is one of ours. */
-    private static boolean isOurs(Object folder) {
+    static boolean isOurs(Object folder) {
         try {
             Object info = folder == null ? null : sFolderInfo.get(folder);
             Object id = info == null ? null : Reflect.field(info, "id");
@@ -727,9 +747,9 @@ public final class ZuiFolders {
     }
 
     /**
-     * An app held inside one of our folders: ZUI's app popup without a drag, as ZUI shows it in
-     * that context ({@code LauncherCustom.skipHotseatDrag}; in the taskbar's drawer
-     * {@code onClickIconWithRightMouse}). Drag inside our folders comes with the drag build.
+     * An app held inside one of our folders: ZUI's app popup as ZUI shows it in that context -
+     * on ZUX Home without a drag ({@code LauncherCustom.skipHotseatDrag}), in the taskbar's
+     * drawer with ZUI's drawer drag.
      */
     private static boolean holdInside(Object folder, View view) {
         try {
@@ -741,14 +761,18 @@ public final class ZuiFolders {
             if (isLauncher(activity)) {
                 Class.forName(POPUP, false, ctx.getClassLoader())
                         .getMethod("showForIcon", View.class).invoke(null, view);
-            } else {
-                // The taskbar's drawer: as ZUI shows the menu of an icon in it, through the bar
-                // (its own showPopupMenuForIcon does nothing there).
-                activity.getClass().getMethod("onClickIconWithRightMouse", View.class)
-                        .invoke(activity, view);
+                IconPress.release(view);
+                return true;
             }
-            IconPress.release(view);
-            return true;
+            // The taskbar's drawer: what ZUI's drawer does with a hold on its own icons
+            // (getAllAppsItemLongClickListener, the drawer's TaskbarDragController): its popup
+            // and its drag, in the drawer's own window, with the press let go by ZUI. Through
+            // the bar instead (onClickIconWithRightMouse), the bar's window went full screen over
+            // the drawer and took every touch from the popup (12:21).
+            Object hold = activity.getClass().getMethod("getAllAppsItemLongClickListener")
+                    .invoke(activity);
+            return hold instanceof View.OnLongClickListener
+                    && ((View.OnLongClickListener) hold).onLongClick(view);
         } catch (Throwable t) {
             L.d("zui folders: no popup inside our folder (" + t + ")");
             return false;
@@ -760,6 +784,11 @@ public final class ZuiFolders {
     /** Our folder behind an id handed to ZUI, or null. */
     static synchronized Item folderOfId(int id) {
         return BY_ID.get(id);
+    }
+
+    /** One of ZUI's items made for an app of ours inside one of our folders. */
+    static void noteChild(Object item, Item child) {
+        CHILDREN.put(item, child);
     }
 
     /** The app of ours one of ZUI's items inside our folders stands for, or null. */
@@ -876,7 +905,7 @@ public final class ZuiFolders {
     }
 
     /** Saves a change made in ZUI's folder itself, which already shows it: no rebuild for it. */
-    private static void saveKeepingIcons(Context ctx, Item folder) {
+    static void saveKeepingIcons(Context ctx, Item folder) {
         DrawerStore store = DrawerStore.shared(ctx);
         store.save();
         int version = store.version();
@@ -888,7 +917,7 @@ public final class ZuiFolders {
         }
     }
 
-    private static void closeOpenFolders() {
+    static void closeOpenFolders() {
         for (Map<String, Built> mine : BUILT.values()) {
             for (Built built : mine.values()) {
                 if (isOpen(built)) {
@@ -935,7 +964,7 @@ public final class ZuiFolders {
         }
     }
 
-    private static boolean isLauncher(Object activity) {
+    static boolean isLauncher(Object activity) {
         try {
             return activity != null && Class.forName(LAUNCHER, false,
                     activity.getClass().getClassLoader()).isInstance(activity);
@@ -944,7 +973,7 @@ public final class ZuiFolders {
         }
     }
 
-    private static Object lookup(Context ctx) throws Exception {
+    static Object lookup(Context ctx) throws Exception {
         return Class.forName("com.android.launcher3.views.ActivityContext", false,
                 ctx.getClassLoader()).getMethod("lookupContext", Context.class).invoke(null, ctx);
     }

@@ -344,7 +344,48 @@ public final class TaskbarMenu {
         // and what the bar does inside an app is exactly what a probe is often wanted for.
         entries.add(new Entry("Save probe to Downloads",
                 () -> Probe.dumpFromBar(ctx, displayId)));
+        if (displayId == android.view.Display.DEFAULT_DISPLAY && source instanceof ViewGroup) {
+            // On the tablet, ZUI's compact popup at the press on the bar. Given the bar's whole
+            // window as the thing to stand beside - full screen while a popup is up - ZUI put it
+            // in the middle of the screen (12:22).
+            dismiss();
+            ViewGroup dragLayer = (ViewGroup) source;
+            View[] point = new View[1];
+            if (com.zuxos.desktopplus.hook.ZuiMenu.show(dragLayer,
+                    () -> point[0] = pointOnBar(dragLayer, rawX), entries,
+                    () -> dragLayer.post(() -> dragLayer.removeView(point[0])))) {
+                return;
+            }
+        }
         showEntries(source, displayId, rawX, entries);
+    }
+
+    /**
+     * A point on the bar's row at {@code rawX}, for a popup to stand beside: a view of ours, one
+     * pixel wide and the row's height, placed where the row is now, taken off when the popup goes.
+     */
+    private static View pointOnBar(ViewGroup dragLayer, float rawX) {
+        View row = TaskbarTray.rowReference(dragLayer);
+        ViewGroup.LayoutParams lp = TaskbarTray.dragLayerParams(dragLayer, row);
+        if (row == null || row.getHeight() <= 0 || !(lp instanceof FrameLayout.LayoutParams)) {
+            return null;
+        }
+        int[] layer = new int[2];
+        int[] at = new int[2];
+        dragLayer.getLocationOnScreen(layer);
+        row.getLocationOnScreen(at);
+        FrameLayout.LayoutParams frame = (FrameLayout.LayoutParams) lp;
+        frame.width = 1;
+        frame.height = row.getHeight();
+        frame.gravity = Gravity.TOP | Gravity.START;
+        frame.leftMargin = Math.round(rawX) - layer[0];
+        frame.topMargin = at[1] - layer[1];
+        View point = new View(dragLayer.getContext());
+        dragLayer.addView(point, frame);
+        // Laid out now: ZUI measures where it stands as soon as it is asked.
+        point.layout(frame.leftMargin, frame.topMargin, frame.leftMargin + 1,
+                frame.topMargin + frame.height);
+        return point;
     }
 
     /**

@@ -1,27 +1,30 @@
 package com.zuxos.desktopplus.hook;
 
 import android.content.Context;
-import android.content.res.TypedArray;
-import android.graphics.Rect;
-import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.Icon;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
 import com.zuxos.desktopplus.core.L;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * ZUI's own menus, carrying our actions - on the tablet, where everything looks like ZUI.
  *
- * <p>ZUI's {@code OptionsPopupView}, its home screen's popup, filled with our rows: the
- * {@code system_shortcut} rows of ZUI's folder menu ("Enlarge folder", "Rename"). Over the
- * taskbar, opened as ZUI opens its own popups there ({@code showPopupMenuForIcon}). Icons are
- * tinted in ZUI's text colour, as its own are drawn.
+ * <p>ZUI's compact popup, the one its taskbar shows for an app ({@code popup_container_zui},
+ * {@code ZuiPopupContainerWithArrow.populateAndShowRowsZui}), with our rows as ZUI's own
+ * shortcuts ({@link ZuiShortcuts}): up to five as rows, more as ZUI's icon grid, beside whatever
+ * it stands on. With no app shortcuts asked for, ZUI makes no rows for them; it does the same for
+ * its navigation buttons' menus ({@code ZuiNavPopupController}). Over the taskbar, opened as ZUI
+ * opens its own popups there ({@code showPopupMenuForIcon}). Icons are drawn in ZUI's shortcut
+ * colour, as its own are.
  */
 public final class ZuiMenu {
 
@@ -39,9 +42,8 @@ public final class ZuiMenu {
         }
     }
 
-    private static final String POPUP = "com.android.launcher3.views.OptionsPopupView";
+    private static final String OPEN = "com.android.launcher3.popup.PopupContainerWithArrow";
     private static final String CONTEXT = "com.android.launcher3.views.ActivityContext";
-    private static final String EVENTS = "com.android.launcher3.logging.StatsLogManager";
 
     private static boolean sSaidShow;
 
@@ -56,11 +58,24 @@ public final class ZuiMenu {
      * ZUI shrinks the window back itself when the popup goes ({@code onDragEndOrViewRemoved}).
      */
     public static boolean show(View anchor, List<? extends Row> rows) {
+        return show(anchor, () -> anchor, rows, null);
+    }
+
+    /**
+     * The same, beside a view asked for only once the popup has its room ({@code anchor}, which
+     * may be null for none): a point on the bar is where the bar is after its window grew.
+     * {@code closed} runs when the popup goes, or at once if none is shown.
+     */
+    public static boolean show(View source, Supplier<View> anchor, List<? extends Row> rows,
+            Runnable closed) {
+        if (!ZuiShortcuts.ready()) {
+            return false;
+        }
         try {
-            ClassLoader loader = anchor.getContext().getClassLoader();
+            ClassLoader loader = source.getContext().getClassLoader();
             Class<?> contextClass = Class.forName(CONTEXT, false, loader);
             Object activity = contextClass.getMethod("lookupContext", Context.class)
-                    .invoke(null, anchor.getContext());
+                    .invoke(null, source.getContext());
             if (activity == null) {
                 return false;
             }
@@ -70,7 +85,7 @@ public final class ZuiMenu {
             Method isFull = taskbarMethod(activity, "isTaskbarWindowFullscreen");
             if (fullscreen == null || isFull == null
                     || Boolean.TRUE.equals(isFull.invoke(activity))) {
-                return open(anchor, rows, activity, dragLayer, loader);
+                return open(anchor, rows, activity, dragLayer, loader, closed);
             }
             fullscreen.invoke(activity, true);
             Runnable[] once = new Runnable[1];
@@ -78,7 +93,7 @@ public final class ZuiMenu {
             once[0] = () -> {
                 dragLayer.removeOnLayoutChangeListener(laid[0]);
                 dragLayer.removeCallbacks(once[0]);
-                if (!open(anchor, rows, activity, dragLayer, loader)) {
+                if (!open(anchor, rows, activity, dragLayer, loader, closed)) {
                     // Nothing shown, so nothing of ZUI's will give the bar its size back.
                     try {
                         fullscreen.invoke(activity, false);
@@ -105,59 +120,67 @@ public final class ZuiMenu {
     /** How long a popup over the taskbar waits for the bar's window to grow, at most. */
     private static final long ROOM_WAIT_MS = 250L;
 
-    private static boolean open(View anchor, List<? extends Row> rows, Object activity,
-            View dragLayer, ClassLoader loader) {
+    private static boolean open(Supplier<View> anchorWhenReady, List<? extends Row> rows,
+            Object activity, View dragLayer, ClassLoader loader, Runnable closed) {
+        boolean shown = false;
         try {
-            Class<?> popup = Class.forName(POPUP, false, loader);
-            Class<?> itemClass = Class.forName(POPUP + "$OptionItem", false, loader);
-            Class<?> contextClass = Class.forName(CONTEXT, false, loader);
-            Class<?> eventEnum = Class.forName(EVENTS + "$LauncherEvent", false, loader);
-            Class<?> eventType = Class.forName(EVENTS + "$EventEnum", false, loader);
-            @SuppressWarnings({"unchecked", "rawtypes"})
-            Object ignore = Enum.valueOf((Class) eventEnum, "IGNORE");
-            Constructor<?> make = itemClass.getConstructor(CharSequence.class, Drawable.class,
-                    eventType, View.OnLongClickListener.class);
-            int tint = textColour(anchor.getContext());
-            List<Object> items = new ArrayList<>();
-            for (Row row : rows) {
-                items.add(make.newInstance(row.title(), iconOf(row, tint), ignore,
-                        (View.OnLongClickListener) v -> {
-                            row.run();
-                            return true;
-                        }));
+            View anchor = anchorWhenReady.get();
+            if (anchor == null) {
+                return false;
             }
-            Method show = popup.getMethod("show", contextClass, RectF.class, List.class,
-                    boolean.class);
-            Object shown = show.invoke(null, activity, targetIn(dragLayer, anchor), items, true);
-            focusOverTheBar(activity, shown, dragLayer);
+            Class<?> contextClass = Class.forName(CONTEXT, false, loader);
+            // One popup at a time, as ZUI's own showForIcon has it.
+            if (Class.forName(OPEN, false, loader).getMethod("getOpen", contextClass)
+                    .invoke(null, activity) != null) {
+                return false;
+            }
+            Context ctx = anchor.getContext();
+            int layout = ctx.getResources().getIdentifier("popup_container_zui", "layout",
+                    ctx.getPackageName());
+            if (layout == 0) {
+                L.w("zui menu: ZUI's popup layout not found");
+                return false;
+            }
+            LayoutInflater inflater = (LayoutInflater) contextClass
+                    .getMethod("getLayoutInflater").invoke(activity);
+            View popup = inflater.inflate(layout, (ViewGroup) dragLayer, false);
+            int colour = ZuiLook.shortcutIcon(popup.getContext());
+            int size = Math.round(24 * ctx.getResources().getDisplayMetrics().density);
+            List<Object> shortcuts = new ArrayList<>();
+            for (Row row : rows) {
+                Icon icon = ZuiShortcuts.iconOf(row.icon(), size);
+                if (!row.ownIcon()) {
+                    icon.setTint(colour);
+                }
+                shortcuts.add(ZuiShortcuts.make(ctx, row.title(), icon, row::run, activity, null,
+                        anchor));
+            }
+            popup.getClass().getMethod("populateAndShowRowsZui", View.class, int.class,
+                    List.class, List.class).invoke(popup, anchor, 0, Collections.emptyList(),
+                    shortcuts);
+            if (popup.getParent() == null) {
+                return false;
+            }
+            shown = true;
+            popup.requestFocus();
+            if (closed != null) {
+                popup.getClass().getMethod("addOnCloseCallback", Runnable.class)
+                        .invoke(popup, closed);
+            }
+            focusOverTheBar(activity, popup, dragLayer);
             if (!sSaidShow) {
                 sSaidShow = true;
-                L.i("zui menu: ZUI's own popup with our rows");
+                L.i("zui menu: ZUI's own compact popup with our rows");
             }
-            return shown != null;
+            return true;
         } catch (Throwable t) {
             L.w("zui menu: ZUI's popup not built (" + t + ")");
             return false;
-        }
-    }
-
-    /** Where the anchor is in the drag layer, laid out as it is now. */
-    private static RectF targetIn(View dragLayer, View anchor) {
-        Rect r = new Rect(0, 0, anchor.getWidth(), anchor.getHeight());
-        for (android.view.ViewParent p = anchor.getParent(); p instanceof View;
-                p = p.getParent()) {
-            if (p == dragLayer) {
-                ((ViewGroup) dragLayer).offsetDescendantRectToMyCoords(anchor, r);
-                return new RectF(r);
+        } finally {
+            if (!shown && closed != null) {
+                closed.run();
             }
         }
-        // In another window: by where both are on the screen.
-        int[] at = new int[2];
-        int[] layer = new int[2];
-        anchor.getLocationOnScreen(at);
-        dragLayer.getLocationOnScreen(layer);
-        r.offset(at[0] - layer[0], at[1] - layer[1]);
-        return new RectF(r);
     }
 
     /** A public method of the taskbar's context, or null where the context is not the bar's. */
@@ -194,26 +217,6 @@ public final class ZuiMenu {
                     }));
         } catch (Throwable t) {
             L.d("zui menu: focus not given to the bar (" + t + ")");
-        }
-    }
-
-    private static Drawable iconOf(Row row, int tint) {
-        Drawable icon = row.icon();
-        if (icon == null || row.ownIcon()) {
-            return icon;
-        }
-        Drawable mine = icon.mutate();
-        mine.setTint(tint);
-        return mine;
-    }
-
-    /** The text colour of ZUI's theme, which its menu icons are drawn in. */
-    private static int textColour(Context ctx) {
-        TypedArray a = ctx.obtainStyledAttributes(new int[]{android.R.attr.textColorPrimary});
-        try {
-            return a.getColor(0, 0xFF000000);
-        } finally {
-            a.recycle();
         }
     }
 }

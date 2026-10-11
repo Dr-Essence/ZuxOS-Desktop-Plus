@@ -273,6 +273,25 @@ vendor power HAL's, not in these jars.
   The start button's eyes follow these (`TaskbarStart.install`).
 - ZUI's popups, folders and menus (`AbstractFloatingView`) sit in the bar's drag layer while
   open, with the bar's window full screen; they are not part of the bar's row.
+- ZUI's bar builds its row (`updateHotseatItems`) before it is handed its apps
+  (`TaskbarPopupController.setApps`, from `bindAllApplications`): at start the bar's `AppInfo[]`
+  is empty. `ZuiBarPins` builds again on `setApps` when its first build came up short.
+- A hold in the taskbar's drawer is `TaskbarOverlayContext.getAllAppsItemLongClickListener()`, the
+  drawer's own `TaskbarDragController.startDragOnLongClick`: popup and drag in the drawer's
+  window. `TaskbarOverlayContext.onClickIconWithRightMouse` goes through the bar
+  (`TaskbarActivityContext.showPopupMenuForIcon`), whose window goes full screen over the drawer
+  and takes its touches.
+- Back in the drawer: ZUI's key path (`TaskbarOverlayDragLayer.dispatchKeyEvent`) closes
+  `AbstractFloatingView.getTopOpenView`; only the sheet registers with `OnBackInvokedDispatcher`.
+- Add apps (`BigFolderIconSelectDialog`): `Folder.createAddAppButton` needs the delegate's
+  `Launcher` and an open folder; ZUX Home's tap is `ItemClickHandler` -> `showDialog(launcher,
+  folder)`; in the taskbar's drawer the tap is the bar's app launch. The picker reports
+  `getSelectedItemInfos()` (status 2 picked, 1 unpicked); its OK (`L`) moves apps between the
+  folder and the home screen, its Cancel (`K(launcher, view, view)`) closes with its motion. It is
+  a window of the home activity; the drawer is a `TYPE_APPLICATION_OVERLAY` window above it.
+- ZUI's compact popup works beside any view: `popup_container_zui` +
+  `populateAndShowRowsZui(view, 0, [], shortcuts)` - no app shortcuts asked for, no placeholder
+  rows (`ZuiNavPopupController` does the same for its buttons).
 
 ## Two USB-C ports: which one charges (`services.jar` 16)
 
