@@ -21,6 +21,7 @@ import com.zuxos.desktopplus.core.icons.PixelIcons;
 import com.zuxos.desktopplus.core.motion.Hover;
 import com.zuxos.desktopplus.core.theme.Bevel;
 import com.zuxos.desktopplus.core.theme.Theme;
+import com.zuxos.desktopplus.hook.recents.TaskOverview;
 
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -63,6 +64,10 @@ final class TaskbarStart {
     private static final Map<View, Integer> SHEETS = new WeakHashMap<>();
     /** ZUI's home screens whose own drawer is up ({@code LauncherState.ALL_APPS}), by display. */
     private static final Map<Object, Integer> HOMES = new WeakHashMap<>();
+    /** ZUI's home screens showing its recents (its overview states), by display. */
+    private static final Map<Object, Integer> RECENTS = new WeakHashMap<>();
+    /** The displays our own recents is up on. Main thread only. */
+    private static final java.util.Set<Integer> OUR_RECENTS = new java.util.HashSet<>();
 
     private TaskbarStart() {
     }
@@ -83,6 +88,11 @@ final class TaskbarStart {
      * state changes ({@code Launcher.onStateSetStart}) count as a drawer too. Missing it, the
      * start button took the first press as opening nothing and opened the taskbar's drawer as
      * well - two drawers (12:44).
+     *
+     * <p>Recents narrows the eyes, back to normal however it goes: ZUI's own on the tablet (its
+     * home in an overview state, {@code LauncherState.OVERVIEW} and the modal and split ones;
+     * gone with any other state or when the home stops) and ours on the monitor
+     * ({@link TaskOverview}, told as it comes up and as it starts to leave).
      */
     static void install(ClassLoader loader) {
         try {
@@ -99,6 +109,11 @@ final class TaskbarStart {
             hooked += XposedBridge.hookAllMethods(sheet, "onDetachedFromWindow",
                     drawerHook(false)).size();
             hooked += hookHomeDrawer(loader);
+            TaskOverview.onShown((display, up) -> {
+                if (up ? OUR_RECENTS.add(display) : OUR_RECENTS.remove(display)) {
+                    eyesOn(display);
+                }
+            });
             L.i("taskbar start: the robot's eyes follow ZUI's drawer x" + hooked);
         } catch (Throwable t) {
             L.w("taskbar start: the robot's eyes not following ZUI's drawer (" + t + ")");
@@ -127,7 +142,7 @@ final class TaskbarStart {
         };
     }
 
-    /** The home screen's own drawer, as ZUI's state machine sets it. */
+    /** The home screen's own drawer and recents, as ZUI's state machine sets them. */
     private static int hookHomeDrawer(ClassLoader loader) {
         try {
             Class<?> launcher = Reflect.findClass("com.android.launcher3.Launcher", loader);
@@ -137,38 +152,78 @@ final class TaskbarStart {
                 return 0;
             }
             Object allApps = state.getField("ALL_APPS").get(null);
-            return XposedBridge.hookAllMethods(launcher, "onStateSetStart", new XC_MethodHook() {
+            java.util.Set<Object> overview = new java.util.HashSet<>();
+            for (String name : new String[]{"OVERVIEW", "OVERVIEW_MODAL_TASK",
+                    "OVERVIEW_SPLIT_SELECT"}) {
+                try {
+                    overview.add(state.getField(name).get(null));
+                } catch (Throwable missing) {
+                    // A state this build does not have.
+                }
+            }
+            int hooked = XposedBridge.hookAllMethods(launcher, "onStateSetStart",
+                    new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            try {
+                                Context home = (Context) param.thisObject;
+                                Object now = param.args.length > 0 ? param.args[0] : null;
+                                follow(HOMES, home, now == allApps);
+                                follow(RECENTS, home, now != null && overview.contains(now));
+                            } catch (Throwable t) {
+                                L.d("taskbar start: home states not followed (" + t + ")");
+                            }
+                        }
+                    }).size();
+            // Stopped, the home shows nothing: recents left for an app, whatever its state says.
+            hooked += XposedBridge.hookAllMethods(launcher, "onStop", new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     try {
-                        Context home = (Context) param.thisObject;
-                        Integer was = HOMES.remove(home);
-                        if (param.args.length > 0 && param.args[0] == allApps
-                                && home.getDisplay() != null) {
-                            HOMES.put(home, home.getDisplay().getDisplayId());
-                            eyesOn(home.getDisplay().getDisplayId());
-                        } else if (was != null) {
-                            eyesOn(was);
-                        }
+                        follow(RECENTS, (Context) param.thisObject, false);
                     } catch (Throwable t) {
-                        L.d("taskbar start: home drawer not followed (" + t + ")");
+                        L.d("taskbar start: home stop not followed (" + t + ")");
                     }
                 }
             }).size();
+            return hooked;
         } catch (Throwable t) {
             L.w("taskbar start: ZUI's home drawer not followed (" + t + ")");
             return 0;
         }
     }
 
+    /** One of ZUI's homes into or out of a state the eyes follow, and its buttons told. */
+    private static void follow(Map<Object, Integer> in, Context home, boolean now) {
+        Integer was = in.remove(home);
+        if (now && home.getDisplay() != null) {
+            int display = home.getDisplay().getDisplayId();
+            in.put(home, display);
+            if (was == null || was != display) {
+                eyesOn(display);
+            }
+            if (was != null && was != display) {
+                eyesOn(was);
+            }
+        } else if (was != null) {
+            eyesOn(was);
+        }
+    }
+
     /** The eyes of this display's start buttons, as its drawers are. */
     private static void eyesOn(int display) {
         boolean up = drawerUp(display);
+        boolean recents = recentsUp(display);
         for (StartButton button : BUTTONS.keySet()) {
             if (button.isAttachedToWindow() && TaskbarTray.displayIdOf(button) == display) {
-                button.drawerShown(up);
+                button.shown(up, recents);
             }
         }
+    }
+
+    /** Whether recents is up on this display: ZUI's, or ours. */
+    private static boolean recentsUp(int display) {
+        return RECENTS.containsValue(display) || OUR_RECENTS.contains(display);
     }
 
     /** Whether one of ZUI's drawers is up on this display: the taskbar's, or the home's own. */
@@ -597,8 +652,9 @@ final class TaskbarStart {
         @Override
         protected void onAttachedToWindow() {
             super.onAttachedToWindow();
-            // A bar put up while ZUI's drawer is already open: the eyes as the drawer is.
-            drawerShown(drawerUp(TaskbarTray.displayIdOf(this)));
+            // A bar put up while ZUI's drawer or recents is already up: the eyes as they are.
+            int display = TaskbarTray.displayIdOf(this);
+            shown(drawerUp(display), recentsUp(display));
         }
 
         /** Takes ZUI's button: what a press presses, and the icon size to match. */
@@ -698,14 +754,16 @@ final class TaskbarStart {
         }
 
         /**
-         * ZUI's drawer on this button's screen is up, or closing: the robot's eyes, and on a Retro
-         * bar the box held in.
+         * ZUI's drawer or recents on this button's screen is up, or going: the robot's eyes - wide
+         * for the drawer, narrowed for recents - and on a Retro bar the box held in for the
+         * drawer.
          */
-        void drawerShown(boolean open) {
+        void shown(boolean drawer, boolean recents) {
             if (!mTheme.retro()) {
-                mRobot.setWide(open);
+                mRobot.setEyes(drawer ? AndroidRobot.EYES_WIDE
+                        : recents ? AndroidRobot.EYES_SMALL : AndroidRobot.EYES_NORMAL);
             }
-            setActivated(open);
+            setActivated(drawer);
         }
 
         private void press() {

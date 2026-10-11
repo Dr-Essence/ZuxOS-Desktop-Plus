@@ -191,6 +191,7 @@ rows give only the date the owner confirmed.
 | 1.0.209 | Our folder in the taskbar drawer see-through: the drawer behind it blurs as ZUI's folder opens (owner chose this) |
 | 1.0.209 | Blank cells for some apps' own shortcuts in the bar menus (Claude): icons loaded through ZUI, else the app's icon, never our white glyph |
 | 1.0.209 | The tablet bar's pinned folders and the apps in them on our old folder window and menus: now ZUI's own folder, opened as ZUI's bar opens its folders, with ZUI's popup on the apps inside |
+| 1.0.210 | Start button's robot narrows its eyes while recents is up (owner's request), back to normal however recents goes: ZUI's on the tablet (its home's overview states, or the home stopping), ours on the monitor (`TaskOverview` tells as it opens and starts to close) |
 | 1.0.201-1.0.203 | Monitor's touchscreen and pen acting on the tablet after a replug: each wired touchscreen and pen tied to the monitor at every plug (Android's own association); Bluetooth devices left alone |
 | 1.0.173 | Theme, bar position, pop-ups and the other start-only settings needing a force stop of ZUX Home: the settings app tells the launcher, which restarts itself when one really changed (`hook/home/SettingsRestart`) |
 

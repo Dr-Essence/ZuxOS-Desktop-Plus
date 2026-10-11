@@ -87,6 +87,8 @@ public final class TaskOverview {
     private static Theme sTheme = Theme.GLASS;
     private static WindowManager sWm;
     private static int sDisplay = -1;
+    /** Told the display recents came up on (true) or left (false); null for no one. */
+    private static java.util.function.BiConsumer<Integer, Boolean> sShown;
     private static final ArrayDeque<String> RECORD = new ArrayDeque<>();
 
     private TaskOverview() {
@@ -110,6 +112,22 @@ public final class TaskOverview {
 
     public static boolean isOpen() {
         return sRoot != null;
+    }
+
+    /** Who to tell when recents comes up on a display or leaves it, as it starts to. */
+    public static void onShown(java.util.function.BiConsumer<Integer, Boolean> shown) {
+        sShown = shown;
+    }
+
+    private static void shown(int display, boolean up) {
+        java.util.function.BiConsumer<Integer, Boolean> shown = sShown;
+        if (shown != null) {
+            try {
+                shown.accept(display, up);
+            } catch (Throwable t) {
+                L.d("task overview: not told (" + t + ")");
+            }
+        }
     }
 
     /** One task as shown: what it is and where its picture comes from. */
@@ -313,6 +331,7 @@ public final class TaskOverview {
             sRoot = root;
             sWm = wm;
             sDisplay = display;
+            shown(display, true);
             loadThumbnails(cards);
             startLive(cards, root);
             record("opened on display " + display + " (" + cards.size() + " tasks)");
@@ -818,6 +837,7 @@ public final class TaskOverview {
         if (root == null || wm == null) {
             return;
         }
+        shown(sDisplay, false);
         if (sTheme.retro()) {
             removeNow(wm, root);
             return;
@@ -1370,6 +1390,7 @@ public final class TaskOverview {
         if (root == null || wm == null) {
             return;
         }
+        shown(sDisplay, false);
         if (sTheme.retro()) {
             removeNow(wm, root);
             recycle(cards);

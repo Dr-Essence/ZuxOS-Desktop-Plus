@@ -13,7 +13,8 @@ import com.zuxos.desktopplus.core.motion.Motion;
 /**
  * The Android head, as a start button: the green half-dome with its antennae and eyes - the mark
  * Android itself uses since 2019 - with no body, so it reads as a logo rather than as one more
- * app on the bar. It blinks every few seconds.
+ * app on the bar. It blinks every few seconds, opens its eyes wide while the drawer is up and
+ * narrows them while recents is.
  *
  * <p>Built from shapes on a 24-unit grid rather than shipped as an image - the module has no
  * resources of its own inside the launcher's process - and scaled to whatever bounds it is
@@ -74,9 +75,10 @@ public final class AndroidRobot extends Drawable {
         // The dome: the top half of a disc, flat side down, filling the width and centred on
         // the grid so the logo sits in the middle of the button.
         canvas.drawArc(new RectF(1.5f, 7.7f, 22.5f, 28.7f), 180f, 180f, true, mFill);
-        // Eyes, which blink - and grow while the drawer is open.
+        // Eyes, which blink - grow while the drawer is open, shrink while recents is.
         float open = openness();
-        float r = 1.25f * (1f + (WIDE_SCALE - 1f) * mWide);
+        float r = 1.25f * Math.max(0.2f, mLook >= 0f
+                ? 1f + (WIDE_SCALE - 1f) * mLook : 1f + (1f - SMALL_SCALE) * mLook);
         canvas.drawOval(new RectF(8.0f - r, 13.8f - r * open, 8.0f + r, 13.8f + r * open), mEye);
         canvas.drawOval(new RectF(16.0f - r, 13.8f - r * open, 16.0f + r, 13.8f + r * open),
                 mEye);
@@ -123,35 +125,47 @@ public final class AndroidRobot extends Drawable {
         return Math.max(0.1f, 1f - shut);
     }
 
+    /** Eyes as they always are. */
+    public static final int EYES_NORMAL = 0;
+    /** Eyes wide: the drawer is open. */
+    public static final int EYES_WIDE = 1;
+    /** Eyes narrowed: recents is up. */
+    public static final int EYES_SMALL = -1;
+
     /** How much bigger the eyes are while the drawer is open. */
     private static final float WIDE_SCALE = 1.45f;
-    /** 0 = normal eyes, 1 = wide; overshoots a touch on the way, which is the spring. */
-    private float mWide;
-    private boolean mWideTarget;
-    private android.animation.ValueAnimator mWideAnim;
+    /** How much smaller the eyes are while recents is up. */
+    private static final float SMALL_SCALE = 0.6f;
+    /** 1 = wide, 0 = normal, -1 = small; overshoots a touch on the way, which is the spring. */
+    private float mLook;
+    private int mLookTarget = EYES_NORMAL;
+    private android.animation.ValueAnimator mLookAnim;
 
     /**
-     * Eyes wide while the app drawer is open, back to normal when it closes.
+     * Eyes wide while the app drawer is open, narrowed while recents is up, and back to normal
+     * when either goes.
      *
-     * <p>On the module's spring, from wherever they are now, so opening and closing the drawer
-     * quickly in a row turns the motion round smoothly instead of jumping.
+     * <p>On the module's spring, from wherever they are now, so opening and closing quickly in a
+     * row turns the motion round smoothly instead of jumping.
+     *
+     * @param look {@link #EYES_NORMAL}, {@link #EYES_WIDE} or {@link #EYES_SMALL}
      */
-    public void setWide(boolean wide) {
-        if (wide == mWideTarget) {
+    public void setEyes(int look) {
+        if (look == mLookTarget) {
             return;
         }
-        mWideTarget = wide;
-        if (mWideAnim != null) {
-            mWideAnim.cancel();
+        mLookTarget = look;
+        if (mLookAnim != null) {
+            mLookAnim.cancel();
         }
-        mWideAnim = android.animation.ValueAnimator.ofFloat(mWide, wide ? 1f : 0f);
-        mWideAnim.setDuration(Motion.SPRING_MS);
-        mWideAnim.setInterpolator(Motion.SPRING);
-        mWideAnim.addUpdateListener(a -> {
-            mWide = (float) a.getAnimatedValue();
+        mLookAnim = android.animation.ValueAnimator.ofFloat(mLook, look);
+        mLookAnim.setDuration(Motion.SPRING_MS);
+        mLookAnim.setInterpolator(Motion.SPRING);
+        mLookAnim.addUpdateListener(a -> {
+            mLook = (float) a.getAnimatedValue();
             invalidateSelf();
         });
-        mWideAnim.start();
+        mLookAnim.start();
     }
 
     /** Somewhere between 3.5 and 6.5 seconds: a fixed rhythm looks like a machine. */
