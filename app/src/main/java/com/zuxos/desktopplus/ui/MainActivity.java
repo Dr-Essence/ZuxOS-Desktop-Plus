@@ -186,6 +186,11 @@ public class MainActivity extends Activity {
                         + "Android could send them to the tablet. Needs System Framework ticked "
                         + "for this module in LSPosed; takes effect at the next plug",
                 Const.KEY_MONITOR_TOUCH, true);
+        addSwitch("Window buttons follow the window",
+                "When a window moves between the tablet and the monitor, its title bar and its "
+                        + "\u2026 menu move with it. Needs System UI ticked for this module in "
+                        + "LSPosed",
+                Const.KEY_CAPTION_FOLLOW, true);
         addSwitch("Tablet drawer ends at the taskbar",
                 "The taskbar drawer's apps scroll up to the bar and stop there, instead of "
                         + "passing under the bar's icons",
@@ -315,14 +320,11 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Saves a change. One the launcher reads only as it starts is written at once and the
-     * launcher told, so it restarts with it - nobody has to force-stop it.
+     * Saves a change and tells the launcher, which takes it at once - or, for one it reads only
+     * as it starts, restarts with it. Nobody has to force-stop it.
      */
     private void save(String key, SharedPreferences.Editor edit) {
-        if (!Const.RESTART_KEYS.contains(key)) {
-            edit.apply();
-            return;
-        }
+        // Written before the launcher is told, so it reads the new value.
         edit.commit();
         // To every launcher the module is in: each listens for itself.
         sendBroadcast(new android.content.Intent(Const.ACTION_SETTINGS_CHANGED));

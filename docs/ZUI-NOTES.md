@@ -350,6 +350,25 @@ vendor power HAL's, not in these jars.
   `FolderAnimationManager` only when the folder's own context is `Launcher` (`isFromLauncher`);
   bar folders get `FolderBlurBgTbAnim` instead. A folder in the taskbar drawer's overlay gets
   neither.
+- The icon shape is a system overlay: `ShapeIconService` ("shape_icon") turns on one
+  `com.lgsi.iconmask.overlay.*` overlay on `android` (`config_icon_mask`) and writes
+  `persist.sys.iconmask`. The launcher hears it through `graphics.ThemeManager` (an
+  OVERLAY_CHANGED receiver on `android`), which tells its `ThemeChangeListener`s
+  (`addChangeListener`); ZUI's own clears its icon pool and `forceReload`s the model. The taskbar
+  is not made again (the config change's assets flag goes to `onAssetsPathChange`). A ZUI icon
+  theme comes through `LauncherModel.onZuiThemeChanged(Intent)`.
+- Night mode reaches the bar as `TaskbarActivityContext.onUiModeChange()`;
+  `NavbarButtonsViewController` colours the keys `taskbar_nav_icon_dark_color_on_home`
+  (#ff333333) by day and `..._light_color_on_home` (#ccfafafa) at night
+  (`Utilities.isDarkTheme`: uiMode night). The bar is `taskbar_background` (#f7f7f7 / #000000);
+  ZUI's own running dot is `taskbar_running_app_dot_indicator_color` (#191919 / #fafafa).
+- SystemUI never makes a window's title bar again when the window changes screen
+  (`DesktopModeWindowDecorViewModel.onTaskInfoChanged` only relays it out); its copy
+  (`mTaskInfo`) follows shell transitions. The "…" menu (`OvHandleMenu`) of a window its copy
+  thinks full screen is added through the WindowManager of the screen the title bar was made on.
+  ZUI moves a window to the monitor with `SystemUiProxy.moveToExternalDisplay(taskId)` ->
+  `IDesktopMode` (transaction 13) -> `DesktopTasksController.moveToNextDisplay`, a CHANGE
+  transition SystemUI follows.
 - At boot ZUI's taskbar is built a moment before its drawer's list (and so its app store as we
   read it): our bar folders, made from that list, wait for it.
 

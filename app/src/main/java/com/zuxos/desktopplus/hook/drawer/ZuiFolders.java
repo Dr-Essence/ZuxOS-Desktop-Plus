@@ -522,6 +522,21 @@ public final class ZuiFolders {
         sAppsKnown = known;
     }
 
+    /**
+     * The device's icon shape or icon theme changed. ZUI reloads its model and hands its new app
+     * list over; until then our folders' icons are ZUI's old ones, so every one is made again
+     * from the new list, as at boot. Without ZUI's folders the bars are rebuilt at once.
+     */
+    public static void forgetIcons() {
+        BUILT.clear();
+        Runnable known = sAppsKnown;
+        if (on()) {
+            sBarWaiting = true;
+        } else if (known != null) {
+            MAIN.post(known);
+        }
+    }
+
     /** Whether the list ZUI is building now is a drawer's on the tablet, for its items' birth. */
     private static final ThreadLocal<Boolean> TABLET_LIST = new ThreadLocal<>();
 

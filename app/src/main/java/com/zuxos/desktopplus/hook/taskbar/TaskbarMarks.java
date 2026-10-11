@@ -89,8 +89,24 @@ final class TaskbarMarks {
                 centre + markWidth / 2f, end), height / 2f, height / 2f, paint);
     }
 
-    /** The marks' colour: light over a dark bar, dark over a light one. */
+    /**
+     * The marks' colour. On ZUI's own bar, ZUI's own colour for the dot under its open apps
+     * ({@code taskbar_running_app_dot_indicator_color}: near black by day, near white in night
+     * mode), so they turn with the bar as ZUI's keys do; on glass, light over dark and dark over
+     * light. Fixed dark, they vanished on ZUI's black night bar (22:11).
+     */
     static int markColor(Context ctx) {
+        if (!Tone.glazedNow()) {
+            int id = ctx.getResources().getIdentifier("taskbar_running_app_dot_indicator_color",
+                    "color", ctx.getPackageName());
+            if (id != 0) {
+                try {
+                    return ctx.getColor(id);
+                } catch (Throwable ignored) {
+                    // Not ZUI's resources here: the tone below.
+                }
+            }
+        }
         return Tone.lightOnDark(ctx) ? 0xCCFFFFFF : 0x99000000;
     }
 

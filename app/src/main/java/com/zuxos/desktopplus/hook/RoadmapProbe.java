@@ -109,7 +109,7 @@ public final class RoadmapProbe {
             echo "--- SystemUI's windows on each display (#5 notifications on the monitor)"
             dumpsys window windows 2>/dev/null | awk '/^  Window #/ { w = $0 } /mDisplayId=/ { if (w ~ /StatusBar|Notification|HeadsUp|Shade|systemui/) { match($0, /mDisplayId=[0-9]+/); print substr($0, RSTART, RLENGTH) " " w } }' | head -30
             echo "--- SystemUI's window decorations, as it logged them (window menu on the wrong screen)"
-            logcat -d -b main 2>/dev/null | grep -E 'OVC *: *(WindowDecoration|OvHandleMenu)' | tail -40
+            logcat -d -b main 2>/dev/null | grep -E 'OVC *: *(WindowDecoration|OvHandleMenu)' | grep -v 'Warning not show' | tail -60
             if [ "$(getprop log.tag.OVC)" != "D" ]; then
               setprop log.tag.OVC D && echo "SystemUI's own log of them was off: on now, until reboot (OvcLog reads it each time) - a probe right after the menu goes wrong has them"
             fi

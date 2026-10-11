@@ -1886,25 +1886,35 @@ public final class TaskbarRunning {
         }
     }
 
-    /** Our row's part in ZUI's own folders on the tablet's bar. */
+    /** Our row's part in ZUI's own folders, and in ZUI's icon changes. */
     static void install() {
-        ZuiFolders.onAppsKnown(TaskbarRunning::rebuildTabletPins);
+        ZuiFolders.onAppsKnown(TaskbarRunning::rebuildPins);
     }
 
     /**
-     * The tablet bar's pins built again: its folders were made before ZUI's app list was read,
-     * so they fell back to ours. Rebuilt as a change of pins would rebuild them.
+     * Every bar's row built again, icon by icon: its folders were made before ZUI's app list was
+     * read, or the device's icon shape changed and every icon was made in the old one. Rebuilt
+     * as a change of pins and open apps would rebuild them.
      */
-    private static void rebuildTabletPins() {
+    static void rebuildPins() {
         for (View root : Windows.roots()) {
             ViewGroup dragLayer = TaskbarTray.dragLayerOf(root);
             RunningRow row = dragLayer == null ? null : rowIn(dragLayer);
-            if (row != null && TaskbarTray.displayIdOf(dragLayer)
-                    == android.view.Display.DEFAULT_DISPLAY) {
+            if (row != null) {
                 row.mPins = new ArrayList<>();
+                row.mRunning = new ArrayList<>();
                 apply(dragLayer);
-                L.i("taskbar running: the tablet bar's folders built again, as ZUI's");
+                L.i("taskbar running: display " + TaskbarTray.displayIdOf(dragLayer)
+                        + " row built again, its icons and folders made anew");
             }
+        }
+    }
+
+    /** Our row on this bar drawn again, its marks with it. */
+    static void redraw(ViewGroup dragLayer) {
+        RunningRow row = rowIn(dragLayer);
+        if (row != null) {
+            row.invalidate();
         }
     }
 
@@ -1959,6 +1969,9 @@ public final class TaskbarRunning {
                     return;
                 }
                 if (target >= 0 && TaskOverview.bringToFront(target, displayId)) {
+                    return;
+                }
+                if (TaskbarApps.moveFromTablet(ctx, pkg, displayId)) {
                     return;
                 }
                 try {

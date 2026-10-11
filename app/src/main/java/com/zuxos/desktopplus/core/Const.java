@@ -29,17 +29,10 @@ public final class Const {
     public static final int TAKEOVER_ALL = 2;
 
     /**
-     * Sent by the settings app to the launcher when a setting changes that the launcher reads
-     * only as it starts: it restarts itself to take it.
+     * Sent by the settings app to the launcher when any setting changes: it takes it at once, or
+     * restarts itself for one it reads only as it starts.
      */
     public static final String ACTION_SETTINGS_CHANGED = "com.zuxos.desktopplus.SETTINGS_CHANGED";
-
-    /** The settings the launcher reads only as it starts. */
-    public static final java.util.Set<String> RESTART_KEYS = java.util.Collections.unmodifiableSet(
-            new java.util.HashSet<>(java.util.Arrays.asList(
-                    Const.KEY_ENABLED, Const.KEY_THEME, Const.KEY_TASKBAR_EDGE,
-                    Const.KEY_NATIVE_DRAWER, Const.KEY_TASKBAR_TRAY, Const.KEY_NOTIFY_POPUPS,
-                    Const.KEY_UNLOCK_STOCK)));
 
     /** How our UI paints itself on the monitor: {@code Theme.GLASS_ID} or {@code RETRO_ID}. */
     public static final String KEY_THEME = "theme";
@@ -114,6 +107,8 @@ public final class Const {
     public static final String KEY_KEEP_ALIVE = "keep_alive";
     /** The monitor's touchscreen acts on the monitor, tied to it at every plug. */
     public static final String KEY_MONITOR_TOUCH = "monitor_touch";
+    /** A window's title bar and "…" menu follow the window to the screen it moved to. */
+    public static final String KEY_CAPTION_FOLLOW = "caption_follow";
     /** The tablet taskbar drawer's app list ends at the bar instead of under its icons. */
     public static final String KEY_DRAWER_ABOVE_BAR = "drawer_above_bar";
     /** Show notifications in the quick panel, through the module's own listener. */

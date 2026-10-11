@@ -75,6 +75,11 @@ public final class Tone {
         sGlazed = source;
     }
 
+    /** Whether our glass is on a bar now. */
+    public static boolean glazedNow() {
+        return glazed();
+    }
+
     private static boolean glazed() {
         Glazed source = sGlazed;
         try {
@@ -88,8 +93,8 @@ public final class Tone {
      * True when the bar's background is dark, so its contents should be light.
      *
      * <p>The wallpaper only gets a say once the bar is glass. Before that the bar is the
-     * launcher's own, which is opaque and light on this firmware - so a dark wallpaper behind it
-     * is not something you can see, and painting white text for it would put white on white.
+     * launcher's own, which is opaque - light, or black in night mode - so a dark wallpaper behind
+     * it is not something you can see; ZUI's own rule for its keys decides instead.
      */
     public static boolean lightOnDark(Context ctx) {
         switch (Cfg.taskbarTextMode()) {
@@ -105,8 +110,20 @@ public final class Tone {
                     // to be light for the same reason.
                     return isLight(glyph);
                 }
-                return glazed() && ctx != null && !wallpaperIsLight(ctx);
+                if (glazed()) {
+                    return ctx != null && !wallpaperIsLight(ctx);
+                }
+                // ZUI's own bar: dark in night mode, light otherwise - the rule ZUI colours its
+                // navigation keys by ({@code Utilities.isDarkTheme}).
+                return isNight(ctx);
         }
+    }
+
+    /** Night mode, as ZUI reads it for its bar ({@code Utilities.isDarkTheme}). */
+    public static boolean isNight(Context ctx) {
+        return ctx != null && (ctx.getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
     }
 
     public static int text(Context ctx) {

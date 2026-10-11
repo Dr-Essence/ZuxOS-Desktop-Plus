@@ -98,6 +98,8 @@ public final class TaskbarTray {
         TaskbarApps.install(loader);
         TaskbarStart.install(loader);
         TaskbarRunning.install();
+        ZuiThemeFollow.install(loader);
+        com.zuxos.desktopplus.hook.home.SettingsRestart.onLive(TaskbarTray::reapplyAll);
         NavKeysHold.install(loader);
         TaskbarDiag.install(loader);
         try {
@@ -136,12 +138,37 @@ public final class TaskbarTray {
         });
     }
 
+    /** Our parts of one bar put on again: ZUI changed it in place ({@link ZuiThemeFollow}). */
+    static void reapply(View windowRoot) {
+        applyAll(windowRoot);
+        ViewGroup root = dragLayerOf(windowRoot);
+        if (root != null) {
+            // The marks take their colour as they are drawn: drawn again, in the new one.
+            TaskbarMarks.refresh(root);
+            TaskbarRunning.redraw(root);
+        }
+    }
+
+    /**
+     * Our parts of every bar put on again, for a setting of ours that changed: it shows at once,
+     * rather than when ZUI next makes its bar.
+     */
+    private static void reapplyAll() {
+        for (View root : Windows.roots()) {
+            if (dragLayerOf(root) != null) {
+                reapply(root);
+            }
+        }
+        L.i("tray: our bars took the changed settings");
+    }
+
     /** Puts each piece in or takes it out, following its setting. */
     private static void applyAll(View windowRoot) {
         ViewGroup root = dragLayerOf(windowRoot);
         if (root == null) {
             return;
         }
+        ZuiThemeFollow.listen(root.getContext());
         View window = windowRoot.getRootView();
         clearWrapper(window, root);
         TaskbarEdge.apply(root);

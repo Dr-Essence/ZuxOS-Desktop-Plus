@@ -160,6 +160,17 @@ public final class AppsRepo {
         return true;
     }
 
+    /**
+     * Drops every icon made so far, for when the device's icon shape or icon theme changed:
+     * the next one asked for is made again in the new shape.
+     */
+    public synchronized void forgetIcons() {
+        mIconCache.clear();
+        for (AppEntry entry : mApps) {
+            entry.mIcon = null;
+        }
+    }
+
     public synchronized void reload() {
         mStale = false;
         mApps.clear();

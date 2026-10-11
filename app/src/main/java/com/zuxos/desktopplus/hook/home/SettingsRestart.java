@@ -11,17 +11,22 @@ import com.zuxos.desktopplus.core.Const;
 import com.zuxos.desktopplus.core.L;
 
 /**
- * The launcher restarting itself when a setting it reads only as it starts has changed - the
- * theme, the monitor's bar position, which hooks are in - so nobody has to force-stop it.
+ * The launcher taking a changed setting with nobody force-stopping it: at once where it can, by
+ * restarting itself where it cannot.
  *
- * <p>The settings app says when one of those changed ({@link Const#ACTION_SETTINGS_CHANGED}).
- * The launcher reads them again and compares with what it started with; only a real difference
- * restarts it, so a stray broadcast does nothing. Android brings home straight back.
+ * <p>The settings app says when any setting changed ({@link Const#ACTION_SETTINGS_CHANGED}).
+ * The launcher reads them again. The ones it reads only as it starts - the theme, the monitor's
+ * bar position, which hooks are in - are compared with what it started with, and only a real
+ * difference restarts it; Android brings home straight back. Anything else is put on every bar
+ * at once ({@link #onLive}): before, a bar setting waited for ZUI to make its bar again.
  */
 public final class SettingsRestart {
 
     private static String sStartedWith;
     private static boolean sListening;
+    /** What re-applies the settings that need no restart; run on the main thread. */
+    private static final java.util.List<Runnable> LIVE =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
 
     private SettingsRestart() {
     }
@@ -29,6 +34,11 @@ public final class SettingsRestart {
     /** What the launcher starts with, read as its hooks go in. */
     public static void remember() {
         sStartedWith = current();
+    }
+
+    /** Something that takes a changed setting at once, without a restart. */
+    public static void onLive(Runnable live) {
+        LIVE.add(live);
     }
 
     /** Listens once, from the first activity that comes up. */
@@ -61,6 +71,14 @@ public final class SettingsRestart {
             Cfg.reload();
             String now = current();
             if (now.equals(sStartedWith)) {
+                // A setting read as it is used, or put on as a bar is made: on every bar now.
+                for (Runnable live : LIVE) {
+                    try {
+                        live.run();
+                    } catch (Throwable t) {
+                        L.d("settings: a change not taken at once (" + t + ")");
+                    }
+                }
                 return;
             }
             L.i("settings: " + sStartedWith + " -> " + now + ", the launcher restarts to take "

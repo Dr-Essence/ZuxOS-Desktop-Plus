@@ -675,23 +675,84 @@ public final class NativeDrawerHooks {
     }
 
     /**
-     * An app tapped in the stock drawer: the drawer goes once the launch is under way.
+     * An app tapped in a drawer: the drawer goes once the launch is under way, closed the way
+     * ZUI closes it.
      *
      * <p>ZUI closes it only for launches it runs itself, and on the desktop displays the launch
-     * goes elsewhere - so the drawer stayed open with the app starting behind it. Closed a moment
-     * later rather than at once, so the launch animation still starts from the icon.
+     * goes elsewhere - so the drawer stayed open with the app starting behind it. Apps inside our
+     * folders were left out (their entries are ZUI's workspace items, not drawer entries), and so
+     * was ZUX Home's own drawer (22:11). Closed a moment later rather than at once, so the launch
+     * animation still starts from the icon: the taskbar's drawer as ZUI hides it
+     * ({@code TaskbarOverlayContext.hideAllAppsOverlay}), ZUX Home's by its state manager back
+     * to {@code NORMAL}, as ZUI does in desktop mode.
      */
     private static void closeAfterLaunch(View view) {
         Object tag = view.getTag();
         // A tag test first: this runs for every click in the launcher.
-        if (tag == null || sAppInfoCls == null || !sAppInfoCls.isInstance(tag)
-                || folderIdOf(tag) != null || IconInfo.packageOf(tag) == null
-                || !inStockDrawer(view) || view.getDisplay() == null) {
+        if (tag == null || view.getDisplay() == null) {
+            return;
+        }
+        boolean entry = sAppInfoCls != null && sAppInfoCls.isInstance(tag)
+                && folderIdOf(tag) == null && IconInfo.packageOf(tag) != null;
+        if (!entry && ZuiFolders.childOf(tag) == null) {
             return;
         }
         int display = view.getDisplay().getDisplayId();
-        view.getRootView().postDelayed(() -> TaskbarBridge.closeStockDrawer(display),
-                CLOSE_AFTER_LAUNCH_MS);
+        Object activity;
+        try {
+            activity = ZuiFolders.lookup(view.getContext());
+        } catch (Throwable t) {
+            activity = null;
+        }
+        final Object where = activity;
+        if (ZuiFolders.isLauncher(where)) {
+            view.postDelayed(() -> closeHomeDrawer(where), CLOSE_AFTER_LAUNCH_MS);
+        } else if (inStockDrawer(view)) {
+            view.getRootView().postDelayed(() -> closeTaskbarDrawer(where, display),
+                    CLOSE_AFTER_LAUNCH_MS);
+        }
+    }
+
+    private static final java.util.Set<String> SAID_CLOSE = new java.util.HashSet<>();
+
+    /** The taskbar's drawer hidden as ZUI hides it; our own close where that is not there. */
+    private static void closeTaskbarDrawer(Object overlay, int display) {
+        String how;
+        try {
+            overlay.getClass().getMethod("hideAllAppsOverlay").invoke(overlay);
+            how = "ZUI's hideAllAppsOverlay";
+        } catch (Throwable t) {
+            how = TaskbarBridge.closeStockDrawer(display) ? "its sheet's close" : "nothing ("
+                    + t + ")";
+        }
+        if (SAID_CLOSE.add("taskbar " + how)) {
+            L.i("native drawer: the taskbar drawer closed after a launch, through " + how);
+        }
+    }
+
+    /** ZUX Home's own drawer back to its home, as ZUI does after a launch in desktop mode. */
+    private static void closeHomeDrawer(Object launcher) {
+        try {
+            if (!Boolean.TRUE.equals(launcher.getClass().getMethod("isInAllAppsState")
+                    .invoke(launcher))) {
+                return;
+            }
+            Object normal = Class.forName("com.android.launcher3.LauncherState", false,
+                    launcher.getClass().getClassLoader()).getField("NORMAL").get(null);
+            Object states = launcher.getClass().getMethod("getStateManager").invoke(launcher);
+            for (java.lang.reflect.Method m : states.getClass().getMethods()) {
+                if (m.getName().equals("goToState") && m.getParameterCount() == 1) {
+                    m.invoke(states, normal);
+                    if (SAID_CLOSE.add("home")) {
+                        L.i("native drawer: ZUX Home's drawer closed after a launch, through "
+                                + "its state manager");
+                    }
+                    return;
+                }
+            }
+        } catch (Throwable t) {
+            L.d("native drawer: ZUX Home's drawer not closed after a launch (" + t + ")");
+        }
     }
 
     private static final long CLOSE_AFTER_LAUNCH_MS = 220L;
@@ -934,6 +995,17 @@ public final class NativeDrawerHooks {
             sLastNote = message;
             L.i("native drawer: " + message);
         }
+    }
+
+    /**
+     * The device's icon shape or icon theme changed: every icon made from the old ones is made
+     * again - the apps' icons and the folder entries painted from them.
+     */
+    public static synchronized void forgetIcons() {
+        if (sRepo != null) {
+            sRepo.forgetIcons();
+        }
+        sFolderEntries.clear();
     }
 
     /** Re-read the drawer state whenever our own drawer has written to it. */

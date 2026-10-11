@@ -634,13 +634,77 @@ public final class TaskbarApps {
         }
         List<Integer> ids = windowIds(ctx, pkg, display);
         if (ids.isEmpty()) {
-            return false;
+            return moveFromTablet(ctx, pkg, display);
         }
         if (TaskOverview.bringToFront(ids.get(0), display)) {
             L.i("taskbar apps: " + pkg + " is open - brought window " + ids.get(0) + " forward");
             return true;
         }
         return false;
+    }
+
+    /**
+     * An app open on the tablet, asked for on the monitor: its window moved there the way ZUI
+     * moves one ({@code SystemUiProxy.moveToExternalDisplay}, SystemUI's own move to the next
+     * screen, as a transition it follows). Opened again with the monitor as its screen instead,
+     * the system moved the window behind SystemUI's back: its title bar kept the tablet, and the
+     * window's "…" menu opened there (22:17). Only with the tablet and this one monitor, where
+     * ZUI's "next screen" is the monitor; should the window not arrive, it is opened there as
+     * before. True when the move was asked for.
+     */
+    static boolean moveFromTablet(Context ctx, String pkg, int display) {
+        if (display == android.view.Display.DEFAULT_DISPLAY || !onlyMonitor(ctx, display)) {
+            return false;
+        }
+        List<Integer> there = windowIds(ctx, pkg, android.view.Display.DEFAULT_DISPLAY);
+        if (there.isEmpty()) {
+            return false;
+        }
+        int task = there.get(0);
+        try {
+            Class<?> proxyCls = Class.forName("com.android.quickstep.SystemUiProxy", false,
+                    ctx.getClassLoader());
+            Object singleton = proxyCls.getField("INSTANCE").get(null);
+            Object proxy = singleton.getClass().getMethod("get", Context.class)
+                    .invoke(singleton, ctx);
+            proxyCls.getMethod("moveToExternalDisplay", int.class).invoke(proxy, task);
+        } catch (Throwable t) {
+            L.d("taskbar apps: ZUI's move to the monitor not reachable (" + t + ")");
+            return false;
+        }
+        L.i("taskbar apps: " + pkg + " window " + task + " moved from the tablet to display "
+                + display + ", as ZUI moves it");
+        // ZUI's move needs a desk on the monitor; without one nothing moves, and the app is
+        // opened there as it was before.
+        MAIN.postDelayed(() -> {
+            if (windowIds(ctx, pkg, display).isEmpty()) {
+                L.i("taskbar apps: " + pkg + " did not move - opened on display " + display);
+                TaskbarMenu.launch(ctx, pkg, display);
+            }
+        }, MOVE_CHECK_MS);
+        return true;
+    }
+
+    /** How long ZUI's move to the monitor is given before the app is opened there instead. */
+    private static final long MOVE_CHECK_MS = 700L;
+    private static final android.os.Handler MAIN =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+
+    /** Whether this display is the one screen besides the tablet that apps can be on. */
+    private static boolean onlyMonitor(Context ctx, int display) {
+        android.hardware.display.DisplayManager dm =
+                ctx.getSystemService(android.hardware.display.DisplayManager.class);
+        if (dm == null) {
+            return false;
+        }
+        for (android.view.Display d : dm.getDisplays()) {
+            int id = d.getDisplayId();
+            if (id != android.view.Display.DEFAULT_DISPLAY && id != display
+                    && (d.getFlags() & android.view.Display.FLAG_PRIVATE) == 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
