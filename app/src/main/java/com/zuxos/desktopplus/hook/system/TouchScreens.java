@@ -32,8 +32,8 @@ import de.robv.android.xposed.XposedBridge;
  * <p>So the input system's own association by device ({@code addUniqueIdAssociationByDescriptor},
  * the call Android has for exactly this) ties each external touchscreen to the external screen
  * whenever either changes: after the screens are handed to the input system, and after the input
- * devices change. Only with one external screen, only external touchscreens - the tablet's own
- * is internal - and taken off again when the screen goes, so the next one is tied afresh. The
+ * devices change. Only with one external screen, only wired touchscreens and pens - the tablet's
+ * own are internal or Bluetooth - and taken off again when the screen goes, so the next one is tied afresh. The
  * screens handed over are written to the log at each change. Nothing runs at load time but the
  * hooks; everything is in try/catch, on the threads the system already runs these on.
  */
@@ -116,8 +116,7 @@ public final class TouchScreens {
             List<String> touch = new ArrayList<>();
             for (InputDevice device : (InputDevice[]) input.getClass()
                     .getMethod("getInputDevices").invoke(input)) {
-                if (device != null && device.isExternal() && !device.isVirtual()
-                        && device.supportsSource(InputDevice.SOURCE_TOUCHSCREEN)) {
+                if (onTheMonitor(device)) {
                     touch.add(device.getDescriptor());
                 }
             }
@@ -136,7 +135,7 @@ public final class TouchScreens {
                     if (!screen.equals(TIED.get(descriptor))) {
                         call(sAdd, input, descriptor, screen);
                         TIED.put(descriptor, screen);
-                        L.i("touch screens: an external touchscreen tied to the monitor ("
+                        L.i("touch screens: a wired touchscreen or pen tied to the monitor ("
                                 + screen + ")");
                     }
                 }
@@ -144,6 +143,20 @@ public final class TouchScreens {
         } catch (Throwable t) {
             L.d("touch screens: left as Android has them (" + t + ")");
         }
+    }
+
+    /**
+     * A wired touchscreen or pen: the monitor's. A touchscreen's pen is often an input device of
+     * its own, pen only, and stayed on the tablet with the touch (owner: the stylus did not work
+     * on the monitor either). Bluetooth devices are left alone - the tablet's own pen and
+     * keyboards are Bluetooth, and belong wherever the user takes them. Mice and touchpads keep
+     * following the pointer's screen.
+     */
+    private static boolean onTheMonitor(InputDevice device) {
+        return device != null && device.isExternal() && !device.isVirtual()
+                && device.getBluetoothAddress() == null
+                && (device.supportsSource(InputDevice.SOURCE_TOUCHSCREEN)
+                || device.supportsSource(InputDevice.SOURCE_STYLUS));
     }
 
     /** The one valid external screen's unique id, or null for none or more than one. */
