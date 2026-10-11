@@ -22,7 +22,7 @@ mode along the way.
 | Launcher | `com.zui.launcher`, desktop activity `SecondaryDisplayLauncher` |
 | Needs | Root, LSPosed, and the module scoped to the home app |
 
-**Status (2026-10-11, build 1.0.203)**
+**Status (2026-10-11, build 0.0.214)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
 
 - The tablet's two drawers (ZUX Home's and the taskbar's) now use ZUI's own folders. You get ZUI's look and motion, its app menu with this module's actions added, Add apps and Uninstall.
 - The tablet's menus are ZUI's own popups: App info, Lock, Hide and Cast are back on the taskbar, and the bar's menu opens where you press.

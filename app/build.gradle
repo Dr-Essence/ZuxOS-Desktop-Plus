@@ -27,8 +27,11 @@ android {
         applicationId 'com.zuxos.desktopplus'
         minSdk 29
         targetSdk 36
+        // The code only ever grows (the commit count), so an install over any earlier build is
+        // an update that keeps every setting and folder. The name says early alpha: 0.0.<count>,
+        // after builds 1.0.1 to 1.0.213.
         versionCode buildNumber
-        versionName "1.0.${buildNumber}"
+        versionName "0.0.${buildNumber}"
     }
 
     signingConfigs {

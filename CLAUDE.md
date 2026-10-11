@@ -76,9 +76,10 @@ policy, and where each of our hooks lands. Read it before hooking anything of ZU
   and runs the `logic` unit tests. A commit that touches only docs does not need it.
 - Run `python3 tools/deadcode.py` before any commit that removes or replaces code.
 - After pushing, wait for the CI workflow **Build module APK** to pass before telling the owner a
-  build is ready. Its artifact is `zuxos-desktop-plus-1.0.<N>`.
-- The version is `1.0.<commit count>` (`git rev-list --count HEAD`), so the next build is the
-  current count plus one.
+  build is ready. Its artifact is `zuxos-desktop-plus-0.0.<N>`.
+- The version is `0.0.<commit count>` (`git rev-list --count HEAD`; early alpha - builds up to
+  1.0.213 were numbered 1.0.x, and the version code is the same count, so nothing is lost), so
+  the next build is the current count plus one.
 - No model names in commits, code or docs. No pull request unless the owner asks for one.
 
 ## Reading the owner's material

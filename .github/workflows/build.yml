@@ -48,8 +48,8 @@ jobs:
           if-no-files-found: ignore
 
       - name: Version
-        # The same number the build gives itself: 1.0.<commit count>.
-        run: echo "VERSION=1.0.$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
+        # The same number the build gives itself: 0.0.<commit count>.
+        run: echo "VERSION=0.0.$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
 
       - name: Build
         run: ./gradlew --no-daemon assembleRelease assembleDebug

@@ -5,7 +5,7 @@ in a fresh session: it is the project's memory.
 
 **Goal:** the best desktop mode on Android, for the Lenovo Legion Tab Gen 5 on ZuxOS 2.x.
 
-**Where we are (2026-10-11, build 1.0.212): early alpha, experimental.** No public release until
+**Where we are (2026-10-11, build 0.0.214): early alpha, experimental.** Builds are numbered 0.0.<commit count> from 0.0.214; earlier ones were 1.0.1-1.0.213 (the same count, so installing over them keeps every setting and folder). No public release until
 it is fully stable on the owner's tablet. The current work is moving every feature onto ZUI's
 own code paths ("Through ZUI's own path" below), one at a time:
 - Tablet drawers (ZUX Home's and the taskbar's): our folders are ZUI's own `FolderIcon` and `Folder`, with ZUI's motion, menus, Add apps and Uninstall.
