@@ -345,6 +345,13 @@ vendor power HAL's, not in these jars.
   itself when the folder leaves the drag layer (`TaskbarDragLayer.onViewRemoved` -> `r1`).
   `createAddAppButton` needs a `Launcher` from the folder's delegate, so bar folders have no Add
   apps button.
+- ZUI's folder blur animation (`FolderBlurBgAnim`, render blur 0 -> 70, wallpaper 0 -> 400, which
+  drives `onFolderOpen/CloseBlurParamsChanged` -> `setWallpaperBlur`) is added in
+  `FolderAnimationManager` only when the folder's own context is `Launcher` (`isFromLauncher`);
+  bar folders get `FolderBlurBgTbAnim` instead. A folder in the taskbar drawer's overlay gets
+  neither.
+- At boot ZUI's taskbar is built a moment before its drawer's list (and so its app store as we
+  read it): our bar folders, made from that list, wait for it.
 
 ## Two USB-C ports: which one charges (`services.jar` 16)
 

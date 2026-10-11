@@ -500,6 +500,7 @@ public final class Probe {
         View row = TaskbarTray.rowReference(dragLayer);
         sb.append("  icon row: ").append(row == null ? "not found"
                 : row.getClass().getName()).append('\n');
+        sb.append("  our row ends at: ").append(TaskbarRunning.endsAt(dragLayer)).append('\n');
         if (row instanceof ViewGroup) {
             ViewGroup icons = (ViewGroup) row;
             for (int i = 0; i < icons.getChildCount(); i++) {

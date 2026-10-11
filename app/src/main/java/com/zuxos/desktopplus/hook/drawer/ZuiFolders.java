@@ -388,9 +388,12 @@ public final class ZuiFolders {
      * ({@code TaskbarOverlayController.hideWindow}) closes every view open in it
      * ({@code AbstractFloatingView.closeAllOpenViews}), and the window stays while any is open;
      * the drawer's sheet closed on its own - our start button, a swipe - left our folder over the
-     * home screen for a second, then shrinking to nowhere (14:12). So as the sheet starts to
-     * close, any folder open in its window closes with it, the way ZUI closes its views there
-     * ({@code closeOpenViews(context, animate, TYPE_FOLDER)}).
+     * home screen for a second, then shrinking to nowhere (14:12), and an app's popup over the
+     * folder stayed as the sheet slid away (15:14). So as the sheet starts to close while one of
+     * our folders is open, everything open in its window closes with it, as ZUI closes it -
+     * every type but the sheet itself and the window's own proxy
+     * ({@code closeOpenViews(context, animate, TYPE_ALL & ~(TYPE_TASKBAR_ALL_APPS |
+     * TYPE_TASKBAR_OVERLAY_PROXY))}).
      */
     private static int hookDrawerClose(ClassLoader loader) {
         try {
@@ -412,7 +415,9 @@ public final class ZuiFolders {
                 L.w("zui folders: ZUI's closeOpenViews not found - folders close on their own");
                 return 0;
             }
-            int folderType = floating.getField("TYPE_FOLDER").getInt(null);
+            int openTypes = floating.getField("TYPE_ALL").getInt(null)
+                    & ~(floating.getField("TYPE_TASKBAR_ALL_APPS").getInt(null)
+                    | floating.getField("TYPE_TASKBAR_OVERLAY_PROXY").getInt(null));
             Method closeViews = close;
             return XposedBridge.hookAllMethods(sheet, "handleClose", new XC_MethodHook() {
                 @Override
@@ -426,7 +431,7 @@ public final class ZuiFolders {
                         boolean animate = param.args.length == 0
                                 || !(param.args[0] instanceof Boolean)
                                 || (Boolean) param.args[0];
-                        closeViews.invoke(null, activity, animate, folderType);
+                        closeViews.invoke(null, activity, animate, openTypes);
                     } catch (Throwable t) {
                         L.d("zui folders: not closed with the drawer (" + t + ")");
                     }
@@ -493,7 +498,28 @@ public final class ZuiFolders {
     static void remember(Map<String, Object> filed) {
         if (filed != null) {
             sFiled = filed;
+            Runnable known = sAppsKnown;
+            if (!filed.isEmpty() && sBarWaiting && known != null) {
+                sBarWaiting = false;
+                MAIN.post(known);
+            }
         }
+    }
+
+    private static final android.os.Handler MAIN =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+    /** A bar asked for its folders before ZUI's app list was read. */
+    private static volatile boolean sBarWaiting;
+    /** Who rebuilds the bar's folders once ZUI's app list is read. */
+    private static volatile Runnable sAppsKnown;
+
+    /**
+     * Who to tell once ZUI's app list is known, when a bar built its folders before it was: the
+     * bar is put up at boot a moment before ZUI builds its drawer's list, which is where our
+     * folders' apps come from (1.0.209 left the bar's folders ours for the whole session).
+     */
+    public static void onAppsKnown(Runnable known) {
+        sAppsKnown = known;
     }
 
     /** Whether the list ZUI is building now is a drawer's on the tablet, for its items' birth. */
@@ -779,6 +805,14 @@ public final class ZuiFolders {
                 return null;
             }
             Context bar = (Context) activity;
+            if (sFiled.isEmpty()) {
+                // ZUI has not read its app list yet: this bar is rebuilt once it has.
+                if (!sBarWaiting) {
+                    sBarWaiting = true;
+                    L.i("zui folders: the bar's folders wait for ZUI's app list");
+                }
+                return null;
+            }
             Context app = AppCtx.get() != null ? AppCtx.get() : bar;
             int version = DrawerStore.shared(app).version();
             Map<String, Built> mine = BUILT.get(bar);

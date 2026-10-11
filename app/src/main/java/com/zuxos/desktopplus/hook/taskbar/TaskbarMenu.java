@@ -361,6 +361,17 @@ public final class TaskbarMenu {
     }
 
     /**
+     * The point a popup over the bar stands beside. A class of our own: a plain view in the bar
+     * counts as ZUI's to our row, which stops at the first of ZUI's views after it - so while a
+     * popup was up the row could end at the point that was pressed.
+     */
+    static final class Anchor extends View {
+        Anchor(Context ctx) {
+            super(ctx);
+        }
+    }
+
+    /**
      * A point on the bar's row at {@code rawX}, for a popup to stand beside: a view of ours, one
      * pixel wide and the row's height, placed where the row is now, taken off when the popup goes.
      */
@@ -380,7 +391,7 @@ public final class TaskbarMenu {
         frame.gravity = Gravity.TOP | Gravity.START;
         frame.leftMargin = Math.round(rawX) - layer[0];
         frame.topMargin = at[1] - layer[1];
-        View point = new View(dragLayer.getContext());
+        View point = new Anchor(dragLayer.getContext());
         dragLayer.addView(point, frame);
         // Laid out now: ZUI measures where it stands as soon as it is asked.
         point.layout(frame.leftMargin, frame.topMargin, frame.leftMargin + 1,

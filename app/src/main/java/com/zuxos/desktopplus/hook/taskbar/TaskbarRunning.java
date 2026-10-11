@@ -975,6 +975,25 @@ public final class TaskbarRunning {
      */
     private static final int BARE_DP = 40;
 
+    /** What last ended each bar's row, as written to the log. */
+    private static final Map<ViewGroup, String> LIMITED_BY = new java.util.WeakHashMap<>();
+
+    /** What ended this bar's row last time it was placed, for the probe. */
+    public static String endsAt(ViewGroup dragLayer) {
+        String said = LIMITED_BY.get(dragLayer);
+        return said != null ? said : "not placed yet";
+    }
+
+    /** A view of ZUI's, as the log names it: class, id and width. */
+    private static String describe(View view) {
+        if (view == null) {
+            return "?";
+        }
+        String id = Reflect.idName(view);
+        return view.getClass().getSimpleName() + (id != null ? " #" + id : "") + " "
+                + view.getWidth() + "px wide";
+    }
+
     /**
      * How far our row has to stay from the right-hand end of the bar: up to the first thing to
      * its right - our tray, or anything of ZUI's sitting in the bar's row, such as the search
@@ -990,16 +1009,29 @@ public final class TaskbarRunning {
             return TaskbarTray.trayWidth(dragLayer) + margin;
         }
         int limit = width;
+        String by = "the bar's end";
         View tray = TaskbarTray.trayOf(dragLayer);
         if (tray != null && tray.getWidth() > 0 && tray.getParent() == dragLayer) {
             limit = tray.getLeft();
+            by = "the tray";
         }
         if (start >= 0 && reference != null && reference.getHeight() > 0) {
+            View[] which = new View[1];
             int zui = firstOfZuisAfter(dragLayer, start, reference.getTop(),
-                    reference.getBottom());
-            if (zui >= 0) {
-                limit = Math.min(limit, zui);
+                    reference.getBottom(), which);
+            if (zui >= 0 && zui < limit) {
+                limit = zui;
+                by = describe(which[0]);
             }
+        }
+        // What ends the row, each time that changes: the bar in portrait was cut short by
+        // something of ZUI's that no probe has shown yet (15:15).
+        // Which view and how wide the bar is, not where: ZUI slides its keys across the bar,
+        // and every frame of that would be a line.
+        String said = by + " (bar " + width + " wide)";
+        if (!said.equals(LIMITED_BY.put(dragLayer, said))) {
+            L.i("taskbar running: display " + TaskbarTray.displayIdOf(dragLayer)
+                    + " row ends at " + said + ", x " + limit);
         }
         return Math.max(0, width - limit) + margin;
     }
@@ -1011,7 +1043,8 @@ public final class TaskbarRunning {
      * <p>Found by what is on screen rather than by name: buttons and pills of the bar's own, not
      * the wide containers they sit in, and nothing of ours.
      */
-    private static int firstOfZuisAfter(ViewGroup dragLayer, int start, int top, int bottom) {
+    private static int firstOfZuisAfter(ViewGroup dragLayer, int start, int top, int bottom,
+            View[] which) {
         int found = -1;
         int half = dragLayer.getWidth() / 2;
         java.util.ArrayDeque<View> pending = new java.util.ArrayDeque<>();
@@ -1044,7 +1077,10 @@ public final class TaskbarRunning {
             if (left < start || viewTop >= bottom || viewTop + view.getHeight() <= top) {
                 continue;
             }
-            found = found < 0 ? left : Math.min(found, left);
+            if (found < 0 || left < found) {
+                found = left;
+                which[0] = view;
+            }
             watchBoundary(dragLayer, view);
         }
         return found;
@@ -1847,6 +1883,28 @@ public final class TaskbarRunning {
             }
         } catch (Throwable t) {
             L.d("taskbar: could not ask for the refresh rate (" + t + ")");
+        }
+    }
+
+    /** Our row's part in ZUI's own folders on the tablet's bar. */
+    static void install() {
+        ZuiFolders.onAppsKnown(TaskbarRunning::rebuildTabletPins);
+    }
+
+    /**
+     * The tablet bar's pins built again: its folders were made before ZUI's app list was read,
+     * so they fell back to ours. Rebuilt as a change of pins would rebuild them.
+     */
+    private static void rebuildTabletPins() {
+        for (View root : Windows.roots()) {
+            ViewGroup dragLayer = TaskbarTray.dragLayerOf(root);
+            RunningRow row = dragLayer == null ? null : rowIn(dragLayer);
+            if (row != null && TaskbarTray.displayIdOf(dragLayer)
+                    == android.view.Display.DEFAULT_DISPLAY) {
+                row.mPins = new ArrayList<>();
+                apply(dragLayer);
+                L.i("taskbar running: the tablet bar's folders built again, as ZUI's");
+            }
         }
     }
 

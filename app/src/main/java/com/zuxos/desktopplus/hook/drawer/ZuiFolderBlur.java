@@ -1,37 +1,45 @@
 package com.zuxos.desktopplus.hook.drawer;
 
+import android.animation.ValueAnimator;
 import android.graphics.RenderEffect;
 import android.graphics.Shader;
 import android.view.View;
 import android.view.ViewGroup;
 
 import com.zuxos.desktopplus.core.L;
-import com.zuxos.desktopplus.core.Reflect;
+import com.zuxos.desktopplus.core.motion.Motion;
+
+import java.util.Map;
+import java.util.WeakHashMap;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 
 /**
- * The taskbar drawer blurred behind our open folder, following ZUI's own folder blur.
+ * The taskbar drawer blurred behind our open folder, as ZUI blurs behind its home folders.
  *
- * <p>Our drawer folders move as ZUX Home's ({@link ZuiFolders}), and in that motion ZUI's
- * {@code Folder} works out its blur at every step: {@code setWallpaperBlur} fills its
- * {@code LauncherBlurAreaData} (radius and strength, from nothing to full as it opens and back as
- * it closes). On the home screen ZUI cuts the folder's shape out of the home's window and blurs
- * the wallpaper behind it. In the taskbar's drawer that cannot work: the drawer's sheet is in the
- * folder's own window, so the folder showed the drawer's rows straight through (14:12). Here the
- * sheet itself is blurred, step for step with ZUI's numbers, and sharp again as the folder
- * leaves. Only while ZUI moves the folder is anything set; the GPU keeps the effect after.
+ * <p>ZUI blurs what is behind a folder only for a folder of its home screen: its blur animation
+ * ({@code FolderBlurBgAnim}, render blur 0 to 70) is added in {@code FolderAnimationManager}
+ * only when the folder's own context is {@code Launcher}. Our drawer folders are in the taskbar
+ * drawer's window, so they opened with no blur and the drawer's rows read through them (15:14).
+ * And there ZUI's way - cutting the folder's shape out of its window and blurring what is behind
+ * the window - could not work anyway: the drawer's sheet is in the folder's own window.
+ *
+ * <p>So the sheet beside the folder is blurred, as the folder opens and back as it closes, with
+ * ZUI's own numbers: its render blur radius and the folder's own opening time. Only while that
+ * runs is anything set; the GPU keeps the effect after.
  */
 final class ZuiFolderBlur {
 
     private static final String SHEET =
             "com.android.launcher3.taskbar.allapps.TaskbarAllAppsSlideInView";
-    /** The most the sheet is blurred, in pixels: ZUI's surface radius is on another scale. */
-    private static final float MAX_PX = 60f;
-    /** ZUI's own folder blur radius when fully open ({@code updateTbFolderAnimBlurParams}). */
-    private static final float ZUI_FULL = 160f;
+    /** ZUI's render blur behind an open home folder ({@code FolderBlurBgAnim}: 0 to 70). */
+    private static final float ZUI_BLUR = 70f;
 
+    /** The blur animation running on each sheet, to turn round from where it is. */
+    private static final Map<View, ValueAnimator> RUNNING = new WeakHashMap<>();
+    /** The blur each sheet has now. */
+    private static final Map<View, Float> NOW = new WeakHashMap<>();
     private static boolean sSaid;
 
     private ZuiFolderBlur() {
@@ -39,12 +47,21 @@ final class ZuiFolderBlur {
 
     static void install(Class<?> folderCls) {
         try {
-            int hooked = XposedBridge.hookAllMethods(folderCls, "setWallpaperBlur",
+            int hooked = XposedBridge.hookAllMethods(folderCls, "animateOpen",
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
                             if (inDrawer(param.thisObject)) {
-                                blur((View) param.thisObject, amount(param.thisObject));
+                                blur((View) param.thisObject, ZUI_BLUR);
+                            }
+                        }
+                    }).size();
+            hooked += XposedBridge.hookAllMethods(folderCls, "handleClose",
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            if (inDrawer(param.thisObject)) {
+                                blur((View) param.thisObject, 0f);
                             }
                         }
                     }).size();
@@ -53,7 +70,11 @@ final class ZuiFolderBlur {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
                             if (inDrawer(param.thisObject)) {
-                                blur((View) param.thisObject, 0f);
+                                for (View sheet : sheetsBeside((View) param.thisObject)) {
+                                    stop(sheet);
+                                    sheet.setRenderEffect(null);
+                                    NOW.remove(sheet);
+                                }
                             }
                         }
                     }).size();
@@ -70,43 +91,67 @@ final class ZuiFolderBlur {
                 && !ZuiFolders.isLauncher(where) && !ZuiFolders.isBar(where);
     }
 
-    /** ZUI's blur for the folder now, as pixels of blur on the sheet; 0 for none. */
-    private static float amount(Object folder) {
+    /** The drawer's sheet beside the folder blurred to this much, over the folder's own time. */
+    private static void blur(View folder, float to) {
         try {
-            Object data = folder.getClass().getMethod("getBlurAreaData").invoke(folder);
-            float radius = ((Number) Reflect.field(data, "blurRadius")).floatValue();
-            float alpha = ((Number) Reflect.field(data, "blurAlpha")).floatValue();
-            if (radius <= 0f || alpha <= 0f) {
-                return 0f;
+            long duration = openDuration(folder);
+            for (View sheet : sheetsBeside(folder)) {
+                stop(sheet);
+                Float now = NOW.get(sheet);
+                ValueAnimator anim = ValueAnimator.ofFloat(now != null ? now : 0f, to);
+                anim.setDuration(duration);
+                anim.setInterpolator(Motion.EASE);
+                anim.addUpdateListener(a -> set(sheet, (float) a.getAnimatedValue()));
+                RUNNING.put(sheet, anim);
+                anim.start();
             }
-            return MAX_PX * Math.min(1f, radius / ZUI_FULL) * Math.min(1f, alpha);
-        } catch (Throwable t) {
-            L.d("zui folder blur: no blur from ZUI (" + t + ")");
-            return 0f;
-        }
-    }
-
-    /** The drawer's sheet beside the folder, blurred by this much; sharp at 0. */
-    private static void blur(View folder, float px) {
-        try {
-            if (!(folder.getParent() instanceof ViewGroup)) {
-                return;
-            }
-            Class<?> sheetCls = Class.forName(SHEET, false, folder.getClass().getClassLoader());
-            ViewGroup layer = (ViewGroup) folder.getParent();
-            for (int i = 0; i < layer.getChildCount(); i++) {
-                View sheet = layer.getChildAt(i);
-                if (sheetCls.isInstance(sheet)) {
-                    sheet.setRenderEffect(px < 0.5f ? null
-                            : RenderEffect.createBlurEffect(px, px, Shader.TileMode.CLAMP));
-                }
-            }
-            if (!sSaid && px > 0f) {
+            if (!sSaid && to > 0f) {
                 sSaid = true;
-                L.i("zui folder blur: the drawer blurred behind our folder, as ZUI opens it");
+                L.i("zui folder blur: the drawer blurs behind our folder as it opens ("
+                        + duration + "ms)");
             }
         } catch (Throwable t) {
             L.d("zui folder blur: not applied (" + t + ")");
         }
+    }
+
+    private static void set(View sheet, float px) {
+        NOW.put(sheet, px);
+        sheet.setRenderEffect(px < 0.5f ? null
+                : RenderEffect.createBlurEffect(px, px, Shader.TileMode.CLAMP));
+    }
+
+    private static void stop(View sheet) {
+        ValueAnimator running = RUNNING.remove(sheet);
+        if (running != null) {
+            running.cancel();
+        }
+    }
+
+    /** ZUI's folder opening time ({@code config_materialFolderExpandDuration_open}). */
+    private static long openDuration(View folder) {
+        int id = folder.getResources().getIdentifier("config_materialFolderExpandDuration_open",
+                "integer", folder.getContext().getPackageName());
+        return id != 0 ? folder.getResources().getInteger(id) : Motion.MEDIUM;
+    }
+
+    /** The taskbar drawer sheets in the folder's own drag layer. */
+    private static java.util.List<View> sheetsBeside(View folder) {
+        java.util.List<View> out = new java.util.ArrayList<>();
+        try {
+            if (!(folder.getParent() instanceof ViewGroup)) {
+                return out;
+            }
+            Class<?> sheetCls = Class.forName(SHEET, false, folder.getClass().getClassLoader());
+            ViewGroup layer = (ViewGroup) folder.getParent();
+            for (int i = 0; i < layer.getChildCount(); i++) {
+                if (sheetCls.isInstance(layer.getChildAt(i))) {
+                    out.add(layer.getChildAt(i));
+                }
+            }
+        } catch (Throwable t) {
+            L.d("zui folder blur: no sheet beside the folder (" + t + ")");
+        }
+        return out;
     }
 }

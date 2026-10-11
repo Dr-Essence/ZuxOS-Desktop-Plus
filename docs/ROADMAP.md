@@ -5,7 +5,7 @@ in a fresh session: it is the project's memory.
 
 **Goal:** the best desktop mode on Android, for the Lenovo Legion Tab Gen 5 on ZuxOS 2.x.
 
-**Where we are (2026-10-11, build 1.0.209): early alpha, experimental.** No public release until
+**Where we are (2026-10-11, build 1.0.211): early alpha, experimental.** No public release until
 it is fully stable on the owner's tablet. The current work is moving every feature onto ZUI's
 own code paths ("Through ZUI's own path" below), one at a time:
 - Tablet drawers (ZUX Home's and the taskbar's): our folders are ZUI's own `FolderIcon` and `Folder`, with ZUI's motion, menus, Add apps and Uninstall.
@@ -158,6 +158,7 @@ rows give only the date the owner confirmed.
 | 2026-10-11 | 1.0.199 | No hold menu anywhere on the tablet bar, and pins shown two or three times with the keys moved left (owner: "taskbar positions are all correct") |
 | 2026-10-11 | 1.0.196 | Bar menu opening mid-screen and too big: ZUI's compact popup at the press (owner: "I like how you fixed the taskbar menu") |
 | 2026-10-11 | 1.0.196 | Add apps button vanishing in our drawer folders (stays in the owner's 14:12 video) |
+| 2026-10-11 | 1.0.210 | Start button's robot narrows its eyes while recents is up (owner's request; owner: "recents animations are sick") |
 | 2026-10-09 | 1.0.143 | Tray CPU work: the clock still ticks and the temperatures still show, now that the clock only ticks while the tray is visible and temperatures are only read while shown |
 
 ### Shipped, awaiting the owner's test
@@ -188,10 +189,13 @@ rows give only the date the owner confirmed.
 | 1.0.209 | A folder left over the home screen when the taskbar drawer closed under it (start button, 14:12): it now closes with the drawer, as ZUI closes every view of the drawer's window |
 | 1.0.209 | Long folder names running out of their cell in the portrait drawers: the name takes the cell's width and ZUI's app names' size, lines and "…" |
 | 1.0.209 | Drawer rows passing under the tablet bar's icons while scrolling (ZUI's own with 3-button navigation; owner chose to change it): the list ends at the bar (`DrawerAboveBar`, own switch) |
-| 1.0.209 | Our folder in the taskbar drawer see-through: the drawer behind it blurs as ZUI's folder opens (owner chose this) |
+| 1.0.209 | Our folder in the taskbar drawer see-through: the drawer behind it blurs as ZUI's folder opens (owner chose this) - never ran: ZUI's folder blur animation is added only for home-screen folders |
 | 1.0.209 | Blank cells for some apps' own shortcuts in the bar menus (Claude): icons loaded through ZUI, else the app's icon, never our white glyph |
-| 1.0.209 | The tablet bar's pinned folders and the apps in them on our old folder window and menus: now ZUI's own folder, opened as ZUI's bar opens its folders, with ZUI's popup on the apps inside |
-| 1.0.210 | Start button's robot narrows its eyes while recents is up (owner's request), back to normal however recents goes: ZUI's on the tablet (its home's overview states, or the home stopping), ours on the monitor (`TaskOverview` tells as it opens and starts to close) |
+| 1.0.209 | The tablet bar's pinned folders and the apps in them on our old folder window and menus: now ZUI's own folder, opened as ZUI's bar opens its folders, with ZUI's popup on the apps inside - did not happen on 1.0.210 (15:13): the bar was built at boot two seconds before ZUI's app list was read, its folders fell back to ours and were never rebuilt |
+| 1.0.211 | The tablet bar's folders as ZUI's, for real: the bar waits for ZUI's app list and rebuilds its folders once it is read |
+| 1.0.211 | The taskbar drawer blurs behind our open folder, on the folder's own opening and closing, with ZUI's blur radius (70) and time |
+| 1.0.211 | An app's popup left over the home screen when the drawer closed under it (15:14): closing the drawer closes everything open in its window, as ZUI does |
+| 1.0.211 | Our bar-hold menu's anchor counted as ZUI's and could cut our row short at the press; the log and the probe now name what ends the row (open apps cut off in portrait, 15:15: cause not yet shown) |
 | 1.0.201-1.0.203 | Monitor's touchscreen and pen acting on the tablet after a replug: each wired touchscreen and pen tied to the monitor at every plug (Android's own association); Bluetooth devices left alone |
 | 1.0.173 | Theme, bar position, pop-ups and the other start-only settings needing a force stop of ZUX Home: the settings app tells the launcher, which restarts itself when one really changed (`hook/home/SettingsRestart`) |
 
