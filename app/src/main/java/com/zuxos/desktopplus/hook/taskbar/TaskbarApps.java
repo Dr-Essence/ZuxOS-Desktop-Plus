@@ -219,7 +219,6 @@ public final class TaskbarApps {
         }
         Health.hooked("taskbar: icon menu", hooked);
         ZuiAppRows.install(loader);
-        ZuiBarPins.install(loader);
         L.i("taskbar apps: icon menu installed x" + hooked);
         if (hooked == 0) {
             L.w("taskbar apps: nothing to hook for the icon menu - holding an icon will do "
@@ -347,51 +346,6 @@ public final class TaskbarApps {
      */
     static boolean showMenu(View icon, String pkg, UserHandle user, int displayId) {
         return showMenu(icon, pkg, user, displayId, -1);
-    }
-
-    /**
-     * ZUI's {@code AppInfo} for an app of this user, from the bar's own list of apps
-     * ({@code TaskbarPopupController}): the one with this activity when {@code cls} is given and
-     * ZUI has it, else the package's first.
-     */
-    static Object zuiAppInfo(Object activity, String pkg, String cls) {
-        Object controllers = Reflect.field(activity, "mControllers");
-        Object popups = Reflect.field(controllers, "taskbarPopupController");
-        if (popups == null) {
-            return null;
-        }
-        UserHandle me = android.os.Process.myUserHandle();
-        for (java.lang.reflect.Field f : com.zuxos.desktopplus.hook.Mirror.fields(
-                popups.getClass())) {
-            if (!f.getType().isArray() || !f.getType().getComponentType().getName()
-                    .endsWith(".AppInfo")) {
-                continue;
-            }
-            Object apps = com.zuxos.desktopplus.hook.Mirror.get(f, popups);
-            if (!(apps instanceof Object[])) {
-                continue;
-            }
-            Object first = null;
-            for (Object app : (Object[]) apps) {
-                if (app == null || !pkg.equals(IconInfo.packageOf(app))
-                        || !me.equals(IconInfo.userOf(app))) {
-                    continue;
-                }
-                Object component = Reflect.call(app, "getTargetComponent");
-                if (cls == null || (component instanceof android.content.ComponentName
-                        && cls.equals(((android.content.ComponentName) component)
-                        .getClassName()))) {
-                    return app;
-                }
-                if (first == null) {
-                    first = app;
-                }
-            }
-            if (first != null) {
-                return first;
-            }
-        }
-        return null;
     }
 
     /** The same, for the icon of one window: {@code taskId} is its task, -1 for the app's. */

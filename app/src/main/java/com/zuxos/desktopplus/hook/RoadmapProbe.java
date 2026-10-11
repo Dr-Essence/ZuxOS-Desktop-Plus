@@ -113,6 +113,8 @@ public final class RoadmapProbe {
             if [ "$(getprop log.tag.OVC)" != "D" ]; then
               setprop log.tag.OVC D && echo "SystemUI's own log of them was off: on now, until reboot (OvcLog reads it each time) - a probe right after the menu goes wrong has them"
             fi
+            echo "--- touch on each screen (#1 replug: a touchscreen acting on the wrong screen)"
+            dumpsys input 2>/dev/null | grep -i -E 'viewport|Device [0-9]+:|IsExternal|AssociatedDisplay|associated display|Input port|DeviceMode|DisplayId|Touch Input Mapper|uniqueId' | head -90
             echo "--- resource overlays on SystemUI (#10 window looks, #16)"
             cmd overlay list com.android.systemui 2>/dev/null | head -30
             echo "fabricated overlays offered: $(cmd overlay help 2>/dev/null | grep -c fabricate)"

@@ -129,9 +129,9 @@ public final class ZuiMenu {
                 return false;
             }
             Class<?> contextClass = Class.forName(CONTEXT, false, loader);
-            // One popup at a time, as ZUI's own showForIcon has it.
-            if (Class.forName(OPEN, false, loader).getMethod("getOpen", contextClass)
-                    .invoke(null, activity) != null) {
+            // One popup at a time, as ZUI's own showForIcon has it. Generic in its context
+            // ({@code <T extends Context & ActivityContext>}), so found by name, not by type.
+            if (openPopup(Class.forName(OPEN, false, loader), activity) != null) {
                 return false;
             }
             Context ctx = anchor.getContext();
@@ -181,6 +181,17 @@ public final class ZuiMenu {
                 closed.run();
             }
         }
+    }
+
+    /** ZUI's popup open in this context ({@code PopupContainerWithArrow.getOpen}), or null. */
+    private static Object openPopup(Class<?> popups, Object activity) throws Exception {
+        for (Method m : popups.getMethods()) {
+            if (m.getName().equals("getOpen") && m.getParameterCount() == 1
+                    && m.getParameterTypes()[0].isInstance(activity)) {
+                return m.invoke(null, activity);
+            }
+        }
+        return null;
     }
 
     /** A public method of the taskbar's context, or null where the context is not the bar's. */

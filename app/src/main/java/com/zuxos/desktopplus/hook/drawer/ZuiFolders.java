@@ -657,43 +657,18 @@ public final class ZuiFolders {
 
     /** Our folder as ZUI's {@code FolderInfo}: its title and its apps, in our order. */
     private static Object folderInfo(Context activity, Item folder) throws Exception {
-        return folderInfo(activity, folder, idOf(folder), null,
+        return folderInfo(activity, folder, idOf(folder),
                 child -> sFiled.get(child.key()), CHILDREN);
     }
 
     private static final java.util.Set<String> SAID_EMPTY = new java.util.HashSet<>();
 
-    /** Our apps inside folders on the tablet's bar, for ZUI's Uninstall row. */
-    private static final Map<Object, Item> BAR_CHILDREN = new WeakHashMap<>();
-
-    /**
-     * One of our folders pinned to the tablet's bar, as ZUI's {@code FolderInfo} for ZUI's own
-     * bar to build and open ({@code TaskbarView}, {@code expandFolder}): in ZUI's hotseat
-     * ({@code container}), with an id of ours that is not the drawer folder's, so nothing of the
-     * bar's reaches the drawer's model.
-     */
-    public static Object barFolderInfo(Context activity, Item folder, int id, int container,
-            java.util.function.Function<Item, Object> appOf) {
-        try {
-            return folderInfo(activity, folder, id, container, child -> {
-                Object entry = sFiled.get(child.key());
-                return entry != null ? entry : appOf.apply(child);
-            }, BAR_CHILDREN);
-        } catch (Throwable t) {
-            L.d("zui folders: bar folder not built (" + t + ")");
-            return null;
-        }
-    }
-
-    private static Object folderInfo(Context activity, Item folder, int id, Integer container,
+    private static Object folderInfo(Context activity, Item folder, int id,
             java.util.function.Function<Item, Object> appOf, Map<Object, Item> children)
             throws Exception {
         Class<?> cls = Class.forName(FOLDER_INFO, false, activity.getClassLoader());
         Object info = cls.getConstructor().newInstance();
         setInt(info, "id", id);
-        if (container != null) {
-            setInt(info, "container", container);
-        }
         setField(info, "title", folder.label != null ? folder.label : "Folder");
         Method add = cls.getMethod("add", Class.forName(
                 "com.android.launcher3.model.data.ItemInfo", false, activity.getClassLoader()));
@@ -818,7 +793,7 @@ public final class ZuiFolders {
      * screen out, so it is never offered for ours.
      */
     public static Runnable uninstallAction(Object item) {
-        if (childOf(item) == null && (item == null || !BAR_CHILDREN.containsKey(item))) {
+        if (childOf(item) == null) {
             return null;
         }
         return () -> {

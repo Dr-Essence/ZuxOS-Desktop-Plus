@@ -147,9 +147,7 @@ public final class TaskbarRunning {
         // where the row is already being walked.
         TaskbarApps.installRowMenu(icons);
         TaskbarStart.apply(dragLayer, icons);
-        // On the tablet ZUI's own bar holds the pins, as its own items (ZuiBarPins).
-        extras(dragLayer, icons, running, ZuiBarPins.holdsPins(dragLayer)
-                ? Collections.<Item>emptyList() : pins, onlyOpen);
+        extras(dragLayer, icons, running, pins, onlyOpen);
         watchTray(dragLayer);
         RunningRow row = rowIn(dragLayer);
         if (row != null) {
@@ -393,9 +391,8 @@ public final class TaskbarRunning {
         boolean changed = false;
         for (int i = icons.getChildCount() - 1; i >= 0; i--) {
             View child = icons.getChildAt(i);
-            if (IconInfo.packagesOfView(child).isEmpty() || ZuiBarPins.isOurs(child.getTag())) {
-                // The drawer button, anything else with no app behind it, and our pins, which
-                // ZUI's bar builds as its own items.
+            if (IconInfo.packagesOfView(child).isEmpty()) {
+                // The drawer button, and anything else with no app behind it.
                 continue;
             }
             if (child.getVisibility() != View.GONE) {
@@ -1841,7 +1838,6 @@ public final class TaskbarRunning {
 
     /** Re-reads every taskbar, for when what the row should hold has just changed. */
     public static void refreshAll() {
-        ZuiBarPins.rebuild();
         for (View root : Windows.roots()) {
             ViewGroup dragLayer = TaskbarTray.dragLayerOf(root);
             if (dragLayer != null && rowIn(dragLayer) != null) {

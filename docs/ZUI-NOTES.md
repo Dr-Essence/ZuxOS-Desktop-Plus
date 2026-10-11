@@ -237,8 +237,10 @@ vendor power HAL's, not in these jars.
 - ZUI's app popup fills its app-shortcut rows (`loadAppShortcuts`) only for ZUI's own icons
   (`instanceof WorkspaceIconCompat`); on any other view they stay empty placeholders.
 - ZUI's bar builds its row from item infos (`TaskbarView.updateHotseatItems`): an app as ZUI's
-  icon, a `FolderInfo` as `FolderIcon` opened by `expandFolder`. Our tablet pins are handed to it
-  as ZUI's hotseat items (`hook/taskbar/ZuiBarPins`).
+  icon, a `FolderInfo` as `FolderIcon` opened by `expandFolder`. Handed our pins there
+  (1.0.193-1.0.198), ZUI laid them out centred over the navigation keys (which it moved to the
+  left), repeated them after its divider, and our row of open apps sat on top: the bar's row
+  is ZUI's whole layout, not a list to slot items into. Pins are our own row again (1.0.199).
 - ZUI's own Uninstall is `Utilities.startUninstallActivity(launcher, item)` (`ic_delete_zui`,
   `uninstall_item_title`); its factory leaves items outside the home screen out.
 - ZUI's folder "Add apps" (`Folder.createAddAppButton` -> `BigFolderIconSelectDialog`) moves apps
@@ -275,7 +277,7 @@ vendor power HAL's, not in these jars.
   open, with the bar's window full screen; they are not part of the bar's row.
 - ZUI's bar builds its row (`updateHotseatItems`) before it is handed its apps
   (`TaskbarPopupController.setApps`, from `bindAllApplications`): at start the bar's `AppInfo[]`
-  is empty. `ZuiBarPins` builds again on `setApps` when its first build came up short.
+  is empty; items built from it at start come up short.
 - A hold in the taskbar's drawer is `TaskbarOverlayContext.getAllAppsItemLongClickListener()`, the
   drawer's own `TaskbarDragController.startDragOnLongClick`: popup and drag in the drawer's
   window. `TaskbarOverlayContext.onClickIconWithRightMouse` goes through the bar
@@ -304,6 +306,12 @@ vendor power HAL's, not in these jars.
   `isClosed`, the name and header icon without, and `WindowDecorTaskResourceLoader` throws for a
   closed one ("non-existent decoration") - a crash of SystemUI seen as the monitor was unplugged.
 - `OvcLog` reads `log.tag.OVC` on every call, so `setprop log.tag.OVC D` takes effect at once.
+- A touchscreen is tied to a screen by the system, not by ZUI: each display gets an input
+  viewport by its `DisplayDeviceInfo.touch` (internal, external, virtual by unique id;
+  `DisplayManagerService.getViewportType`), handed to the input system in
+  `InputManagerService.setDisplayViewportsInternal`. An external touchscreen goes to the external
+  viewport, and without a valid one to the internal screen. No ZUI app ties input to a display
+  (`addPortAssociation`, `setDisplayIdForInputDevice` appear nowhere in them).
 - ZUI's compact popup works beside any view: `popup_container_zui` +
   `populateAndShowRowsZui(view, 0, [], shortcuts)` - no app shortcuts asked for, no placeholder
   rows (`ZuiNavPopupController` does the same for its buttons).
