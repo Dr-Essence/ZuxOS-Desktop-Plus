@@ -55,6 +55,8 @@ mode along the way.
 10. A start animation when the monitor connects, and a boot animation.
 11. Less CPU, GPU and heat; the tablet's own heat management (both being measured).
 12. Adapting to ZUI updates on its own.
+13. No root for the monitor's keys and quick-settings toggles, one layout per monitor, widgets
+    without the "allow" dialog, and work mode.
 
 Built and awaiting the owner's test:
 - apps on the monitor never killed;
@@ -295,21 +297,25 @@ Once limits, now worked around:
   - with ZUI's own icon, view and motion (ZUI's Add apps dialog in them is built, awaiting
   test).
 
-Still limits:
+Still limits, each planned to be bypassed (rows in [`docs/ROADMAP.md`](docs/ROADMAP.md)):
 
 - **The monitor's folders are still the module's own**, drawn to look and move like ZUI's.
-  Moving them onto ZUI's own folders is next on the roadmap.
+  Planned: ZUI's own folders there too, next on the roadmap.
 - **Root is needed for the monitor's navigation keys** (the launcher is refused
   `INJECT_EVENTS`, and the system would otherwise act on the tablet), and for some
-  quick-settings toggles. The tablet's own keys stay ZUI's, and everything else works without
-  root.
-- **System hooks need System Framework ticked in LSPosed** and a reboot: the monitor's
-  touchscreen and pen on the monitor, and keeping the monitor's apps alive.
+  quick-settings toggles. The tablet's own keys stay ZUI's. Planned: the system process, which
+  the module already runs in, does these for the launcher, so root is no longer needed.
 - **The layout is stored per kind of display** (external or tablet), not per monitor.
+  Planned: one layout per monitor, picked by the monitor's own id.
 - **Widgets need the launcher to be allowed to bind them.** System launchers normally are; if
-  not, Android's own "allow this widget?" dialog appears.
+  not, Android's own "allow this widget?" dialog appears. Planned: the system process allows
+  the launcher, so the dialog never appears.
 - **Work mode is not touched.** It makes a different app the home (Work Launcher), which the
-  module does not load into.
+  module does not load into. Planned: support for it; how far is the owner's call.
+
+Not a limit to bypass, just how it works: **system hooks need System Framework ticked in
+LSPosed** and a reboot - the monitor's touchscreen and pen on the monitor, and keeping the
+monitor's apps alive.
 
 ---
 
