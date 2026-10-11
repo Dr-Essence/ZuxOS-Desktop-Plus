@@ -5,6 +5,12 @@ monitor and you get a home screen you can arrange, widgets, folders, a liquid-gl
 a taskbar of the apps that are actually open. It also fixes a handful of bugs in ZUI's own desktop
 mode along the way.
 
+> **Early alpha - experimental.** This module is under heavy development and changes several
+> times a day. Things break, behaviour changes without notice, and some features are half done.
+> There is no public release yet: one will come once it is fully stable on the developer's own
+> tablet. Until then, use it only if you are happy to test, and keep a way to disable LSPosed
+> modules from recovery.
+
 > **Tested on a real device.** Every build has run on a Lenovo Legion Tab Gen 5 with ZuxOS
 > 2.0.10.026 (Android 16), driving an external 2560×1440 display. Each fix here came from that
 > device's LSPosed logs and the module's own probe dumps, not from guesswork.
