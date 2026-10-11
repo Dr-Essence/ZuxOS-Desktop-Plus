@@ -112,6 +112,8 @@ public final class Const {
     public static final String KEY_RECENTS_ROUTE = "recents_route";
     /** Apps open on the monitor are never killed by the system, only by the user. */
     public static final String KEY_KEEP_ALIVE = "keep_alive";
+    /** The monitor's touchscreen acts on the monitor, tied to it at every plug. */
+    public static final String KEY_MONITOR_TOUCH = "monitor_touch";
     /** Show notifications in the quick panel, through the module's own listener. */
     public static final String KEY_NOTIFICATIONS = "notifications";
     /** A new notification pops up on the monitor, above the tray. */

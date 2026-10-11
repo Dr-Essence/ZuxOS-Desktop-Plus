@@ -312,6 +312,9 @@ vendor power HAL's, not in these jars.
   `InputManagerService.setDisplayViewportsInternal`. An external touchscreen goes to the external
   viewport, and without a valid one to the internal screen. No ZUI app ties input to a display
   (`addPortAssociation`, `setDisplayIdForInputDevice` appear nowhere in them).
+  The input system's own explicit tie is `InputManagerService.addUniqueIdAssociationByDescriptor`
+  (input device descriptor -> display unique id), applied by `hook/system/TouchScreens` to each
+  external touchscreen while there is one external screen (1.0.200).
 - ZUI's compact popup works beside any view: `popup_container_zui` +
   `populateAndShowRowsZui(view, 0, [], shortcuts)` - no app shortcuts asked for, no placeholder
   rows (`ZuiNavPopupController` does the same for its buttons).

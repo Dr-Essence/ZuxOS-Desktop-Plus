@@ -384,6 +384,11 @@ public final class Cfg {
         return getBool(Const.KEY_KEEP_ALIVE, true);
     }
 
+    /** The monitor's touchscreen tied to the monitor by the system, at every plug. */
+    public static boolean monitorTouch() {
+        return getBool(Const.KEY_MONITOR_TOUCH, true);
+    }
+
     /** The Android robot as the drawer button's icon, in place of ZUI's own. */
     public static boolean startButtonRobot() {
         return getBool(Const.KEY_START_ROBOT, true);

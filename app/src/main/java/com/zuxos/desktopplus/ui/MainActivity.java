@@ -181,6 +181,11 @@ public class MainActivity extends Activity {
                         + "for the rest, also tick System Framework for this module in LSPosed "
                         + "and reboot once",
                 Const.KEY_KEEP_ALIVE, true);
+        addSwitch("Monitor's touchscreen on the monitor",
+                "A touchscreen monitor's touches always land on the monitor - after a replug "
+                        + "Android could send them to the tablet. Needs System Framework ticked "
+                        + "for this module in LSPosed; takes effect at the next plug",
+                Const.KEY_MONITOR_TOUCH, true);
         addSwitch("Drawer button on the left",
                 "Moves the launcher's own all-apps button to the left of the taskbar, beside the "
                         + "navigation keys, instead of leaving it in the middle of the icons",
