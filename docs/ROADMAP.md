@@ -5,6 +5,15 @@ in a fresh session: it is the project's memory.
 
 **Goal:** the best desktop mode on Android, for the Lenovo Legion Tab Gen 5 on ZuxOS 2.x.
 
+**Where we are (2026-10-11, build 1.0.203): early alpha, experimental.** No public release until
+it is fully stable on the owner's tablet. The current work is moving every feature onto ZUI's
+own code paths ("Through ZUI's own path" below), one at a time:
+- Tablet drawers (ZUX Home's and the taskbar's): our folders are ZUI's own `FolderIcon` and `Folder`, with ZUI's motion, menus, Add apps and Uninstall.
+- Tablet menus: ZUI's own app popup with our actions in it, and ZUI's compact popup for our own menus.
+- Tablet bar: pins and open apps in our own row. ZUI's bar items were tried in 1.0.193-1.0.198 and taken out: ZUI laid them over its keys and repeated them.
+- Monitor: our desktop, drawer, bar, recents and menus as before, plus the touchscreen and pen tied to the monitor at every plug (1.0.201-1.0.203).
+- Next: drag inside the tablet drawers, then the monitor's folders as ZUI's.
+
 ## Rules
 
 - **Polish and stability before new features.** A desktop people never have to think about beats
@@ -141,6 +150,11 @@ rows give only the date the owner confirmed.
 | 2026-10-07 | 1.0.133 | Maximize on the tablet, in regular and desktop mode. 1.0.135 keeps this exact path on the tablet only |
 | 2026-10-10 | 1.0.176 | Bypass charging from the taskbar (owner's request): hold or right-click the tray's battery, on the desktop modes' bars only (1.0.176), for "Bypass charging: turn on/off" and the battery settings - ZUI's own switch, as Game Assistant uses it, no root (`hook/panel/Bypass`). Works with both USB cables in, too. In bypass the charger's input stays at about 9 V and 3 A (the probe: `usb` 8.6 V, input limit 3 A), so about 27 W - beyond that the battery helps; that is the charging chip's limit, not a setting |
 
+| 2026-10-11 | 1.0.186 | Liquid glass on the tablet's taskbar drawer: ZUI's own sheet there now |
+| 2026-10-11 | 1.0.189 | Drawer folder icon staying small after a tap or hold (ZUI's press never let go) |
+| 2026-10-11 | 1.0.191 | Our folders invisible in both tablet drawers (looked up in the list we filter; now from ZUI's app store) |
+| 2026-10-11 | by 1.0.191 | ZUI's A-Z bar in the drawers while they follow our order |
+| 2026-10-11 | 1.0.195 | Start button robot's eyes not widening when the drawer opens (they follow ZUI's drawer itself; owner saw one miss once) |
 | 2026-10-09 | 1.0.143 | Tray CPU work: the clock still ticks and the temperatures still show, now that the clock only ticks while the tray is visible and temperatures are only read while shown |
 
 ### Shipped, awaiting the owner's test
@@ -159,6 +173,19 @@ rows give only the date the owner confirmed.
 | 1.0.161 | The monitor's desktop covering ZUX Home's settings when they opened on the monitor ("ZuiLauncherSettings" has "launcher" in its name; ZUX Home's screens now attach only if declared a home) |
 | 1.0.167 | Maximize on the monitor not filling the screen like ZUI's own button: ZUI's button makes the window full screen (its trace on 1.0.166), so ours now starts the same transition, and Restore its way back (named Floating, with its own icon, from 1.0.169). 1.0.165's floating maximise stays as the fallback |
 | 1.0.173 | Monitor, bar at the top: ZUI's start menu rising from the bottom of the screen - it now rests under the bar and drops down from it (`hook/drawer/DrawerFromTop`: ZUI's sheet slides and keeps a bar clear for a bottom bar only) |
+| 1.0.192-1.0.193 | Taskbar drawer crashing ZUX Home when closing one of our folders (ZUI's home folder motion needed `Launcher`; our folders now get ZUI's Launcher) |
+| 1.0.193 | Back closing the taskbar drawer before its open folder |
+| 1.0.193 | Uninstall for apps inside our folders (ZUI's own) |
+| 1.0.194 | App info, Lock, Hide and Cast missing from the tablet taskbar's app menus (ZUI's own shortcuts, as its desktop mode adds them) |
+| 1.0.194 | Bar row cut short and shifted after a popup over the bar |
+| 1.0.196 | Taskbar drawer: menu inside a folder ignoring taps and not closing (shown through the bar's full-screen window; now ZUI's drawer hold, with its drag); back now closes the menu, then the folder |
+| 1.0.196 | Add apps button vanishing in our drawer folders: ZUI's button and picker, the choice kept in our model, the picker over the taskbar drawer |
+| 1.0.196 | Bar menu opening mid-screen and too big: ZUI's compact popup at the press; open apps' menus compact too |
+| 1.0.197 | Two drawers on the first start-button press in tablet desktop mode (ZUI's button opens the home's own drawer there) |
+| 1.0.198 | ZUX Home's dock apps (Calculator, Clock) coming up under the bar when the taskbar drawer opens |
+| 1.0.198 | SystemUI crashing when the monitor is unplugged (a closed title bar's name loaded; guarded as ZUI guards its veil icon) |
+| 1.0.199 | No hold menu anywhere on the tablet bar, and pins shown two or three times with the keys moved left - both broken in 1.0.196-1.0.198 by our own changes, fixed |
+| 1.0.201-1.0.203 | Monitor's touchscreen and pen acting on the tablet after a replug: each wired touchscreen and pen tied to the monitor at every plug (Android's own association); Bluetooth devices left alone |
 | 1.0.173 | Theme, bar position, pop-ups and the other start-only settings needing a force stop of ZUX Home: the settings app tells the launcher, which restarts itself when one really changed (`hook/home/SettingsRestart`) |
 
 ### Open
@@ -179,6 +206,7 @@ rows give only the date the owner confirmed.
 | 2026-10-07 | ZUI's sidebar freezing during drags: ZUI waits on its own AI service |
 | 2026-10-07 | LSPosed manager crashing |
 | 2026-10-07 | The ZTool module logging every ~7 ms on the launcher's main thread |
+| 2026-10-11 | Errors from the owner's other modules in ZUX Home (ZTool's hotseat hooks, unfuckzui's `DisableForceStop`) - their own hooks failing, not ours |
 | 2026-10-03 | File apps stuck, storage access lost. The owner fixed it on 10-03; it came back on 10-04 and was gone after a reboot and a build. The module was never shown to cause it |
 
 ## In progress

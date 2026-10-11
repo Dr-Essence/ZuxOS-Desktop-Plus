@@ -22,6 +22,15 @@ mode along the way.
 | Launcher | `com.zui.launcher`, desktop activity `SecondaryDisplayLauncher` |
 | Needs | Root, LSPosed, and the module scoped to the home app |
 
+**Status (2026-10-11, build 1.0.203)**
+
+- The tablet's two drawers (ZUX Home's and the taskbar's) now use ZUI's own folders. You get ZUI's look and motion, its app menu with this module's actions added, Add apps and Uninstall.
+- The tablet's menus are ZUI's own popups: App info, Lock, Hide and Cast are back on the taskbar, and the bar's menu opens where you press.
+- Start button: one drawer per press in desktop mode, and the robot's eyes follow the drawer.
+- After a replug, the monitor's touchscreen and pen stay on the monitor.
+- The tablet bar's pins live in this module's own row. An attempt to hand them to ZUI's bar broke it, and was taken out.
+- Bugs fixed, and which the owner has confirmed on the device: [`docs/ROADMAP.md`](docs/ROADMAP.md), "Fixed".
+
 **At a glance**
 
 - A home screen with free icon placement, pages, folders, widgets and shortcuts.
