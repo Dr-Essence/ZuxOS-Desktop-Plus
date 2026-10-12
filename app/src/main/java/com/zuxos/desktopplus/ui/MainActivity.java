@@ -93,6 +93,15 @@ public class MainActivity extends Activity {
                 "Dots under the desktop for its pages. The arrows at the sides already show "
                         + "there is another page",
                 Const.KEY_PAGE_DOTS, false);
+        addSwitch("A desktop for each monitor",
+                "Each external screen keeps its own icons and folders. A monitor plugged in for "
+                        + "the first time starts from the desktop you have now. The launcher "
+                        + "restarts to apply it",
+                Const.KEY_MONITOR_LAYOUTS, true);
+        addSwitch("Start animation",
+                "Desktop Mode+ greets you on the monitor as its desktop comes up, once each "
+                        + "time it is plugged in",
+                Const.KEY_START_ANIMATION, true);
         addSwitch("Catch pinned shortcuts",
                 "A web page or file pinned from any app also lands on the desktop",
                 Const.KEY_CATCH_PINS, true);
@@ -142,6 +151,10 @@ public class MainActivity extends Activity {
                 "CPU, GPU and battery temperature in the tray, where the kernel lets the "
                         + "launcher read them",
                 Const.KEY_TASKBAR_TEMPS, true);
+        addSwitch("Edit the quick panel's tiles",
+                "Hold a tile, or press Edit at the top of the panel, to take tiles off, put "
+                        + "them back and drag them into your own order",
+                Const.KEY_TILE_EDIT, true);
         addSwitch("Taskbar menu",
                 "Hold or right-click empty taskbar space for Task manager and settings",
                 Const.KEY_TASKBAR_MENU, true);
@@ -245,6 +258,16 @@ public class MainActivity extends Activity {
                         + "external screen for a few seconds, with its buttons and a reply box. "
                         + "The launcher restarts to apply it",
                 Const.KEY_NOTIFY_POPUPS, true);
+        addSlider("Pop-ups stay for", "s", Const.KEY_POPUP_SECONDS, 6, 3, 15);
+        addSlider("Pop-up width", "dp", Const.KEY_POPUP_WIDTH, 360, 300, 480);
+        addSpinner("Pop-ups come in at", new String[]{
+                "The right-hand corner",
+                "The left-hand corner"}, Const.KEY_POPUP_SIDE, Const.SIDE_RIGHT);
+        addSummary("Above the taskbar, or under it when the bar is at the top. Time and width "
+                + "apply to the next pop-up; the corner once those on screen have gone.");
+        addButton("Apps that never pop up", this::pickMutedApps);
+        addSummary("Their notifications still come in, in the shade and in the quick panel; "
+                + "they just never pop up on the monitor.");
         addButton("Grant notification access", () -> {
             try {
                 // The launcher may not read notifications and cannot be granted permission to.
@@ -270,6 +293,11 @@ public class MainActivity extends Activity {
         addSwitch("Dump launcher info on attach",
                 "Writes the activity and view tree to the launcher's files dir",
                 Const.KEY_PROBE, false);
+        addSwitch("Report feature health",
+                "ZUX Home tells this app which of its features found what they need on this "
+                        + "firmware, once each time it starts",
+                Const.KEY_HEALTH, true);
+        addButton("Feature health", this::showHealth);
 
         addButton("How to use this", this::showHelp);
     }
@@ -431,6 +459,66 @@ public class MainActivity extends Activity {
         }
     }
 
+    /**
+     * The apps whose notifications never pop up, ticked in a list of every app with a launcher
+     * icon. Read off the main thread: the labels of a few hundred apps take a moment.
+     */
+    private void pickMutedApps() {
+        new Thread(() -> {
+            android.content.pm.PackageManager pm = getPackageManager();
+            android.content.Intent launchable = new android.content.Intent(
+                    android.content.Intent.ACTION_MAIN)
+                    .addCategory(android.content.Intent.CATEGORY_LAUNCHER);
+            java.util.TreeMap<String, String> apps = new java.util.TreeMap<>(
+                    String.CASE_INSENSITIVE_ORDER);
+            for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(launchable, 0)) {
+                String pkg = ri.activityInfo.packageName;
+                if (Const.MODULE_PKG.equals(pkg)) {
+                    continue;
+                }
+                // Label first so the list reads in order; the package keeps two apps of the same
+                // name apart.
+                apps.put(ri.loadLabel(pm) + "\u0000" + pkg, pkg);
+            }
+            runOnUiThread(() -> showMutedApps(apps));
+        }, "zux-desktop-plus-apps").start();
+    }
+
+    private void showMutedApps(java.util.TreeMap<String, String> apps) {
+        if (isFinishing() || apps.isEmpty()) {
+            return;
+        }
+        java.util.Set<String> muted = new java.util.LinkedHashSet<>();
+        for (String pkg : mPrefs.getString(Const.KEY_POPUP_MUTED, "").split(",")) {
+            if (!pkg.isEmpty()) {
+                muted.add(pkg);
+            }
+        }
+        String[] labels = new String[apps.size()];
+        String[] packages = new String[apps.size()];
+        boolean[] checked = new boolean[apps.size()];
+        int i = 0;
+        for (java.util.Map.Entry<String, String> e : apps.entrySet()) {
+            labels[i] = e.getKey().substring(0, e.getKey().indexOf('\u0000'));
+            packages[i] = e.getValue();
+            checked[i] = muted.contains(e.getValue());
+            i++;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Apps that never pop up")
+                .setMultiChoiceItems(labels, checked, (d, which, isChecked) -> {
+                    if (isChecked) {
+                        muted.add(packages[which]);
+                    } else {
+                        muted.remove(packages[which]);
+                    }
+                })
+                .setPositiveButton("Done", (d, w) -> mPrefs.edit()
+                        .putString(Const.KEY_POPUP_MUTED, String.join(",", muted)).commit())
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
     private void sendTestNotifications() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU
                 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -488,5 +576,81 @@ public class MainActivity extends Activity {
                 .setMessage(text)
                 .setPositiveButton(android.R.string.ok, null)
                 .show();
+    }
+
+    /**
+     * Every feature the launcher reported (#13): green working, grey switched off, red not found
+     * on this firmware - those first, as they are the ones to look at.
+     */
+    private void showHealth() {
+        java.io.File file = new java.io.File(getFilesDir(),
+                com.zuxos.desktopplus.notify.NotifyProvider.HEALTH_FILE);
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        int pad = Ui.dp(this, 20);
+        list.setPadding(pad, Ui.dp(this, 8), pad, 0);
+        try {
+            byte[] raw = java.nio.file.Files.readAllBytes(file.toPath());
+            org.json.JSONObject root = new org.json.JSONObject(
+                    new String(raw, java.nio.charset.StandardCharsets.UTF_8));
+            org.json.JSONArray rows = root.getJSONArray("rows");
+            String when = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,
+                    java.text.DateFormat.SHORT).format(new java.util.Date(root.optLong("when")));
+            addHealthNote(list, "Reported by " + root.optString("from") + ", " + when + ".");
+            java.util.List<String[]> sorted = new java.util.ArrayList<>();
+            for (int i = 0; i < rows.length(); i++) {
+                String[] row = rows.getString(i).split("\t");
+                if (row.length == 3) {
+                    sorted.add(row);
+                }
+            }
+            sorted.sort((a, b) -> Integer.compare(rank(a), rank(b)));
+            for (String[] row : sorted) {
+                addHealthRow(list, row);
+            }
+        } catch (Throwable t) {
+            addHealthNote(list, "Nothing reported yet. Open ZUX Home once with the module on, "
+                    + "and \"Report feature health\" switched on.");
+        }
+        addHealthNote(list, "Only ZUX Home's features are listed; those inside SystemUI and the "
+                + "system do not report here yet.");
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(list);
+        new AlertDialog.Builder(this)
+                .setTitle("Feature health")
+                .setView(scroll)
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
+    }
+
+    /** Not found first, then switched off, then working. */
+    private static int rank(String[] row) {
+        return row[1].equals("not found") ? 0 : row[2].equals("off") ? 1 : 2;
+    }
+
+    private void addHealthRow(LinearLayout list, String[] row) {
+        int rank = rank(row);
+        TextView tv = new TextView(this);
+        android.text.SpannableStringBuilder text = new android.text.SpannableStringBuilder();
+        text.append("●  ");
+        text.setSpan(new android.text.style.ForegroundColorSpan(
+                        rank == 0 ? 0xFFE53935 : rank == 1 ? 0xFF9E9E9E : 0xFF43A047),
+                0, 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        text.append(row[0]);
+        text.append(rank == 0 ? " - not found on this firmware"
+                : rank == 1 ? " - switched off" : "");
+        tv.setText(text);
+        tv.setTextSize(14);
+        tv.setPadding(0, Ui.dp(this, 5), 0, Ui.dp(this, 5));
+        list.addView(tv);
+    }
+
+    private void addHealthNote(LinearLayout list, String note) {
+        TextView tv = new TextView(this);
+        tv.setText(note);
+        tv.setTextSize(13);
+        tv.setAlpha(0.7f);
+        tv.setPadding(0, Ui.dp(this, 8), 0, Ui.dp(this, 8));
+        list.addView(tv);
     }
 }

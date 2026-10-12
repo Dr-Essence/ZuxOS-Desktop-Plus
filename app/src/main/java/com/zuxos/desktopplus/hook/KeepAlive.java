@@ -268,10 +268,10 @@ public final class KeepAlive {
                             + (gain.isEmpty() ? "" : ", added " + gain)
                             + (lose.isEmpty() ? "" : ", removed " + lose));
                 }
-                Health.hooked("keep-alive: ZUI's kill lists", answered);
+                Health.hooked("keep-alive: ZUI's kill lists", answered, Cfg::keepAlive);
             } catch (NoSuchMethodException e) {
                 sListsMissing = true;
-                Health.hooked("keep-alive: ZUI's kill lists", 0);
+                Health.hooked("keep-alive: ZUI's kill lists", 0, Cfg::keepAlive);
                 L.i("keep alive: ZUI's kill lists are not in this build (" + e.getMessage()
                         + "), root and the system half only");
             } catch (Throwable t) {

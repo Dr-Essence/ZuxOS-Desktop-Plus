@@ -492,6 +492,41 @@ public final class Cfg {
         return getBool(Const.KEY_NOTIFY_POPUPS, true);
     }
 
+    /** How long a pop-up stays before it goes by itself, in seconds. */
+    public static int popupSeconds() {
+        return Math.max(3, Math.min(15, getInt(Const.KEY_POPUP_SECONDS, 6)));
+    }
+
+    /** A pop-up card's width, in dp. */
+    public static int popupWidthDp() {
+        return Math.max(300, Math.min(480, getInt(Const.KEY_POPUP_WIDTH, 360)));
+    }
+
+    /** The pop-ups at the left-hand corner rather than the right. */
+    public static boolean popupLeft() {
+        return getInt(Const.KEY_POPUP_SIDE, Const.SIDE_RIGHT) == Const.SIDE_LEFT;
+    }
+
+    /** Reorder, add and remove the quick panel's tiles. */
+    public static boolean tileEdit() {
+        return getBool(Const.KEY_TILE_EDIT, true);
+    }
+
+    /** A desktop of its own for each monitor. Read as the desktop attaches. */
+    public static boolean monitorLayouts() {
+        return getBool(Const.KEY_MONITOR_LAYOUTS, true);
+    }
+
+    /** The start animation as the monitor's desktop comes up. */
+    public static boolean startAnimation() {
+        return getBool(Const.KEY_START_ANIMATION, true);
+    }
+
+    /** The launcher reports its features' health to the settings app. */
+    public static boolean health() {
+        return getBool(Const.KEY_HEALTH, true);
+    }
+
     public static boolean useRoot() {
         // On by default. Every caller tries the ordinary route first, so this only decides whether
         // the fallback is allowed to ask; turning it off costs the toggles and nothing else.

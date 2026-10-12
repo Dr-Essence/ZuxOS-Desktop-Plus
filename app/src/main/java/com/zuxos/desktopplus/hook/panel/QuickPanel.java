@@ -30,6 +30,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.zuxos.desktopplus.core.AppCtx;
+import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Tone;
 import com.zuxos.desktopplus.core.Ui;
@@ -37,13 +38,16 @@ import com.zuxos.desktopplus.core.glass.GlassSurface;
 import com.zuxos.desktopplus.core.glass.LiquidGlass;
 import com.zuxos.desktopplus.core.icons.TrayIcons;
 import com.zuxos.desktopplus.core.motion.FrameRate;
+import com.zuxos.desktopplus.core.motion.Motion;
 import com.zuxos.desktopplus.core.theme.Bevel;
 import com.zuxos.desktopplus.core.theme.Theme;
 import com.zuxos.desktopplus.hook.Overlays;
 import com.zuxos.desktopplus.hook.taskbar.BarEdge;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Quick settings, in the shape Samsung DeX uses: the connection at the top, a grid of round
@@ -210,6 +214,7 @@ public final class QuickPanel {
         sCurrent = null;
         sWm = null;
         sAnchor = null;
+        sEditing = false;
         stopWatching();
     }
 
@@ -261,7 +266,13 @@ public final class QuickPanel {
                 if (event.getAction() == KeyEvent.ACTION_UP
                         && (keyCode == KeyEvent.KEYCODE_BACK
                         || keyCode == KeyEvent.KEYCODE_ESCAPE)) {
-                    dismiss();
+                    if (sEditing && sRebuild != null) {
+                        // Back leaves the tiles' editing first; the edit is already kept.
+                        sEditing = false;
+                        sRebuild.run();
+                    } else {
+                        dismiss();
+                    }
                     return true;
                 }
                 return false;
@@ -595,7 +606,13 @@ public final class QuickPanel {
         SysState state = SysState.get(ctx);
         Runnable rebuild = () -> fill(ctx, body, displayId, theme);
 
-        body.addView(networkHeader(ctx, theme, state));
+        LinearLayout header = networkHeader(ctx, theme, state);
+        if (Cfg.tileEdit()) {
+            header.addView(editToggle(ctx, theme, rebuild));
+        } else {
+            sEditing = false;
+        }
+        body.addView(header);
         body.addView(tiles(ctx, theme, state, displayId, rebuild));
         body.addView(divider(ctx, theme));
         watchSessions(SoundRows.addTo(ctx, theme, body, displayId, rebuild));
@@ -608,26 +625,82 @@ public final class QuickPanel {
         theme.applyFont(body);
     }
 
+    /** True while the tiles are being edited (#3): taken off, put back, moved. */
+    private static boolean sEditing;
+    /** The badges have popped in: the panel's rebuilds while editing show them still. */
+    private static boolean sBadgesIn;
+
+    /**
+     * The tiles, in the user's order with those taken off left out (#3; {@link TileOrder}). Held,
+     * or with Edit, they can be edited: each shown tile with a badge to take it off, those taken
+     * off under "Add" with one to put it back, and a shown one held and dragged to move it.
+     */
     private static View tiles(Context ctx, Theme theme, SysState state, int displayId,
             Runnable onActed) {
-        List<QuickTiles.Tile> tiles = new ArrayList<>();
-        tiles.add(QuickTiles.wifi(ctx, state, displayId));
-        tiles.add(QuickTiles.bluetooth(ctx, displayId, onActed));
-        tiles.add(QuickTiles.torch(ctx));
-        tiles.add(QuickTiles.rotation(ctx, displayId, onActed));
-        tiles.add(QuickTiles.flightMode(ctx, displayId, onActed));
-        tiles.add(QuickTiles.eyeProtection(ctx, displayId, onActed));
+        Map<String, QuickTiles.Tile> all = new LinkedHashMap<>();
+        all.put("wifi", QuickTiles.wifi(ctx, state, displayId));
+        all.put("bluetooth", QuickTiles.bluetooth(ctx, displayId, onActed));
+        all.put("torch", QuickTiles.torch(ctx));
+        all.put("rotation", QuickTiles.rotation(ctx, displayId, onActed));
+        all.put("flight", QuickTiles.flightMode(ctx, displayId, onActed));
+        all.put("eye", QuickTiles.eyeProtection(ctx, displayId, onActed));
+        List<String> known = new ArrayList<>(all.keySet());
+        boolean editable = Cfg.tileEdit();
+        List<String> shown = editable ? TileOrder.shown(ctx, known) : known;
+        List<String> hidden = editable ? TileOrder.hidden(ctx, known) : new ArrayList<>();
 
+        LinearLayout section = new LinearLayout(ctx);
+        section.setOrientation(LinearLayout.VERTICAL);
+        GridLayout grid = grid(ctx);
+        for (String id : shown) {
+            View cell = QuickTiles.view(ctx, theme, all.get(id), onActed);
+            if (sEditing) {
+                cell = editCell(ctx, theme, cell, true, () -> {
+                    shown.remove(id);
+                    hidden.add(id);
+                    TileOrder.save(ctx, shown, hidden);
+                    onActed.run();
+                });
+            } else if (editable) {
+                cell.setOnLongClickListener(v -> {
+                    sEditing = true;
+                    onActed.run();
+                    return true;
+                });
+            }
+            grid.addView(cell, cellParams());
+        }
+        if (sEditing) {
+            reorderable(ctx, theme, grid, shown, hidden, onActed);
+        }
+        if (grid.getChildCount() > 0) {
+            section.addView(grid);
+        }
+        sBadgesIn = sEditing;
+        if (sEditing) {
+            section.addView(sectionLabel(ctx, theme, hidden.isEmpty()
+                    ? "Every tile is on the panel" : "Add"));
+            GridLayout spare = grid(ctx);
+            for (String id : hidden) {
+                View cell = QuickTiles.view(ctx, theme, all.get(id), null);
+                spare.addView(editCell(ctx, theme, cell, false, () -> {
+                    hidden.remove(id);
+                    shown.add(id);
+                    TileOrder.save(ctx, shown, hidden);
+                    onActed.run();
+                }), cellParams());
+            }
+            if (spare.getChildCount() > 0) {
+                section.addView(spare);
+            }
+        }
+        return section;
+    }
+
+    private static GridLayout grid(Context ctx) {
         GridLayout grid = new GridLayout(ctx);
         grid.setColumnCount(COLUMNS);
-        for (QuickTiles.Tile tile : tiles) {
-            GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
-            // Equal columns: an undefined spec with a weight is how GridLayout is told to share
-            // the width rather than size each cell to its own caption.
-            lp.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
-            lp.width = 0;
-            grid.addView(QuickTiles.view(ctx, theme, tile, onActed), lp);
-        }
+        grid.setClipChildren(false);
         LinearLayout.LayoutParams glp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         glp.topMargin = Ui.dp(ctx, 12);
@@ -635,9 +708,204 @@ public final class QuickPanel {
         return grid;
     }
 
+    private static GridLayout.LayoutParams cellParams() {
+        GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
+        // Equal columns: an undefined spec with a weight is how GridLayout is told to share the
+        // width rather than size each cell to its own caption.
+        lp.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+        lp.width = 0;
+        return lp;
+    }
+
+    /** Edit or Done, at the end of the header line. */
+    private static View editToggle(Context ctx, Theme theme, Runnable rebuild) {
+        TextView tv = new TextView(ctx);
+        tv.setText(sEditing ? "Done" : "Edit");
+        tv.setTextColor(sEditing ? theme.accent() : theme.dimText());
+        tv.setTextSize(13);
+        int pad = Ui.dp(ctx, 8);
+        tv.setPadding(pad, pad / 2, pad, pad / 2);
+        tv.setBackground(theme.button(ctx, 0x00000000, Ui.dp(ctx, 10)));
+        tv.setOnClickListener(v -> {
+            sEditing = !sEditing;
+            rebuild.run();
+        });
+        return tv;
+    }
+
+    /**
+     * A tile while editing: its own action off, a badge at its corner - minus to take it off the
+     * panel, plus to put it back - and a tap anywhere on it doing what the badge says.
+     */
+    private static View editCell(Context ctx, Theme theme, View cell, boolean onPanel,
+            Runnable move) {
+        FrameLayout holder = new FrameLayout(ctx);
+        holder.setClipChildren(false);
+        holder.addView(cell, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT));
+        cell.setOnClickListener(v -> move.run());
+        cell.setOnLongClickListener(null);
+        TextView badge = new TextView(ctx);
+        badge.setText(onPanel ? "\u2212" : "+");
+        badge.setTextSize(13);
+        badge.setGravity(Gravity.CENTER);
+        badge.setIncludeFontPadding(false);
+        int size = Ui.dp(ctx, 20);
+        if (theme.retro()) {
+            badge.setTextColor(theme.text());
+            badge.setBackground(Bevel.button(ctx));
+        } else {
+            badge.setTextColor(0xFFFFFFFF);
+            badge.setBackground(Ui.roundRect(onPanel ? 0xFF8A8F98 : 0xFF3F7FF5, size / 2));
+        }
+        badge.setOnClickListener(v -> move.run());
+        FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(size, size);
+        blp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        // At the icon's top-right shoulder: the icon is 46 dp wide, centred in the cell.
+        blp.leftMargin = Ui.dp(ctx, 23);
+        blp.topMargin = Ui.dp(ctx, 4);
+        holder.addView(badge, blp);
+        if (theme.animates() && !sBadgesIn) {
+            badge.setScaleX(0f);
+            badge.setScaleY(0f);
+            badge.animate().scaleX(1f).scaleY(1f).setDuration(Motion.SPRING_MS)
+                    .setInterpolator(Motion.SPRING).start();
+        }
+        return holder;
+    }
+
+    /**
+     * Hold a tile on the panel and drag it: it lifts, follows the finger, and the others move
+     * aside into the order it would land in; let go and it settles there. Nothing is rebuilt
+     * while the finger is down ({@link #setInteracting}), so the views stay under it.
+     */
+    private static void reorderable(Context ctx, Theme theme, GridLayout grid,
+            List<String> shown, List<String> hidden, Runnable onActed) {
+        int count = grid.getChildCount();
+        for (int i = 0; i < count; i++) {
+            final int from = i;
+            View holder = grid.getChildAt(i);
+            View cell = ((FrameLayout) holder).getChildAt(0);
+            float[] down = new float[2];
+            boolean[] dragging = {false};
+            List<Integer> order = new ArrayList<>();
+            int[][] slots = new int[count][];
+            cell.setOnLongClickListener(v -> {
+                dragging[0] = true;
+                setInteracting(true);
+                v.setPressed(false);
+                grid.getParent().requestDisallowInterceptTouchEvent(true);
+                order.clear();
+                for (int c = 0; c < count; c++) {
+                    View each = grid.getChildAt(c);
+                    slots[c] = new int[]{each.getLeft(), each.getTop()};
+                    order.add(c);
+                }
+                holder.setTranslationZ(Ui.dp(ctx, 8));
+                lift(holder, theme, 1.12f);
+                return true;
+            });
+            cell.setOnTouchListener((v, e) -> {
+                if (e.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                    down[0] = e.getRawX();
+                    down[1] = e.getRawY();
+                    return false;
+                }
+                if (!dragging[0]) {
+                    return false;
+                }
+                float dx = e.getRawX() - down[0];
+                float dy = e.getRawY() - down[1];
+                switch (e.getActionMasked()) {
+                    case MotionEvent.ACTION_MOVE: {
+                        holder.setTranslationX(dx);
+                        holder.setTranslationY(dy);
+                        int slot = nearestSlot(slots, slots[from][0] + dx, slots[from][1] + dy);
+                        if (slot != order.indexOf(from)) {
+                            order.remove((Integer) from);
+                            order.add(slot, from);
+                            for (int c = 0; c < count; c++) {
+                                if (c == from) {
+                                    continue;
+                                }
+                                int[] to = slots[order.indexOf(c)];
+                                slide(grid.getChildAt(c), theme, to[0] - slots[c][0],
+                                        to[1] - slots[c][1], null);
+                            }
+                        }
+                        return true;
+                    }
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL: {
+                        dragging[0] = false;
+                        List<String> moved = new ArrayList<>();
+                        for (int c : order) {
+                            moved.add(shown.get(c));
+                        }
+                        int[] to = slots[order.indexOf(from)];
+                        lift(holder, theme, 1f);
+                        slide(holder, theme, to[0] - slots[from][0], to[1] - slots[from][1], () -> {
+                            setInteracting(false);
+                            if (!moved.equals(shown)) {
+                                TileOrder.save(ctx, moved, hidden);
+                            }
+                            onActed.run();
+                        });
+                        return true;
+                    }
+                    default:
+                        return true;
+                }
+            });
+        }
+    }
+
+    /** The slot whose top-left is nearest the dragged tile's. */
+    private static int nearestSlot(int[][] slots, float x, float y) {
+        int best = 0;
+        double bestDistance = Double.MAX_VALUE;
+        for (int i = 0; i < slots.length; i++) {
+            double distance = Math.hypot(slots[i][0] - x, slots[i][1] - y);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    private static void lift(View view, Theme theme, float scale) {
+        if (theme.animates()) {
+            view.animate().scaleX(scale).scaleY(scale).setDuration(Motion.SPRING_MS)
+                    .setInterpolator(Motion.SPRING).start();
+        } else {
+            view.setScaleX(scale);
+            view.setScaleY(scale);
+        }
+    }
+
+    /** To an offset from where the layout has it; Retro's in one step. */
+    private static void slide(View view, Theme theme, float x, float y, Runnable then) {
+        view.animate().cancel();
+        if (!theme.animates()) {
+            view.setTranslationX(x);
+            view.setTranslationY(y);
+            if (then != null) {
+                then.run();
+            }
+            return;
+        }
+        android.view.ViewPropertyAnimator a = view.animate().translationX(x).translationY(y)
+                .setDuration(Motion.SPRING_MS).setInterpolator(Motion.SPRING);
+        if (then != null) {
+            a.withEndAction(then);
+        }
+        a.start();
+    }
+
     // --- rows ------------------------------------------------------------
 
-    private static View networkHeader(Context ctx, Theme theme, SysState state) {
+    private static LinearLayout networkHeader(Context ctx, Theme theme, SysState state) {
         LinearLayout line = new LinearLayout(ctx);
         line.setOrientation(LinearLayout.HORIZONTAL);
         line.setGravity(Gravity.CENTER_VERTICAL);

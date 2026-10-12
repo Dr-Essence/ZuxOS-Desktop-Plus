@@ -13,6 +13,8 @@ import android.util.SparseArray;
 import android.view.Display;
 
 import com.zuxos.desktopplus.core.L;
+import com.zuxos.desktopplus.core.Reflect;
+import com.zuxos.desktopplus.hook.home.StartAnimation;
 
 import java.util.ArrayDeque;
 import java.util.Locale;
@@ -62,6 +64,8 @@ public final class DisplayTimeline {
                 @Override
                 public void onDisplayRemoved(int displayId) {
                     LAST.remove(displayId);
+                    // A replug is a new connect: the start animation plays again (#8).
+                    StartAnimation.forget(displayId);
                     add("display " + displayId + " removed");
                 }
 
@@ -109,9 +113,10 @@ public final class DisplayTimeline {
             return;
         }
         Display.Mode mode = d.getMode();
-        String state = String.format(Locale.ROOT, "%s %dx%d@%.0f, state %d", d.getName(),
+        // The unique id names each monitor's own desktop layout (#22).
+        String state = String.format(Locale.ROOT, "%s %dx%d@%.0f, state %d, id %s", d.getName(),
                 mode.getPhysicalWidth(), mode.getPhysicalHeight(), mode.getRefreshRate(),
-                d.getState());
+                d.getState(), Reflect.call(d, "getUniqueId"));
         if (state.equals(LAST.get(displayId))) {
             // Changed in something not written here.
             return;

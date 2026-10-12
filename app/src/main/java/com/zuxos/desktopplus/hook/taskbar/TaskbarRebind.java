@@ -94,7 +94,8 @@ public final class TaskbarRebind {
             }
         }
         sAppsAtSource = hooked > 0;
-        Health.hooked("taskbar: ZUI's row built without apps", hooked);
+        Health.hooked("taskbar: ZUI's row built without apps", hooked,
+                () -> Cfg.taskbarRunningOnly() && Cfg.hideRecommendedFlash());
         L.i("taskbar rebind: ZUI's own apps kept off the bar where it builds them x" + hooked);
         blockRecents(loader);
         listenToTasks(loader);
@@ -247,7 +248,8 @@ public final class TaskbarRebind {
                             }
                         }
                     }).size();
-            Health.hooked("taskbar: ZUI's recent apps held back", hooked);
+            Health.hooked("taskbar: ZUI's recent apps held back", hooked,
+                    () -> Cfg.taskbarRunningOnly() && Cfg.hideRecommendedFlash());
             L.i("taskbar rebind: holding back the launcher's recent apps x" + hooked);
         } catch (Throwable t) {
             L.d("taskbar rebind: could not hook bindRecentUsedApps (" + t + ")");

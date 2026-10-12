@@ -49,7 +49,8 @@ final class DrawerAboveBar {
                             clip((View) param.thisObject, list);
                         }
                     }).size();
-            Health.hooked("drawer: list ends above the bar", hooked);
+            Health.hooked("drawer: list ends above the bar", hooked,
+                    Cfg::drawerAboveBar);
             L.i("drawer above bar: the taskbar drawer's list ends at the bar x" + hooked);
         } catch (Throwable t) {
             L.w("drawer above bar: not installed (" + t + ")");

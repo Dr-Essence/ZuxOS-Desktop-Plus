@@ -125,7 +125,8 @@ public final class NativeDrawerHooks {
                 }
             }
         });
-        Health.hooked("drawer: our order and folders (updateAdapterItems)", hooked);
+        Health.hooked("drawer: our order and folders (updateAdapterItems)", hooked,
+                Cfg::nativeDrawer);
         Health.hooked("drawer: app list updates (onAppsUpdated)", hookedUpdates);
         L.i("native drawer: " + listCls.getName() + " - updateAdapterItems x" + hooked
                 + ", onAppsUpdated x" + hookedUpdates);
@@ -185,7 +186,7 @@ public final class NativeDrawerHooks {
                             }
                         }
                     }).size();
-            Health.hooked("drawer: holds on folders", holds);
+            Health.hooked("drawer: holds on folders", holds, Cfg::drawerDrag);
             L.i("native drawer: folder long-press interception installed x" + holds);
         } catch (Throwable t) {
             L.e("native drawer: could not intercept long presses", t);

@@ -94,7 +94,8 @@ final class ZuiAppRows {
                             addTo(param);
                         }
                     }).size();
-            Health.hooked("taskbar: our shortcuts in ZUI's app menu", hooked);
+            Health.hooked("taskbar: our shortcuts in ZUI's app menu", hooked,
+                    Cfg::taskbarAppMenu);
             L.i("zui app rows: our actions as ZUI's own shortcuts on the tablet x" + hooked);
         } catch (Throwable t) {
             L.w("zui app rows: not installed (" + t + ")");

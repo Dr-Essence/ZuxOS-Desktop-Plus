@@ -96,7 +96,8 @@ public final class TaskbarApps {
                     remember(param.thisObject);
                 }
             }).size();
-            Health.hooked("taskbar: recent-apps controller held", hooked);
+            Health.hooked("taskbar: recent-apps controller held", hooked,
+                    Cfg::taskbarRunningOnly);
             L.i("taskbar apps: holding the recent-apps controller x" + hooked
                     + " (its switches are left alone - they crash this firmware)");
         } catch (Throwable t) {
@@ -218,7 +219,7 @@ public final class TaskbarApps {
                 // Not on this build; the other name may be.
             }
         }
-        Health.hooked("taskbar: icon menu", hooked);
+        Health.hooked("taskbar: icon menu", hooked, Cfg::taskbarAppMenu);
         ZuiAppRows.install(loader);
         L.i("taskbar apps: icon menu installed x" + hooked);
         if (hooked == 0) {

@@ -544,7 +544,9 @@ device.
 
   Custom animations mean hooking those handlers in SystemUI: high risk, as planned.
 - **#13 Adapting to updates.** The two tables above are the check; the probe's health section
-  shows the same on the device.
+  shows the same on the device. From 0.0.216 the launcher also sends that list to the settings app once
+  per start, through the module's own provider (`METHOD_HEALTH`, the only way back from the
+  launcher to the module); SystemUI and the system process send nothing.
 - **#14 Taskbar on another edge.** Read in full for the top (2026-10-10, 1.0.170):
   - The window's parameters come from `createDefaultWindowLayoutParams(type, title)`, gravity
     BOTTOM, for the bar and each of its four rotations (`o0()` here), titled `Taskbar_dp` on the
@@ -582,6 +584,10 @@ device.
   - **For #18:** a cooler profile, if the security centre has one, is a switch ZUI already offers.
     That app (`com.lenovo.safecenter`) is not read yet.
 - **#2, #4, #8, #15** are drawn entirely by the module: nothing of ZUI's to check.
+- **#22 One layout per monitor.** A monitor is told apart by its display's unique id
+  (`Display.getUniqueId()`, hidden, e.g. `local:<physical id>`; the same at every plug), read by
+  reflection. ZUX Home itself keeps one layout for the monitor's desktop and never asks which
+  monitor it is. The probe's display timeline prints each display's id.
 
 ## Still to read
 

@@ -36,6 +36,7 @@ import com.zuxos.desktopplus.hook.PowerProbe;
 import com.zuxos.desktopplus.hook.Probe;
 import com.zuxos.desktopplus.hook.RoadmapProbe;
 import com.zuxos.desktopplus.hook.home.OemBridge;
+import com.zuxos.desktopplus.hook.home.StartAnimation;
 import com.zuxos.desktopplus.hook.home.StockUnlockHooks;
 import com.zuxos.desktopplus.hook.home.SurfaceAttacher;
 import com.zuxos.desktopplus.hook.panel.NotifyPopup;
@@ -154,7 +155,7 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
 
         mRepo = new AppsRepo(activity);
         mRepo.reload();
-        mStore = new DesktopStore(activity, external);
+        mStore = new DesktopStore(activity, external, external ? monitorKey(activity) : null);
         mStore.load();
         mDrawerStore = DrawerStore.shared(activity);
 
@@ -244,7 +245,11 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
         host.mRepo.startWatching();
         host.mWidgets.start();
         host.mGrid.post(host::rebuildItems);
-        DisplayTimeline.note("desktop attached on display " + host.mDisplayId);
+        DisplayTimeline.note("desktop attached on display " + host.mDisplayId
+                + (external ? ", layout " + host.mStore.fileName() : ""));
+        if (external) {
+            StartAnimation.onAttached(activity, host.mDisplayId);
+        }
         L.i("desktop surface attached to " + activity.getClass().getName()
                 + " via " + target.describe()
                 + " (display " + host.mDisplayId + ", external=" + external + ")");
@@ -357,6 +362,41 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
         return null;
     }
 
+    /** The monitor whose desktop attached last; null before any or with one shared layout. */
+    private static volatile String sLastMonitor;
+    private static boolean sNoKeySaid;
+
+    /**
+     * This monitor's key for its own layout ({@link DesktopStore#monitorKey}), or null for the one
+     * layout all monitors share: the switch off, or the display's unique id not readable here.
+     */
+    private static String monitorKey(Activity activity) {
+        if (!Cfg.monitorLayouts()) {
+            return null;
+        }
+        String key = null;
+        try {
+            key = DesktopStore.monitorKey(activity.getDisplay());
+        } catch (Throwable t) {
+            // No display yet: the shared layout.
+        }
+        if (key == null && !sNoKeySaid) {
+            sNoKeySaid = true;
+            L.w("desktop: this monitor's unique id is not readable - all monitors share one "
+                    + "layout");
+        }
+        sLastMonitor = key;
+        return key;
+    }
+
+    /**
+     * The layout a shortcut pinned with no desktop up goes to: the last monitor's, or the shared
+     * one before any monitor attached in this process.
+     */
+    public static DesktopStore lastMonitorStore(android.content.Context ctx) {
+        return new DesktopStore(ctx, true, Cfg.monitorLayouts() ? sLastMonitor : null);
+    }
+
     /** Puts a shortcut the system just pinned onto the desktop. */
     public void addPinnedItem(Item item) {
         mRoot.post(() -> {
@@ -376,6 +416,7 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
         DisplayTimeline.note("desktop detached from display " + host.mDisplayId);
         if (host.mExternal) {
             NotifyPopup.dismissAll();
+            StartAnimation.dismiss();
         }
         try {
             host.mRepo.stopWatching();

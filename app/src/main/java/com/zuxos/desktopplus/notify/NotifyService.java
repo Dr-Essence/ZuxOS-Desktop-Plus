@@ -8,6 +8,7 @@ import android.service.notification.StatusBarNotification;
 
 import com.zuxos.desktopplus.core.Const;
 import com.zuxos.desktopplus.core.L;
+import com.zuxos.desktopplus.core.Prefs;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -123,6 +124,10 @@ public final class NotifyService extends NotificationListenerService {
             // The module's own are not news - except the tests sent from its settings.
             return false;
         }
+        if (muted(sbn.getPackageName())) {
+            // Never pops up on the monitor, as the user chose; it stays in the shade and the panel.
+            return false;
+        }
         if ((n.flags & (Notification.FLAG_ONGOING_EVENT | Notification.FLAG_GROUP_SUMMARY
                 | Notification.FLAG_FOREGROUND_SERVICE)) != 0) {
             return false;
@@ -143,6 +148,21 @@ public final class NotifyService extends NotificationListenerService {
         }
         return mRanking.getImportance() >= NotificationManager.IMPORTANCE_HIGH
                 && mRanking.matchesInterruptionFilter() && !mRanking.isSuspended();
+    }
+
+    /**
+     * Whether the user set this app never to pop up. Read here, in the module's own process, from
+     * its own settings ({@link Prefs}, as {@link NotifyProvider} reads them): a muted app never
+     * wakes the launcher.
+     */
+    private boolean muted(String pkg) {
+        try {
+            String muted = Prefs.get(this).getString(Const.KEY_POPUP_MUTED, "");
+            return pkg != null && muted != null && !muted.isEmpty()
+                    && ("," + muted + ",").contains("," + pkg + ",");
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     /** The pop-ups that arrived after {@code since}, oldest first. */

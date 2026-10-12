@@ -68,15 +68,12 @@ import java.util.concurrent.Executors;
  * between arrivals, and with the switch off nothing is even listening.
  *
  * <p>Tap it to open it on the monitor. Its own buttons are under it, a reply is typed in place,
- * and a cross or a swipe to the right puts it away - it stays in the shade. A pointer over it
+ * and a cross or a swipe toward its edge puts it away - it stays in the shade. A pointer over it
  * holds it; up to three stack, the newest nearest the bar.
  */
 public final class NotifyPopup {
 
-    /** On screen this long once nothing is over it, like the tablet's own. */
-    private static final long SHOWN_MS = 6000L;
     private static final int MAX_CARDS = 3;
-    private static final int WIDTH_DP = 360;
     private static final int GAP_DP = 8;
     private static final int MARGIN_DP = 12;
 
@@ -98,6 +95,8 @@ public final class NotifyPopup {
     private static int sDisplay = -1;
     /** Whether the stack hangs below a bar at the top, rather than standing on one. */
     private static boolean sTop;
+    /** Whether the stack is at the left-hand corner, as the setting was when it opened. */
+    private static boolean sLeft;
     private static final Map<String, Card> CARDS = new HashMap<>();
 
     private NotifyPopup() {
@@ -203,7 +202,7 @@ public final class NotifyPopup {
                 remove(oldest);
             }
             Card card = new Card(ctx, display, pop);
-            int width = Ui.dp(ctx, WIDTH_DP);
+            int width = Ui.dp(ctx, Cfg.popupWidthDp());
             card.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
                     View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
             int step = card.getMeasuredHeight() + Ui.dp(ctx, GAP_DP);
@@ -224,7 +223,7 @@ public final class NotifyPopup {
             sStack.addView(card, sTop ? 0 : sStack.getChildCount(), lp);
             CARDS.put(key, card);
             if (moves) {
-                card.setTranslationX(width + Ui.dp(ctx, MARGIN_DP));
+                card.setTranslationX(away(width + Ui.dp(ctx, MARGIN_DP)));
                 card.setAlpha(0f);
                 card.animate().translationX(0f).alpha(1f).setDuration(Motion.IOS_MS)
                         .setInterpolator(Motion.IOS).start();
@@ -242,8 +241,12 @@ public final class NotifyPopup {
         LinearLayout stack = new LinearLayout(ctx);
         stack.setOrientation(LinearLayout.VERTICAL);
         stack.setClipChildren(false);
-        // To the screen's edge, so a card swiped away leaves at the edge, not short of it.
-        stack.setPadding(0, 0, Ui.dp(ctx, MARGIN_DP), 0);
+        // To the screen's edge, so a card swiped away leaves at the edge, not short of it. Its
+        // corner is the setting's as the window opens; it moves at the next.
+        boolean left = Cfg.popupLeft();
+        int margin = Ui.dp(ctx, MARGIN_DP);
+        stack.setPadding(left ? margin : 0, 0, left ? 0 : margin, 0);
+        stack.setGravity(left ? Gravity.START : Gravity.END);
         WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
@@ -255,7 +258,7 @@ public final class NotifyPopup {
         // to the top.
         Insets bar = BarEdge.reserved(display);
         boolean top = bar.top > 0;
-        lp.gravity = (top ? Gravity.TOP : Gravity.BOTTOM) | Gravity.END;
+        lp.gravity = (top ? Gravity.TOP : Gravity.BOTTOM) | (left ? Gravity.START : Gravity.END);
         lp.setFitInsetsTypes(0);
         lp.x = 0;
         lp.y = (top ? bar.top : bar.bottom > 0 ? bar.bottom : Ui.dp(ctx, 56))
@@ -274,6 +277,7 @@ public final class NotifyPopup {
         sLp = lp;
         sDisplay = display;
         sTop = top;
+        sLeft = left;
         return true;
     }
 
@@ -296,12 +300,18 @@ public final class NotifyPopup {
     private static void restartClock(Card card) {
         MAIN.removeCallbacks(card.hide);
         if (!card.replying) {
-            MAIN.postDelayed(card.hide, SHOWN_MS);
+            // On screen this long once nothing is over it, like the tablet's own: 6 s unless set.
+            MAIN.postDelayed(card.hide, Cfg.popupSeconds() * 1000L);
         }
     }
 
+    /** A distance toward the stack's own screen edge: right, or left at the left corner. */
+    private static float away(float distance) {
+        return sLeft ? -distance : distance;
+    }
+
     /**
-     * Slides a card out to the right; those farther from the bar move into its place as it goes.
+     * Slides a card out to its edge; those farther from the bar move into its place as it goes.
      */
     private static void close(Card card) {
         if (card.leaving || card.getParent() != sStack || sStack == null) {
@@ -325,7 +335,7 @@ public final class NotifyPopup {
             sStack.getChildAt(i).animate().translationY(sTop ? -step : step).setDuration(260L)
                     .setInterpolator(Motion.EASE).start();
         }
-        card.animate().translationX(card.getWidth() + Ui.dp(card.getContext(), MARGIN_DP))
+        card.animate().translationX(away(card.getWidth() + Ui.dp(card.getContext(), MARGIN_DP)))
                 .alpha(0.6f).setDuration(260L).setInterpolator(Motion.EXIT)
                 .withEndAction(() -> remove(card)).start();
     }
@@ -395,7 +405,7 @@ public final class NotifyPopup {
 
     /**
      * One card: the app, what it says, its buttons and a reply box. Holds itself while a pointer
-     * is over it, and follows a finger or pen to the right to be put away.
+     * is over it, and follows a finger or pen toward its edge to be put away.
      */
     private static final class Card extends FrameLayout {
         final String key;
@@ -637,7 +647,7 @@ public final class NotifyPopup {
                 mDownX = e.getRawX();
                 mDragging = false;
             } else if (e.getActionMasked() == MotionEvent.ACTION_MOVE && !mDragging
-                    && e.getRawX() - mDownX > mSlop) {
+                    && away(e.getRawX() - mDownX) > mSlop) {
                 mDragging = true;
                 MAIN.removeCallbacks(hide);
             }
@@ -647,7 +657,8 @@ public final class NotifyPopup {
         @Override
         public boolean onTouchEvent(MotionEvent e) {
             track(e);
-            float dx = e.getRawX() - mDownX;
+            // Toward the stack's own edge: right, or left at the left corner.
+            float dx = away(e.getRawX() - mDownX);
             switch (e.getActionMasked()) {
                 case MotionEvent.ACTION_DOWN:
                     mDownX = e.getRawX();
@@ -658,8 +669,8 @@ public final class NotifyPopup {
                         MAIN.removeCallbacks(hide);
                     }
                     if (mDragging) {
-                        // To the right it follows; to the left it only gives a little.
-                        setTranslationX(dx > 0 ? dx : dx * 0.15f);
+                        // Toward its edge it follows; the other way it only gives a little.
+                        setTranslationX(away(dx > 0 ? dx : dx * 0.15f));
                     }
                     return true;
                 case MotionEvent.ACTION_UP:
@@ -667,7 +678,7 @@ public final class NotifyPopup {
                     float vx = 0f;
                     if (mVelocity != null) {
                         mVelocity.computeCurrentVelocity(1000);
-                        vx = mVelocity.getXVelocity();
+                        vx = away(mVelocity.getXVelocity());
                         mVelocity.recycle();
                         mVelocity = null;
                     }

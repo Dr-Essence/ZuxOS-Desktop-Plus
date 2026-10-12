@@ -220,7 +220,8 @@ public final class TaskbarGlass {
                     }
                 }
             }).size();
-            Health.hooked("taskbar: glass (ZUI's background off)", hooked);
+            Health.hooked("taskbar: glass (ZUI's background off)", hooked,
+                    () -> Cfg.taskbarGlass() && Cfg.glass());
             L.i("taskbar glass: background renderer suppressed x" + hooked
                     + " (" + renderer.getSimpleName() + ")");
             if (hooked == 0) {

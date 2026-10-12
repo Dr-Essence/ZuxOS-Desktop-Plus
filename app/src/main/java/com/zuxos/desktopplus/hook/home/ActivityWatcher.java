@@ -9,6 +9,7 @@ import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.desktop.DesktopHost;
 import com.zuxos.desktopplus.hook.DisplayTimeline;
+import com.zuxos.desktopplus.hook.HealthReport;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarTray;
 
 import java.util.Collections;
@@ -95,6 +96,7 @@ public final class ActivityWatcher {
                 return;
             }
             DisplayTimeline.start(activity.getApplicationContext());
+            HealthReport.soon(activity);
             // The taskbar is its own window and may have been created before the module loaded,
             // or after a display reconnect that we never saw - this is the cheap re-check.
             TaskbarTray.refresh();

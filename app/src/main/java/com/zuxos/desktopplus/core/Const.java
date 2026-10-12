@@ -115,6 +115,24 @@ public final class Const {
     public static final String KEY_NOTIFICATIONS = "notifications";
     /** A new notification pops up on the monitor, above the tray. */
     public static final String KEY_NOTIFY_POPUPS = "notify_popups";
+    /** How long a pop-up stays, in seconds. */
+    public static final String KEY_POPUP_SECONDS = "popup_seconds";
+    /** A pop-up card's width, in dp. */
+    public static final String KEY_POPUP_WIDTH = "popup_width_dp";
+    /** Which corner the pop-ups come in at: see {@link #SIDE_RIGHT}. */
+    public static final String KEY_POPUP_SIDE = "popup_side";
+    public static final int SIDE_RIGHT = 0;
+    public static final int SIDE_LEFT = 1;
+    /** Apps whose notifications never pop up, as package names joined by commas. */
+    public static final String KEY_POPUP_MUTED = "popup_muted";
+    /** Hold or pencil in the quick panel to reorder, add and remove its tiles. */
+    public static final String KEY_TILE_EDIT = "quick_tile_edit";
+    /** Each monitor keeps a desktop of its own, told apart by the display's unique id. */
+    public static final String KEY_MONITOR_LAYOUTS = "monitor_layouts";
+    /** The start animation on the monitor as its desktop comes up. */
+    public static final String KEY_START_ANIMATION = "start_animation";
+    /** The launcher tells the settings app which of its features found what they need. */
+    public static final String KEY_HEALTH = "feature_health";
     /** Allow shell commands as root for the things a launcher may not do itself. */
     public static final String KEY_USE_ROOT = "use_root";
 

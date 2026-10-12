@@ -50,7 +50,8 @@ public final class PinRequestHooks {
                     onAccepted(param.thisObject);
                 }
             }).size();
-            Health.hooked("home: add-to-home-screen requests", hooks);
+            Health.hooked("home: add-to-home-screen requests", hooks,
+                    Cfg::catchPinnedShortcuts);
             L.i("pinned shortcuts: watching PinItemRequest.accept x" + hooks);
         } catch (Throwable t) {
             L.e("pinned shortcuts: could not watch pin requests", t);
@@ -87,7 +88,7 @@ public final class PinRequestHooks {
             } else {
                 // No desktop attached right now: write it straight to the layout so it is there
                 // the next time the external display comes up.
-                DesktopStore store = new DesktopStore(ctx, true);
+                DesktopStore store = DesktopHost.lastMonitorStore(ctx);
                 store.load();
                 store.add(item);
                 store.save();

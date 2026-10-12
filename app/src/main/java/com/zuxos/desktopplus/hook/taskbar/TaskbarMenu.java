@@ -110,7 +110,7 @@ public final class TaskbarMenu {
             // these two sees all of it; the de-duplication in onDown makes the overlap harmless.
             int hooked = hookUpTo(cls, "onInterceptTouchEvent", watcher)
                     + hookUpTo(cls, "onTouchEvent", watcher);
-            Health.hooked("taskbar: menu on hold", hooked);
+            Health.hooked("taskbar: menu on hold", hooked, Cfg::taskbarMenu);
             L.i("taskbar menu: watching taskbar touches x" + hooked);
             if (hooked == 0) {
                 L.w("taskbar menu: no touch method on this build - hold and right-click will "

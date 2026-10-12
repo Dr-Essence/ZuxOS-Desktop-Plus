@@ -76,6 +76,16 @@ public final class NotifyProvider extends ContentProvider {
     public static final String METHOD_POPS = "pops";
     public static final String EXTRA_SINCE = "since";
     public static final String EXTRA_POPS = "pops";
+    /**
+     * The launcher's feature health (#13): its rows ({@link #EXTRA_HEALTH_ROWS}, "name \t x3 \t
+     * on"), the app and version they are from, and when. Kept in {@link #HEALTH_FILE} for the
+     * settings app's health screen.
+     */
+    public static final String METHOD_HEALTH = "health";
+    public static final String EXTRA_HEALTH_ROWS = "rows";
+    public static final String EXTRA_HEALTH_FROM = "from";
+    public static final String EXTRA_HEALTH_WHEN = "when";
+    public static final String HEALTH_FILE = "health.json";
 
     /** A pop-up's bundle. */
     public static final String POP_KEY = "key";
@@ -293,6 +303,11 @@ public final class NotifyProvider extends ContentProvider {
         if (!allowed()) {
             return null;
         }
+        if (METHOD_HEALTH.equals(method)) {
+            // Before the listener's check: the health screen works without notification access.
+            keepHealth(extras);
+            return null;
+        }
         NotifyService service = NotifyService.connected();
         if (service == null) {
             return null;
@@ -379,6 +394,28 @@ public final class NotifyProvider extends ContentProvider {
                     .append('\n');
         }
         return sb.toString();
+    }
+
+    /** The launcher's feature health, kept in the module's own files for its settings screen. */
+    private void keepHealth(Bundle extras) {
+        Context ctx = getContext();
+        ArrayList<String> rows = extras != null
+                ? extras.getStringArrayList(EXTRA_HEALTH_ROWS) : null;
+        if (ctx == null || rows == null) {
+            return;
+        }
+        try {
+            org.json.JSONObject root = new org.json.JSONObject();
+            root.put(EXTRA_HEALTH_FROM, extras.getString(EXTRA_HEALTH_FROM, getCallingPackage()));
+            root.put(EXTRA_HEALTH_WHEN, extras.getLong(EXTRA_HEALTH_WHEN));
+            root.put(EXTRA_HEALTH_ROWS, new org.json.JSONArray(rows));
+            java.io.File file = new java.io.File(ctx.getFilesDir(), HEALTH_FILE);
+            try (java.io.FileOutputStream out = new java.io.FileOutputStream(file)) {
+                out.write(root.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+        } catch (Throwable t) {
+            L.w("health: could not keep the launcher's report (" + t + ")");
+        }
     }
 
     /** Only the launcher this module is set to hook, and the module itself. */

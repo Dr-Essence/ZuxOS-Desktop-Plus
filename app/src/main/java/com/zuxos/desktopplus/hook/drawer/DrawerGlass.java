@@ -355,7 +355,8 @@ public final class DrawerGlass {
                             }
                         }
                     }).size();
-            Health.hooked("drawer: glass (surface blurs)", hooked);
+            Health.hooked("drawer: glass (surface blurs)", hooked,
+                    () -> Cfg.drawerGlass() && Cfg.glass());
             L.d("drawer glass: watching surface blurs x" + hooked);
         } catch (Throwable t) {
             L.d("drawer glass: could not watch surface blurs (" + t + ")");

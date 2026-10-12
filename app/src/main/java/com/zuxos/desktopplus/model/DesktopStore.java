@@ -1,9 +1,11 @@
 package com.zuxos.desktopplus.model;
 
 import android.content.Context;
+import android.view.Display;
 
 import com.zuxos.desktopplus.core.Const;
 import com.zuxos.desktopplus.core.L;
+import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.core.Storage;
 
 import org.json.JSONArray;
@@ -13,16 +15,49 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Persists the desktop layout (one file per display kind) as JSON. */
+/**
+ * Persists a desktop layout as JSON: the tablet's, and one per monitor.
+ *
+ * <p>Each monitor's file is named by the display's unique id ({@link #monitorKey}). A monitor
+ * seen for the first time starts from {@link Const#FILE_DESKTOP}, the one layout every monitor
+ * shared before (0.0.216); that file is only read from then on, never written or deleted, so no
+ * layout is ever lost.
+ */
 public final class DesktopStore {
 
     private final Context mCtx;
     private final String mFileName;
+    /** A monitor's own layout, which starts from the shared one when it has none yet. */
+    private final boolean mOwnMonitor;
     private final List<Item> mItems = new ArrayList<>();
 
-    public DesktopStore(Context ctx, boolean external) {
+    /**
+     * @param monitor the monitor's key ({@link #monitorKey}), or null for the one shared layout:
+     *                the tablet's desktop, or a monitor whose id is not known
+     */
+    public DesktopStore(Context ctx, boolean external, String monitor) {
         mCtx = ctx.getApplicationContext() != null ? ctx.getApplicationContext() : ctx;
-        mFileName = external ? Const.FILE_DESKTOP : "desktop-internal.json";
+        mOwnMonitor = external && monitor != null;
+        mFileName = !external ? "desktop-internal.json"
+                : mOwnMonitor ? "desktop-" + monitor + ".json" : Const.FILE_DESKTOP;
+    }
+
+    /** The layout file in use, for the probe. */
+    public String fileName() {
+        return mFileName;
+    }
+
+    /**
+     * A monitor's key: its display's unique id ({@code Display.getUniqueId()}, hidden, the same
+     * for the same monitor at every plug) in filename-safe characters; null when not readable.
+     */
+    public static String monitorKey(Display display) {
+        Object id = Reflect.call(display, "getUniqueId");
+        if (!(id instanceof String) || ((String) id).isEmpty()) {
+            return null;
+        }
+        String key = ((String) id).replaceAll("[^A-Za-z0-9._-]", "_");
+        return key.length() > 80 ? key.substring(0, 80) : key;
     }
 
     public List<Item> items() {
@@ -33,6 +68,13 @@ public final class DesktopStore {
         mItems.clear();
         File f = Storage.file(mCtx, mFileName);
         String raw = Storage.read(f);
+        if (raw == null && mOwnMonitor) {
+            // A monitor seen for the first time: the layout all monitors shared until now.
+            raw = Storage.read(Storage.file(mCtx, Const.FILE_DESKTOP));
+            if (raw != null) {
+                L.i("desktop: a new monitor (" + mFileName + ") starts from the shared layout");
+            }
+        }
         if (raw == null) {
             L.d("no saved desktop layout at " + f);
             return;

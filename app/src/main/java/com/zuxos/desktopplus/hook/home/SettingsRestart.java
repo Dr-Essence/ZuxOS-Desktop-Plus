@@ -51,7 +51,7 @@ public final class SettingsRestart {
             BroadcastReceiver receiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-                    changed();
+                    changed(context);
                 }
             };
             IntentFilter filter = new IntentFilter(Const.ACTION_SETTINGS_CHANGED);
@@ -66,7 +66,7 @@ public final class SettingsRestart {
         }
     }
 
-    private static void changed() {
+    private static void changed(Context ctx) {
         try {
             Cfg.reload();
             String now = current();
@@ -83,6 +83,8 @@ public final class SettingsRestart {
             }
             L.i("settings: " + sStartedWith + " -> " + now + ", the launcher restarts to take "
                     + "them");
+            // Coming back for a setting is no new connect: no start animation as it does.
+            StartAnimation.skipNext(ctx);
             android.os.Process.killProcess(android.os.Process.myPid());
         } catch (Throwable t) {
             L.w("settings: could not restart for the change (" + t + ")");
@@ -93,6 +95,7 @@ public final class SettingsRestart {
     private static String current() {
         return "enabled=" + Cfg.enabled() + " theme=" + Cfg.theme() + " edge=" + Cfg.taskbarEdge()
                 + " drawer=" + Cfg.nativeDrawer() + " tray=" + Cfg.taskbarTray()
-                + " popups=" + Cfg.notifyPopups() + " unlock=" + Cfg.unlockStock();
+                + " popups=" + Cfg.notifyPopups() + " unlock=" + Cfg.unlockStock()
+                + " monitors=" + Cfg.monitorLayouts();
     }
 }
