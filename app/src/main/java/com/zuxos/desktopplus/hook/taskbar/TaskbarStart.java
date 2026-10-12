@@ -89,6 +89,9 @@ final class TaskbarStart {
      * start button took the first press as opening nothing and opened the taskbar's drawer as
      * well - two drawers (12:44).
      *
+     * <p>In between, the eyes follow the drawer itself, frame by frame: as wide as it is open,
+     * whether it slides on its own or under a finger, and still where it is held still.
+     *
      * <p>Recents narrows the eyes, back to normal however it goes: ZUI's own on the tablet (its
      * home in an overview state, {@code LauncherState.OVERVIEW} and the modal and split ones;
      * gone with any other state or when the home stops) and ours on the monitor
@@ -108,7 +111,15 @@ final class TaskbarStart {
             hooked += XposedBridge.hookAllMethods(sheet, "handleClose", drawerHook(false)).size();
             hooked += XposedBridge.hookAllMethods(sheet, "onDetachedFromWindow",
                     drawerHook(false)).size();
+            hooked += XposedBridge.hookAllMethods(sheet, "setTranslationShift",
+                    new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            sheetMoved((View) param.thisObject, param.args);
+                        }
+                    }).size();
             hooked += hookHomeDrawer(loader);
+            hooked += hookHomeDrawerSlide(loader);
             TaskOverview.onShown((display, up) -> {
                 if (up ? OUR_RECENTS.add(display) : OUR_RECENTS.remove(display)) {
                     eyesOn(display);
@@ -140,6 +151,79 @@ final class TaskbarStart {
                 }
             }
         };
+    }
+
+    /**
+     * The eyes open as far as ZUI's taskbar drawer is: ZUI moves its sheet through
+     * {@code setTranslationShift} on every frame it slides - opening, closing, or held under a
+     * finger - 0 open and 1 closed.
+     */
+    private static void sheetMoved(View sheet, Object[] args) {
+        try {
+            if (args.length == 1 && args[0] instanceof Float) {
+                drawerAt(TaskbarTray.displayIdOf(sheet), 1f - (Float) args[0]);
+            }
+        } catch (Throwable t) {
+            L.d("taskbar start: eyes not following the sheet (" + t + ")");
+        }
+    }
+
+    /**
+     * The same for the home screen's own drawer, which ZUI slides through its all-apps
+     * controller ({@code AllAppsTransitionController.setProgress}, 0 open and 1 closed) on every
+     * frame of a swipe or an animation; the controller's launcher says which screen.
+     */
+    private static int hookHomeDrawerSlide(ClassLoader loader) {
+        try {
+            Class<?> controller = Reflect.findClass(
+                    "com.android.launcher3.allapps.AllAppsTransitionController", loader);
+            Class<?> launcher = Reflect.findClass("com.android.launcher3.Launcher", loader);
+            java.lang.reflect.Field home = null;
+            for (java.lang.reflect.Field f : controller == null || launcher == null
+                    ? new java.lang.reflect.Field[0] : controller.getDeclaredFields()) {
+                if (launcher.isAssignableFrom(f.getType())) {
+                    home = f;
+                }
+            }
+            if (home == null) {
+                L.w("taskbar start: the home drawer's slide not found, the eyes follow its "
+                        + "opening and closing only");
+                return 0;
+            }
+            home.setAccessible(true);
+            java.lang.reflect.Field launcherField = home;
+            return XposedBridge.hookAllMethods(controller, "setProgress", new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    try {
+                        Object at = param.args.length == 1 ? param.args[0] : null;
+                        Object owner = launcherField.get(param.thisObject);
+                        if (!(at instanceof Float) || !(owner instanceof android.app.Activity)) {
+                            return;
+                        }
+                        android.view.Display shown = ((android.app.Activity) owner).getDisplay();
+                        // The taskbar's drawer up on the same screen has the eyes.
+                        if (shown != null && !SHEETS.containsValue(shown.getDisplayId())) {
+                            drawerAt(shown.getDisplayId(), 1f - (Float) at);
+                        }
+                    } catch (Throwable t) {
+                        L.d("taskbar start: eyes not following the home drawer (" + t + ")");
+                    }
+                }
+            }).size();
+        } catch (Throwable t) {
+            L.w("taskbar start: the home drawer's slide not followed (" + t + ")");
+            return 0;
+        }
+    }
+
+    /** This display's start buttons' eyes as open as a drawer is, 0 closed to 1 open. */
+    private static void drawerAt(int display, float open) {
+        for (StartButton button : BUTTONS.keySet()) {
+            if (button.isAttachedToWindow() && TaskbarTray.displayIdOf(button) == display) {
+                button.drawerAt(open);
+            }
+        }
     }
 
     /** The home screen's own drawer and recents, as ZUI's state machine sets them. */
@@ -760,6 +844,13 @@ final class TaskbarStart {
                         : recents ? AndroidRobot.EYES_SMALL : AndroidRobot.EYES_NORMAL);
             }
             setActivated(drawer);
+        }
+
+        /** A drawer on this screen part of the way open: the eyes as wide as it is open. */
+        void drawerAt(float open) {
+            if (!mTheme.retro()) {
+                mRobot.setDrawerOpen(open);
+            }
         }
 
         private void press() {

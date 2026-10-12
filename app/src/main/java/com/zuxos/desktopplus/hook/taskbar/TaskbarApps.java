@@ -424,9 +424,10 @@ public final class TaskbarApps {
     }
 
     /**
-     * The shortcut's own icon, loaded as ZUI's own popup loads it.
+     * The shortcut's own icon, in ZUI's shape as its home screen draws it
+     * ({@link ShortcutShapes}).
      *
-     * <p>First through ZUI ({@code CacheableShortcutInfo.getIcon}, in ZUI's icon theme), then as
+     * <p>Else through ZUI as its popup loads it ({@code CacheableShortcutInfo.getIcon}), then as
      * Android hands it over; when the app gave none, the app's own icon, as ZUI falls back to one.
      * Our plain glyph only should even that be missing: white, it made blank cells in ZUI's light
      * popup (Claude, 14:12). Never one guessed from the title: a shortcut called "New chat" is not
@@ -434,12 +435,16 @@ public final class TaskbarApps {
      */
     static android.graphics.drawable.Drawable shortcutIcon(Context ctx,
             ShortcutInfo shortcut) {
+        android.graphics.drawable.Drawable shaped = ShortcutShapes.shaped(ctx, shortcut);
+        if (shaped != null) {
+            return shaped;
+        }
         int dpi = ctx.getResources().getDisplayMetrics().densityDpi;
         try {
             Method zui = zuiShortcutIcon(ctx);
             Object icon = zui == null ? null : zui.invoke(null, ctx, shortcut, dpi, true);
             if (icon instanceof android.graphics.drawable.Drawable) {
-                return ShortcutShapes.shaped(ctx, (android.graphics.drawable.Drawable) icon);
+                return (android.graphics.drawable.Drawable) icon;
             }
         } catch (Throwable t) {
             L.d("taskbar apps: ZUI gave no icon for shortcut " + shortcut.getId() + " (" + t
@@ -450,7 +455,7 @@ public final class TaskbarApps {
             android.graphics.drawable.Drawable icon = apps == null ? null
                     : apps.getShortcutIconDrawable(shortcut, dpi);
             if (icon != null) {
-                return ShortcutShapes.shaped(ctx, icon);
+                return icon;
             }
         } catch (Throwable t) {
             L.d("taskbar apps: no icon for shortcut " + shortcut.getId() + " (" + t + ")");

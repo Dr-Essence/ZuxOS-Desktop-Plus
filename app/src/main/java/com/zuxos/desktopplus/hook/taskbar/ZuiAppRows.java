@@ -277,16 +277,19 @@ final class ZuiAppRows {
         return id != 0 ? ctx.getString(id) : fallback;
     }
 
-    /** ZUI's own icon for one of our window actions; none for minimise, which ZUI lacks. */
+    /**
+     * ZUI's own icon for one of our window actions; none for minimise and close all, which ZUI
+     * lacks - close all is our stacked windows, not ZUI's close a second time.
+     */
     private static String zuiIconFor(String title) {
         if (title.equals("New window")) {
             return "desktop_mode_ic_taskbar_menu_new_window";
         }
+        if (title.startsWith("Close all") || title.equals("Minimize")) {
+            return "";
+        }
         if (title.startsWith("Close")) {
             return "ic_close_option";
-        }
-        if (title.equals("Minimize")) {
-            return "";
         }
         // Maximise, full screen or back to a window: ZUI's full-screen icon.
         return "ic_recent_task_menu_fullscreen";

@@ -168,6 +168,28 @@ public final class AndroidRobot extends Drawable {
         mLookAnim.start();
     }
 
+    /**
+     * Eyes as wide as the drawer is open, 0 closed to 1 open, set by the drawer on every frame it
+     * moves - no spring of their own, so they are exactly where the drawer is, wherever a finger
+     * holds it. Narrowed for recents, they stay so until the drawer opens past closed.
+     */
+    public void setDrawerOpen(float open) {
+        float look = Math.max(0f, Math.min(1f, open));
+        if (mLookTarget == EYES_SMALL && look <= 0f) {
+            return;
+        }
+        if (mLookAnim != null) {
+            mLookAnim.cancel();
+            mLookAnim = null;
+        }
+        // Where the next spring starts from and whether it is needed, as setEyes reads it.
+        mLookTarget = look >= 0.5f ? EYES_WIDE : EYES_NORMAL;
+        if (look != mLook) {
+            mLook = look;
+            invalidateSelf();
+        }
+    }
+
     /** Somewhere between 3.5 and 6.5 seconds: a fixed rhythm looks like a machine. */
     private long nextGap() {
         return 3500L + mRandom.nextInt(3000);

@@ -50,6 +50,7 @@ public final class Glyphs {
     public static final int MAXIMIZE = 27;
     public static final int TASKS = 28;
     public static final int FLOATING = 29;
+    public static final int CLOSE_ALL = 30;
 
     private Glyphs() {
     }
@@ -81,6 +82,8 @@ public final class Glyphs {
             glyph = UNPIN;
         } else if (t.startsWith("pin") || t.contains("to the taskbar")) {
             glyph = PIN;
+        } else if (t.startsWith("close all")) {
+            glyph = CLOSE_ALL;
         } else if (t.startsWith("close") || t.startsWith("force stop") || t.startsWith("stop")) {
             glyph = CLOSE;
         } else if (t.startsWith("rename")) {
@@ -147,23 +150,31 @@ public final class Glyphs {
         Path p = new Path();
         switch (glyph) {
             case OPEN:
-                // A window with an arrow leaving its top-right corner.
-                p.moveTo(11, 4);
-                p.lineTo(5, 4);
-                p.lineTo(5, 19);
-                p.lineTo(20, 19);
-                p.lineTo(20, 13);
-                p.moveTo(14, 4);
-                p.lineTo(20, 4);
-                p.lineTo(20, 10);
-                p.moveTo(20, 4);
-                p.lineTo(11, 13);
+                // Round, as ZUI's own row icons are: an arrow leaving a circle's centre.
+                p.addCircle(12, 12, 8.5f, Path.Direction.CW);
+                p.moveTo(9, 15);
+                p.lineTo(15, 9);
+                p.moveTo(10.5f, 9);
+                p.lineTo(15, 9);
+                p.lineTo(15, 13.5f);
                 return p;
             case CLOSE:
                 p.moveTo(6, 6);
                 p.lineTo(18, 18);
                 p.moveTo(18, 6);
                 p.lineTo(6, 18);
+                return p;
+            case CLOSE_ALL:
+                // Every window: one behind another, the front one crossed out - told apart from
+                // Close's single cross at a glance (owner).
+                p.moveTo(8, 5);
+                p.lineTo(19, 5);
+                p.lineTo(19, 15);
+                p.addRoundRect(new RectF(5, 9, 15, 19), 2f, 2f, Path.Direction.CW);
+                p.moveTo(8, 12);
+                p.lineTo(12, 16);
+                p.moveTo(12, 12);
+                p.lineTo(8, 16);
                 return p;
             case INFO:
                 p.addCircle(12, 12, 8.5f, Path.Direction.CW);

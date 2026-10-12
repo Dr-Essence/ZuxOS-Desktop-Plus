@@ -100,7 +100,8 @@ public final class ZuiShortcuts {
      */
     public static Object make(Context ctx, CharSequence title, Icon icon, Runnable action,
             Object target, Object info, View view) throws Exception {
-        RemoteAction remote = new RemoteAction(icon, title, title, nothing(ctx));
+        CharSequence shown = ZuiLook.label(ctx, title.toString());
+        RemoteAction remote = new RemoteAction(icon, shown, shown, nothing(ctx));
         OURS.put(remote, action);
         return sMake.newInstance(remote, target, info, view);
     }
