@@ -106,7 +106,7 @@ public final class StockUnlockHooks {
             if (m.getReturnType() != boolean.class || m.getParameterCount() > 0) {
                 continue;
             }
-            String name = m.getName().toLowerCase();
+            String name = m.getName().toLowerCase(java.util.Locale.ROOT);
             Boolean value = null;
             if (FORCE_FALSE.contains(name)) {
                 value = Boolean.FALSE;
@@ -177,10 +177,12 @@ public final class StockUnlockHooks {
                 }
                 boolean value = rule.optBoolean("returns", true);
                 String exact = rule.optString("method", "");
-                String contains = rule.optString("methodContains", "").toLowerCase();
+                String contains = rule.optString("methodContains", "")
+                        .toLowerCase(java.util.Locale.ROOT);
                 for (Method m : clazz.getDeclaredMethods()) {
                     boolean match = (!exact.isEmpty() && m.getName().equals(exact))
-                            || (!contains.isEmpty() && m.getName().toLowerCase().contains(contains));
+                            || (!contains.isEmpty() && m.getName()
+                            .toLowerCase(java.util.Locale.ROOT).contains(contains));
                     if (!match || m.getReturnType() != boolean.class) {
                         continue;
                     }

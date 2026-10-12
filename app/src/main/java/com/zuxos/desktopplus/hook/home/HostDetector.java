@@ -90,7 +90,7 @@ public final class HostDetector {
      * its recents were taken for home screens, and the desktop attached itself to them.
      */
     private static boolean nameLooksLikeHome(Activity activity) {
-        String name = activity.getClass().getSimpleName().toLowerCase();
+        String name = activity.getClass().getSimpleName().toLowerCase(java.util.Locale.ROOT);
         for (String hint : CLASS_HINTS) {
             if (name.contains(hint)) {
                 return true;

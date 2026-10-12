@@ -184,11 +184,8 @@ public final class Notifications {
 
     private static boolean sCounting;
     private static final java.util.concurrent.Executor COUNTER =
-            java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
-                Thread t = new Thread(r, "zux-desktop-plus-notify-count");
-                t.setDaemon(true);
-                return t;
-            });
+            java.util.concurrent.Executors.newSingleThreadExecutor(
+                    com.zuxos.desktopplus.core.Threads.named("zux-desktop-plus-notify-count"));
 
     /** Called when the shade moves, so the next ask is answered fresh. */
     static void countChanged() {

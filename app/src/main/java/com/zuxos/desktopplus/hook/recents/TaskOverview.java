@@ -32,6 +32,7 @@ import android.widget.TextView;
 
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
+import com.zuxos.desktopplus.core.Threads;
 import com.zuxos.desktopplus.core.Ui;
 import com.zuxos.desktopplus.core.glass.Glass;
 import com.zuxos.desktopplus.core.glass.GlassSurface;
@@ -73,11 +74,8 @@ import java.util.concurrent.Executors;
 public final class TaskOverview {
 
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
-    private static final ExecutorService IO = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "zux-desktop-plus-overview");
-        t.setDaemon(true);
-        return t;
-    });
+    private static final ExecutorService IO =
+            Executors.newSingleThreadExecutor(Threads.named("zux-desktop-plus-overview"));
 
     /** Cards on liquid glass; past this many, plain - each pane is a live capture of its own. */
     private static final int GLASS_CARDS = 64;

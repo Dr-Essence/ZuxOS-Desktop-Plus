@@ -34,6 +34,7 @@ import android.widget.TextView;
 
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
+import com.zuxos.desktopplus.core.Threads;
 import com.zuxos.desktopplus.core.Tone;
 import com.zuxos.desktopplus.core.Ui;
 import com.zuxos.desktopplus.core.glass.GlassSurface;
@@ -79,11 +80,8 @@ public final class NotifyPopup {
     private static final int MARGIN_DP = 12;
 
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
-    private static final ExecutorService IO = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "zux-desktop-plus-notify-pop");
-        t.setDaemon(true);
-        return t;
-    });
+    private static final ExecutorService IO =
+            Executors.newSingleThreadExecutor(Threads.named("zux-desktop-plus-notify-pop"));
 
     private static boolean sStarted;
     /** The newest arrival asked for, as a post time: each is shown once. On the IO thread. */

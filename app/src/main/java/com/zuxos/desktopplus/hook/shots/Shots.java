@@ -19,6 +19,7 @@ import android.widget.Toast;
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Su;
+import com.zuxos.desktopplus.core.Threads;
 import com.zuxos.desktopplus.core.glass.ScreenBackdrop;
 import com.zuxos.desktopplus.hook.panel.NotifyPanel;
 import com.zuxos.desktopplus.hook.panel.NotifyPopup;
@@ -56,11 +57,8 @@ public final class Shots {
     private static final String RELATIVE = "Pictures/Screenshots";
 
     /** Encoding a full-screen PNG takes a moment; it never holds up anything else. */
-    private static final ExecutorService IO = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "zux-desktop-plus-shot");
-        t.setDaemon(true);
-        return t;
-    });
+    private static final ExecutorService IO =
+            Executors.newSingleThreadExecutor(Threads.named("zux-desktop-plus-shot"));
 
     private Shots() {
     }

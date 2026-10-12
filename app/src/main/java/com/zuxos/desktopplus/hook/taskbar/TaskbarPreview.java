@@ -26,6 +26,7 @@ import android.widget.TextView;
 
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
+import com.zuxos.desktopplus.core.Threads;
 import com.zuxos.desktopplus.core.Ui;
 import com.zuxos.desktopplus.core.glass.GlassSurface;
 import com.zuxos.desktopplus.core.glass.LiquidGlass;
@@ -74,11 +75,8 @@ public final class TaskbarPreview {
     private static final int TAG_TASK = 0x7A000203;
 
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
-    private static final ExecutorService IO = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "zux-preview");
-        t.setDaemon(true);
-        return t;
-    });
+    private static final ExecutorService IO =
+            Executors.newSingleThreadExecutor(Threads.named("zux-preview"));
 
     /** The icon under the pointer, if any. */
     private static View sIcon;

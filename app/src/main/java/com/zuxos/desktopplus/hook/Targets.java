@@ -36,7 +36,7 @@ public final class Targets {
         if (KNOWN.contains(packageName) || extraTargets().contains(packageName)) {
             return true;
         }
-        String lower = packageName.toLowerCase();
+        String lower = packageName.toLowerCase(java.util.Locale.ROOT);
         for (String hint : NAME_HINTS) {
             if (lower.contains(hint)) {
                 return true;

@@ -260,7 +260,7 @@ public final class SysState {
         }
         if (mThermalPoll == null) {
             mThermalPoll = Executors.newSingleThreadScheduledExecutor(
-                    r -> new Thread(r, "zux-desktop-plus-thermals"));
+                    com.zuxos.desktopplus.core.Threads.named("zux-desktop-plus-thermals"));
         }
         // Finding the zones means listing a directory, so the question of whether there is
         // anything to poll is itself answered off the main thread - and where the answer is no,

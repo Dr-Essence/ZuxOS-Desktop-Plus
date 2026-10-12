@@ -4,6 +4,7 @@ import android.os.SystemClock;
 
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
+import com.zuxos.desktopplus.core.Threads;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -25,11 +26,8 @@ public final class KeyShell {
     /** How long a first start may take: it may be waiting on a Magisk prompt being read. */
     private static final long READY_MS = 20_000L;
 
-    private static final ExecutorService QUEUE = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "zux-desktop-plus-keys");
-        t.setDaemon(true);
-        return t;
-    });
+    private static final ExecutorService QUEUE =
+            Executors.newSingleThreadExecutor(Threads.named("zux-desktop-plus-keys"));
 
     private static Process sProcess;
     private static OutputStream sIn;

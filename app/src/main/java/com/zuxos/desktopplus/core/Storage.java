@@ -34,12 +34,8 @@ public final class Storage {
     private static final String IO_THREAD = "zux-desktop-plus-io";
 
     private static final java.util.concurrent.ExecutorService IO =
-            java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
-                Thread t = new Thread(r, IO_THREAD);
-                t.setPriority(Thread.MIN_PRIORITY);
-                t.setDaemon(true);
-                return t;
-            });
+            java.util.concurrent.Executors.newSingleThreadExecutor(
+                    Threads.named(IO_THREAD, Thread.MIN_PRIORITY));
 
     private Storage() {
     }

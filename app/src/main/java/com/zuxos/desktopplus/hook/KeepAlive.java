@@ -11,6 +11,7 @@ import android.util.Xml;
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.Health;
 import com.zuxos.desktopplus.core.L;
+import com.zuxos.desktopplus.core.Threads;
 import com.zuxos.desktopplus.hook.system.SystemKeepAlive;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarRebind;
 
@@ -53,11 +54,8 @@ public final class KeepAlive {
     private static final long EVERY_HEARD_MS = 60_000L;
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
     /** ZUI's lists' binder calls, which write their files in the system: one at a time, here. */
-    private static final ExecutorService IO = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "zux-desktop-plus-keepalive");
-        t.setDaemon(true);
-        return t;
-    });
+    private static final ExecutorService IO =
+            Executors.newSingleThreadExecutor(Threads.named("zux-desktop-plus-keepalive"));
 
     /** ZUI's kill lists, by the name its system gives them: lmkd's, and its memory cleaner's. */
     private static final String[] ZUI_LISTS = {"1", "2"};

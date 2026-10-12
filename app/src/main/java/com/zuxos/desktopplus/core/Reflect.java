@@ -110,9 +110,9 @@ public final class Reflect {
     }
 
     private static void collectByClass(View v, List<View> out, String[] fragments) {
-        String cls = v.getClass().getName();
+        String cls = v.getClass().getName().toLowerCase(java.util.Locale.ROOT);
         for (String f : fragments) {
-            if (cls.toLowerCase().contains(f.toLowerCase())) {
+            if (cls.contains(f.toLowerCase(java.util.Locale.ROOT))) {
                 out.add(v);
                 break;
             }

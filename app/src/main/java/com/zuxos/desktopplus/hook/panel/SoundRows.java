@@ -447,7 +447,7 @@ public final class SoundRows {
      *
      * <p>A playback state carries where the track was at a moment in the past, not where it is
      * now, so the position is worked forward from that moment at the reported speed. It repaints
-     * once a second and only while it is on screen.
+     * once a second, only while it is on screen and the track plays.
      */
     private static final class SeekLine extends View {
 
@@ -460,7 +460,10 @@ public final class SoundRows {
             @Override
             public void run() {
                 invalidate();
-                postDelayed(this, 1000L);
+                // Only a playing track moves; the panel makes the card again when it starts.
+                if (playing()) {
+                    postDelayed(this, 1000L);
+                }
             }
         };
 
@@ -498,6 +501,15 @@ public final class SoundRows {
             float fraction = fraction();
             if (fraction > 0) {
                 canvas.drawRoundRect(new RectF(0, 0, Math.max(h, w * fraction), h), r, r, mFill);
+            }
+        }
+
+        private boolean playing() {
+            try {
+                PlaybackState state = mController.getPlaybackState();
+                return state != null && state.getState() == PlaybackState.STATE_PLAYING;
+            } catch (Throwable t) {
+                return false;
             }
         }
 

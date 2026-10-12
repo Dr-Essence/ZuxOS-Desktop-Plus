@@ -58,11 +58,7 @@ public final class Su {
     private static volatile long sQuietUntil;
 
     private static final ExecutorService IO =
-            Executors.newSingleThreadExecutor(r -> {
-                Thread t = new Thread(r, "zux-desktop-plus-su");
-                t.setDaemon(true);
-                return t;
-            });
+            Executors.newSingleThreadExecutor(Threads.named("zux-desktop-plus-su"));
 
     private Su() {
     }
