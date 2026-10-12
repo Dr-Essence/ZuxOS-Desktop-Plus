@@ -1003,6 +1003,21 @@ public final class TaskbarRunning {
             limit = tray.getLeft();
             by = "the tray";
         }
+        // ZUI's navigation keys, where they rest: always, whether or not they are showing at
+        // this moment. ZUI fades and slides them as an app opens or home comes back, and
+        // measured then the row ran on to the bar's end, under the keys (15:33: every switch
+        // flipped the row's end between the two).
+        // Their own place or where they are drawn, the nearer: in landscape ZUI rests them part
+        // way along the bar by sliding them there (x 1384 on a bar 3040 wide).
+        View keys = restingKeys(dragLayer);
+        if (keys != null) {
+            int at = Math.min(offsetIn(dragLayer, keys),
+                    TaskbarStart.drawnLeftIn(dragLayer, keys));
+            if (at >= start && at < limit) {
+                limit = at;
+                by = describe(keys);
+            }
+        }
         if (start >= 0 && reference != null && reference.getHeight() > 0) {
             View[] which = new View[1];
             int zui = firstOfZuisAfter(dragLayer, start, reference.getTop(),
@@ -1045,7 +1060,11 @@ public final class TaskbarRunning {
             // placed while it was at nothing ran on under it once it showed.
             if (view.getVisibility() != View.VISIBLE
                     || view.getClass().getName().startsWith("com.zuxos.desktopplus.")
-                    || floating(view)) {
+                    || floating(view)
+                    // A bare view is no button of the bar's: it is the arrow under ZUI's popup,
+                    // which ZUI puts in the bar's layer beside the popup. Counted, it cut our
+                    // row short at the app the popup was opened for (15:33, x 1187).
+                    || view.getClass() == View.class) {
                 continue;
             }
             if (view.getWidth() >= half && view instanceof ViewGroup) {
@@ -1059,8 +1078,17 @@ public final class TaskbarRunning {
             if (view.getWidth() <= 0 || view.getWidth() >= half) {
                 continue;
             }
-            // Where it is drawn: ZUI slides its navigation keys from end to end.
-            int left = TaskbarStart.drawnLeftIn(dragLayer, view);
+            // Where it is drawn: ZUI slides its navigation keys from end to end. But while they
+            // slide in from past the bar's end - an app opening, the keys coming back - where
+            // they are drawn is not where they stop. The nearer of that and their own place, so
+            // the row never runs on under where they land: measured mid-slide (x 2520 on a bar
+            // 1904 wide, portrait, 15:33), it ran to the bar's end, under the keys at 1384.
+            int drawn = TaskbarStart.drawnLeftIn(dragLayer, view);
+            int laid = offsetIn(dragLayer, view);
+            int left = Math.min(drawn, laid);
+            if (drawn != laid) {
+                settleLater(dragLayer, view, drawn);
+            }
             int viewTop = topIn(dragLayer, view);
             if (left < start || viewTop >= bottom || viewTop + view.getHeight() <= top) {
                 continue;
@@ -1072,6 +1100,30 @@ public final class TaskbarRunning {
             watchBoundary(dragLayer, view);
         }
         return found;
+    }
+
+    /**
+     * ZUI's navigation keys on this bar, wherever they are in a slide or a fade; null where the
+     * bar has none - gone, as in gesture navigation - or they have never been laid out.
+     */
+    private static View restingKeys(ViewGroup dragLayer) {
+        for (View keys : Reflect.findByIdNames(dragLayer, "end_nav_buttons")) {
+            if (keys.getWidth() <= 0) {
+                continue;
+            }
+            boolean gone = false;
+            for (View v = keys; v != null && v != dragLayer;
+                    v = v.getParent() instanceof View ? (View) v.getParent() : null) {
+                if (v.getVisibility() == View.GONE) {
+                    gone = true;
+                    break;
+                }
+            }
+            if (!gone) {
+                return keys;
+            }
+        }
+        return null;
     }
 
     /**
@@ -1106,6 +1158,33 @@ public final class TaskbarRunning {
     }
 
     private static final Map<View, Boolean> BOUNDARIES = new WeakHashMap<>();
+
+    /**
+     * Something of ZUI's caught sliding: the row is placed again once the slide is over. A slide
+     * moves a view without laying it out, so no layout listener hears it end, and the row stayed
+     * where the moment of measuring left it. Asked again only while it is still moving - where it
+     * is drawn differs from last time - so a view resting away from its own place asks once.
+     */
+    private static void settleLater(ViewGroup dragLayer, View view, int drawn) {
+        Integer last = SLIDING.put(view, drawn);
+        if ((last != null && last == drawn) || SETTLING.containsKey(dragLayer)) {
+            return;
+        }
+        SETTLING.put(dragLayer, Boolean.TRUE);
+        dragLayer.postDelayed(() -> {
+            SETTLING.remove(dragLayer);
+            try {
+                relayout(dragLayer);
+            } catch (Throwable t) {
+                L.d("taskbar running: not placed again after a slide (" + t + ")");
+            }
+        }, SLIDE_MS);
+    }
+
+    /** Longer than ZUI's slide of its keys. */
+    private static final long SLIDE_MS = 450L;
+    private static final Map<View, Integer> SLIDING = new WeakHashMap<>();
+    private static final Map<ViewGroup, Boolean> SETTLING = new WeakHashMap<>();
 
     /** How far a view's top edge is from the drag layer's. */
     private static int topIn(ViewGroup dragLayer, View view) {
