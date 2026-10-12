@@ -162,6 +162,7 @@ rows give only the date the owner confirmed.
 | 2026-10-11 | 1.0.211 | The tablet bar's pinned folders are ZUI's own folders (owner: "folders in taskbar seem to be native ZUI folders"; no Add apps on them, which the owner prefers) |
 | 2026-10-12 | 0.0.228 | The tablet bar's apps running on under the navigation keys in portrait, and vanishing past Gallery when ZUI's menu opened (owner: "the specific bug seems fixed") |
 | 2026-10-12 | 0.0.229 | Our drawer folders opening three ways: Add apps and the icons snapping in at the end in ZUX Home's drawer, Add apps popping in over Recents (owner: "add apps animation fixed") |
+| 2026-10-12 | 0.0.234-0.0.236 | App shortcut icons boxy in the menus, then on a white plate: adaptive ones cut by ZUI's own icon factory as its app icons are, the rest as the app drew them (owner: "shortcut icons are fixed") |
 | 2026-10-09 | 1.0.143 | Tray CPU work: the clock still ticks and the temperatures still show, now that the clock only ticks while the tray is visible and temperatures are only read while shown |
 
 ### Shipped, awaiting the owner's test
