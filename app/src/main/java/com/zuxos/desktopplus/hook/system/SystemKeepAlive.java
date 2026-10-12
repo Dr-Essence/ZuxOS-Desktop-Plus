@@ -129,7 +129,7 @@ public final class SystemKeepAlive {
             @Override
             public void run() {
                 if (sOff) {
-                    publish("off after errors");
+                    publish("off after errors", "");
                     return;
                 }
                 refresh();
@@ -248,7 +248,7 @@ public final class SystemKeepAlive {
     }
 
     private static boolean automatic(String reason) {
-        String r = reason.toLowerCase();
+        String r = reason.toLowerCase(java.util.Locale.ROOT);
         for (String a : AUTOMATIC) {
             if (r.startsWith(a) || r.contains(a)) {
                 return true;
@@ -295,7 +295,7 @@ public final class SystemKeepAlive {
                 sUids = Collections.unmodifiableSet(uids);
                 L.i("system keep-alive: protecting " + uids.size() + " app(s) on the monitor");
             }
-            publish("on, " + uids.size() + " app(s), adj held " + sHeld + "x, kills refused "
+            publish("on, " + uids.size() + " app(s)", ", adj held " + sHeld + "x, kills refused "
                     + sSpared + "x");
         } catch (Throwable t) {
             failed(t);
@@ -330,16 +330,25 @@ public final class SystemKeepAlive {
     }
 
     private static String sPublished;
+    private static long sPublishedAt;
+    /** Counters alone change on every pass; they are brought up to date this often at most. */
+    private static final long COUNTERS_MS = 60_000L;
 
-    private static void publish(String state) {
-        if (state.equals(sPublished)) {
-            // Unchanged: a property write wakes every watcher of properties on the device.
+    /**
+     * Says how it is doing, for the probe. A property write wakes every watcher of properties on
+     * the device, so only when the protected apps change, or the counters once a minute.
+     */
+    private static void publish(String state, String counters) {
+        long now = android.os.SystemClock.uptimeMillis();
+        if (state.equals(sPublished) && now - sPublishedAt < COUNTERS_MS) {
             return;
         }
         sPublished = state;
+        sPublishedAt = now;
         try {
             Class.forName("android.os.SystemProperties")
-                    .getMethod("set", String.class, String.class).invoke(null, PROPERTY, state);
+                    .getMethod("set", String.class, String.class)
+                    .invoke(null, PROPERTY, state + counters);
         } catch (Throwable ignored) {
             // Only for the probe; the protection does not depend on it.
         }

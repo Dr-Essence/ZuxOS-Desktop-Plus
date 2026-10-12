@@ -8,8 +8,8 @@ import com.zuxos.desktopplus.core.Reflect;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -33,8 +33,11 @@ public final class MonitorStatusBar {
     private static final String MANAGER = "com.android.systemui.dpmode.ZuiDpModeManager";
 
     private static boolean sSaid;
-    /** The displays whose status bar ZUI was asked not to build. Main thread only. */
-    private static final Set<Integer> HIDDEN = new HashSet<>();
+    /**
+     * The displays whose status bar ZUI was asked not to build. Written on SystemUI's main thread,
+     * read on the window shell's own ({@link WindowCaptions}): a set safe for both.
+     */
+    private static final Set<Integer> HIDDEN = ConcurrentHashMap.newKeySet();
 
     private MonitorStatusBar() {
     }

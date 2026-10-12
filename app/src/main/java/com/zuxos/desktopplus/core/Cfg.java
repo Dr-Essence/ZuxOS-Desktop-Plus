@@ -15,6 +15,10 @@ public final class Cfg {
     private static XSharedPreferences sPrefs;
     private static boolean sUnavailable;
     private static long sLastCheck;
+    /** Reading an unreadable file again: from every half second, doubling to every 10 s. */
+    private static final long RETRY_MAX_MS = 10_000L;
+    private static long sRetryMs = 500L;
+    private static long sLastRetry;
 
     private Cfg() {
     }
@@ -35,9 +39,12 @@ public final class Cfg {
                     sPrefs.reload();
                     sSnapshotDue = true;
                 }
-                if (!sReadable) {
-                    // Locked until the first unlock: read again until it opens, rather than
-                    // trusting the file to say it changed.
+                if (!sReadable && now - sLastRetry >= sRetryMs) {
+                    // Locked until the first unlock, or not written yet: read again until it
+                    // opens, rather than trusting the file to say it changed - soon at first,
+                    // then less often, so a file that is simply not there costs nothing.
+                    sLastRetry = now;
+                    sRetryMs = Math.min(RETRY_MAX_MS, sRetryMs * 2);
                     sPrefs.reload();
                     sSnapshotDue = true;
                 }
