@@ -9,6 +9,12 @@ import android.graphics.Region;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.opengl.EGL14;
+import android.opengl.EGLConfig;
+import android.opengl.EGLContext;
+import android.opengl.EGLDisplay;
+import android.opengl.EGLSurface;
+import android.opengl.GLES20;
 import android.os.Build;
 import android.provider.Settings;
 import android.service.quicksettings.TileService;
@@ -122,6 +128,14 @@ public final class RoadmapProbe {
             echo "game_helper_game_mode = $(settings get global game_helper_game_mode 2>/dev/null)"
             echo "--- the window manager shell, as SystemUI reports it (#10, #11)"
             dumpsys activity service com.android.systemui/.SystemUIService WMShell 2>/dev/null | head -150
+            echo "--- the GPU and kernel a Linux would run on (#24)"
+            echo "gpu: $(cat /sys/class/kgsl/kgsl-3d0/gpu_model 2>/dev/null), chip id $(cat /sys/class/kgsl/kgsl-3d0/gpu_chipid 2>/dev/null)"
+            echo "soc: $(getprop ro.soc.manufacturer) $(getprop ro.soc.model), board $(getprop ro.board.platform)"
+            echo "kernel: $(uname -r), $(uname -m)"
+            ls -l /dev/kgsl-3d0 /dev/dri 2>&1 | head -4
+            echo "filesystems: $(grep -o -E 'binfmt_misc|overlay|fuse|tmpfs|ext4|f2fs' /proc/filesystems | sort -u | tr '\\n' ' ')"
+            (zcat /proc/config.gz 2>/dev/null || cat /proc/config 2>/dev/null) | grep -E '^CONFIG_(BINFMT_MISC|USER_NS|PID_NS|IPC_NS|UTS_NS|NET_NS|CGROUPS|DEVTMPFS|OVERLAY_FS|FUSE_FS|SYSVIPC|POSIX_MQUEUE)=' | tr '\\n' ' '
+            echo
             echo "--- boot animation (#9)"
             for f in /product/media/bootanimation.zip /system/media/bootanimation.zip /system_ext/media/bootanimation.zip /oem/media/bootanimation.zip /vendor/media/bootanimation.zip; do
               if [ -f "$f" ]; then
@@ -141,6 +155,7 @@ public final class RoadmapProbe {
     public static String now(Context ctx) {
         StringBuilder sb = new StringBuilder("\n=== roadmap: what each planned feature needs\n");
         section(sb, () -> versions(ctx));
+        section(sb, () -> gpu(ctx));
         section(sb, Health::describe);
         section(sb, DisplayTimeline::describe);
         section(sb, () -> tiles(ctx));
@@ -192,6 +207,76 @@ public final class RoadmapProbe {
         sb.append("  default home: ").append(home != null && home.activityInfo != null
                 ? home.activityInfo.packageName : "none chosen").append('\n');
         return sb.toString();
+    }
+
+    /**
+     * The GPU a Linux would draw with (#24): the chip, and the renderer and versions the system's
+     * own driver reports. One small off-screen GL context, made and gone within the probe.
+     */
+    private static String gpu(Context ctx) {
+        StringBuilder sb = new StringBuilder("\ngpu (#24 native Linux)\n");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            sb.append("  soc: ").append(Build.SOC_MANUFACTURER).append(' ')
+                    .append(Build.SOC_MODEL).append('\n');
+        }
+        sb.append("  board: ").append(Build.BOARD).append(", hardware ").append(Build.HARDWARE)
+                .append('\n');
+        EGLDisplay display = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
+        EGLContext context = EGL14.EGL_NO_CONTEXT;
+        EGLSurface surface = EGL14.EGL_NO_SURFACE;
+        try {
+            int[] version = new int[2];
+            if (!EGL14.eglInitialize(display, version, 0, version, 1)) {
+                return sb.append("  GL: no display\n").toString();
+            }
+            EGLConfig[] configs = new EGLConfig[1];
+            int[] count = new int[1];
+            EGL14.eglChooseConfig(display, new int[]{EGL14.EGL_RENDERABLE_TYPE,
+                    EGL14.EGL_OPENGL_ES2_BIT, EGL14.EGL_SURFACE_TYPE, EGL14.EGL_PBUFFER_BIT,
+                    EGL14.EGL_NONE}, 0, configs, 0, 1, count, 0);
+            if (count[0] == 0) {
+                return sb.append("  GL: no config\n").toString();
+            }
+            context = EGL14.eglCreateContext(display, configs[0], EGL14.EGL_NO_CONTEXT,
+                    new int[]{EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, EGL14.EGL_NONE}, 0);
+            surface = EGL14.eglCreatePbufferSurface(display, configs[0],
+                    new int[]{EGL14.EGL_WIDTH, 1, EGL14.EGL_HEIGHT, 1, EGL14.EGL_NONE}, 0);
+            EGL14.eglMakeCurrent(display, surface, surface, context);
+            sb.append("  GL renderer: ").append(GLES20.glGetString(GLES20.GL_RENDERER))
+                    .append(", vendor ").append(GLES20.glGetString(GLES20.GL_VENDOR)).append('\n')
+                    .append("  GL version: ").append(GLES20.glGetString(GLES20.GL_VERSION))
+                    .append('\n');
+        } finally {
+            EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE,
+                    EGL14.EGL_NO_CONTEXT);
+            if (surface != EGL14.EGL_NO_SURFACE) {
+                EGL14.eglDestroySurface(display, surface);
+            }
+            if (context != EGL14.EGL_NO_CONTEXT) {
+                EGL14.eglDestroyContext(display, context);
+            }
+        }
+        sb.append("  Vulkan: ").append(feature(ctx, "android.hardware.vulkan.version"))
+                .append(", level ").append(feature(ctx, "android.hardware.vulkan.level"))
+                .append('\n');
+        return sb.toString();
+    }
+
+    /** A system feature's version, as Android declares it, or "none". */
+    private static String feature(Context ctx, String name) {
+        try {
+            for (android.content.pm.FeatureInfo f
+                    : ctx.getPackageManager().getSystemAvailableFeatures()) {
+                if (name.equals(f.name)) {
+                    return name.endsWith("vulkan.version") ? (f.version >> 22) + "."
+                            + ((f.version >> 12) & 0x3FF) + "." + (f.version & 0xFFF)
+                            : String.valueOf(f.version);
+                }
+            }
+        } catch (Throwable t) {
+            return "not readable";
+        }
+        return "none";
     }
 
     /** What editing the quick panel's tiles would work with (#3). */
