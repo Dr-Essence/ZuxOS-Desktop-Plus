@@ -1,6 +1,7 @@
 package com.zuxos.desktopplus.hook.taskbar;
 
 import android.content.Context;
+import android.content.pm.LauncherApps;
 import android.content.pm.ShortcutInfo;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -24,25 +25,26 @@ import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 
 /**
- * An app's own shortcuts in ZUI's shape, as ZUI draws a shortcut on its home screen.
+ * An app's own shortcuts in ZUI's shape, made exactly as ZUI makes its app icons.
  *
- * <p>ZUI has two ways of loading a shortcut's icon ({@code CacheableShortcutInfo.getIcon}): its
- * menus' rows take the plain one, which keeps the app's square backing - boxy beside the round
- * app icons (owner, 15:56); its home screen's shortcuts and their drag take the one for its theme
- * ({@code getIcon(.., useZuiTheme, forAnim)}, through {@code Utilities.getZuiThemedIcon}), which
- * cuts the icon to the theme's shape with ZUI's own icon factory. Ours take that one:
+ * <p>ZUI's app icons get their shape from its icon factory: the app's own icon goes through
+ * {@code BaseIconFactory.createBadgedIconBitmap} ({@code LauncherActivityCachingLogic.loadIcon}),
+ * which cuts it to the theme's shape. A shortcut's icon never does - its menus draw it as the app
+ * gave it, on its square backing, boxy beside the round app icons (owner, 15:56). Ours go through
+ * that same factory call:
  * <ul>
  *   <li>ZUI's own shortcut rows ({@code DeepShortcutView.applyShortcutInfo}), once ZUI has
  *       filled them, the icon made off the main thread and kept, so a menu never waits;</li>
  *   <li>our menus' shortcut icons ({@link TaskbarApps#shortcutIcon}).</li>
  * </ul>
- * The call of the last build ({@code GraphicsUtils.getZuiThemeAdaptiveIconDrawable}) shapes only
- * in one of ZUI's regions, and left them boxy on the owner's (16:29).
+ * Two calls before it fell short: {@code GraphicsUtils.getZuiThemeAdaptiveIconDrawable} shapes
+ * only in one of ZUI's regions (0.0.232), and {@code CacheableShortcutInfo.getIcon} with ZUI's
+ * theme flattens the icon to a square before shaping, so it came out a box on a plate (0.0.233).
  */
 final class ShortcutShapes {
 
     private static final String ROW = "com.android.launcher3.shortcuts.DeepShortcutView";
-    private static final String ICONS = "com.android.launcher3.icons.CacheableShortcutInfo";
+    private static final String ICONS = "com.android.launcher3.icons.LauncherIcons";
     /** Which shortcut a row's icon view is waiting for. */
     private static final int TAG_WANTS = 0x7A000302;
 
@@ -50,8 +52,10 @@ final class ShortcutShapes {
             Threads.named("zux-shortcut-icons", Thread.MIN_PRIORITY));
     private static final LruCache<String, Bitmap> MADE = new LruCache<>(24);
 
-    /** ZUI's {@code CacheableShortcutInfo.getIcon(Context, ShortcutInfo, int, boolean, boolean)}. */
-    private static Method sThemed;
+    /** ZUI's {@code LauncherIcons.obtain(Context)}: one of its icon factories, from its pool. */
+    private static Method sObtain;
+    /** The factory's {@code createBadgedIconBitmap(Drawable)}, which app icons go through. */
+    private static Method sShape;
     private static boolean sSaid;
 
     private ShortcutShapes() {
@@ -62,12 +66,11 @@ final class ShortcutShapes {
             Class<?> icons = Reflect.findClass(ICONS, loader);
             Class<?> row = Reflect.findClass(ROW, loader);
             if (icons == null || row == null) {
-                L.w("shortcut shapes: ZUI's themed shortcut icons not found - shortcut icons as "
-                        + "they are");
+                L.w("shortcut shapes: ZUI's icon factory not found - shortcut icons as they are");
                 return;
             }
-            sThemed = icons.getMethod("getIcon", Context.class, ShortcutInfo.class, int.class,
-                    boolean.class, boolean.class);
+            sObtain = icons.getMethod("obtain", Context.class);
+            sShape = icons.getMethod("createBadgedIconBitmap", Drawable.class);
             int hooked = XposedBridge.hookAllMethods(row, "applyShortcutInfo",
                     new XC_MethodHook() {
                         @Override
@@ -79,48 +82,64 @@ final class ShortcutShapes {
                     Cfg::shortcutShapes);
             L.i("shortcut shapes: app shortcut icons in ZUI's own shape x" + hooked);
         } catch (Throwable t) {
-            sThemed = null;
+            sShape = null;
             L.w("shortcut shapes: not installed (" + t + ")");
         }
     }
 
     /**
-     * The shortcut's icon as ZUI draws it on its home screen, in its theme's shape, drawn into a
-     * bitmap of our own; null where that cannot be had, for the caller's own.
+     * The shortcut's icon cut to ZUI's shape by ZUI's icon factory, as an app's icon is, drawn
+     * into a bitmap of our own; null where that cannot be had, for the caller's own.
      */
     static Drawable shaped(Context ctx, ShortcutInfo shortcut) {
-        if (shortcut == null || sThemed == null || !Cfg.shortcutShapes()) {
+        if (shortcut == null || sShape == null || !Cfg.shortcutShapes()) {
             return null;
         }
+        AutoCloseable factory = null;
         try {
-            Object out = sThemed.invoke(null, ctx, shortcut,
-                    ctx.getResources().getDisplayMetrics().densityDpi, true, true);
-            Drawable icon = out instanceof Drawable ? (Drawable) out : null;
-            if (!sSaid) {
-                sSaid = true;
-                L.i("shortcut shapes: ZUI's themed icon for " + shortcut.getPackage() + " is "
-                        + (icon == null ? "none" : icon.getClass().getSimpleName() + " "
-                        + icon.getIntrinsicWidth() + "x" + icon.getIntrinsicHeight()));
-            }
-            int size = icon == null ? 0 : icon.getIntrinsicWidth();
-            if (size <= 0) {
+            LauncherApps apps = ctx.getSystemService(LauncherApps.class);
+            Drawable raw = apps == null ? null : apps.getShortcutIconDrawable(shortcut,
+                    ctx.getResources().getDisplayMetrics().densityDpi);
+            if (raw == null) {
                 return null;
             }
+            factory = (AutoCloseable) sObtain.invoke(null, ctx);
+            Object info = sShape.invoke(factory, raw);
+            Object icon = info == null ? null : info.getClass().getField("icon").get(info);
+            if (!sSaid) {
+                sSaid = true;
+                L.i("shortcut shapes: " + shortcut.getPackage() + "'s "
+                        + raw.getClass().getSimpleName() + " through ZUI's icon factory -> "
+                        + (icon instanceof Bitmap ? ((Bitmap) icon).getWidth() + "px "
+                        + ((Bitmap) icon).getConfig() : "nothing"));
+            }
+            if (!(icon instanceof Bitmap)) {
+                return null;
+            }
+            Bitmap made = (Bitmap) icon;
             // Drawn here, where a failure is caught: ZUI's bitmap may be one only the GPU can
             // draw, which a menu's software canvas would throw on.
-            Bitmap soft = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-            icon.setBounds(0, 0, size, size);
-            icon.draw(new Canvas(soft));
-            return new BitmapDrawable(ctx.getResources(), soft);
+            Bitmap soft = made.getConfig() == Bitmap.Config.HARDWARE
+                    ? made.copy(Bitmap.Config.ARGB_8888, false) : made;
+            return soft == null ? null : new BitmapDrawable(ctx.getResources(), soft);
         } catch (Throwable t) {
             L.d("shortcut shapes: one left as it is (" + t + ")");
             return null;
+        } finally {
+            if (factory != null) {
+                try {
+                    // Back to ZUI's pool, as ZUI hands its factories back.
+                    factory.close();
+                } catch (Throwable ignored) {
+                    // A factory not returned is made again by ZUI's pool.
+                }
+            }
         }
     }
 
     private static void reshape(View row, Object[] args) {
         try {
-            if (sThemed == null || !Cfg.shortcutShapes()) {
+            if (sShape == null || !Cfg.shortcutShapes()) {
                 return;
             }
             ShortcutInfo shortcut = null;
