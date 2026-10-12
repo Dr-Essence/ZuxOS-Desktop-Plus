@@ -221,7 +221,7 @@ public final class TaskbarApps {
         }
         Health.hooked("taskbar: icon menu", hooked, Cfg::taskbarAppMenu);
         ZuiAppRows.install(loader);
-        ShortcutGlyphs.install(loader);
+        ShortcutShapes.install(loader);
         L.i("taskbar apps: icon menu installed x" + hooked);
         if (hooked == 0) {
             L.w("taskbar apps: nothing to hook for the icon menu - holding an icon will do "
@@ -439,7 +439,7 @@ public final class TaskbarApps {
             Method zui = zuiShortcutIcon(ctx);
             Object icon = zui == null ? null : zui.invoke(null, ctx, shortcut, dpi, true);
             if (icon instanceof android.graphics.drawable.Drawable) {
-                return (android.graphics.drawable.Drawable) icon;
+                return ShortcutShapes.shaped(ctx, (android.graphics.drawable.Drawable) icon);
             }
         } catch (Throwable t) {
             L.d("taskbar apps: ZUI gave no icon for shortcut " + shortcut.getId() + " (" + t
@@ -450,7 +450,7 @@ public final class TaskbarApps {
             android.graphics.drawable.Drawable icon = apps == null ? null
                     : apps.getShortcutIconDrawable(shortcut, dpi);
             if (icon != null) {
-                return icon;
+                return ShortcutShapes.shaped(ctx, icon);
             }
         } catch (Throwable t) {
             L.d("taskbar apps: no icon for shortcut " + shortcut.getId() + " (" + t + ")");

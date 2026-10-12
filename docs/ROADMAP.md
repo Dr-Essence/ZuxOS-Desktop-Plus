@@ -5,7 +5,7 @@ in a fresh session: it is the project's memory.
 
 **Goal:** the best desktop mode on Android, for the Lenovo Legion Tab Gen 5 on ZuxOS 2.x.
 
-**Where we are (2026-10-12, build 0.0.231): early alpha, experimental.** Builds are numbered 0.0.<commit count> from 0.0.214; earlier ones were 1.0.1-1.0.213 (the same count, so installing over them keeps every setting and folder). No public release until
+**Where we are (2026-10-12, build 0.0.232): early alpha, experimental.** Builds are numbered 0.0.<commit count> from 0.0.214; earlier ones were 1.0.1-1.0.213 (the same count, so installing over them keeps every setting and folder). No public release until
 it is fully stable on the owner's tablet. The current work is moving every feature onto ZUI's
 own code paths ("Through ZUI's own path" below), one at a time:
 - Tablet drawers (ZUX Home's and the taskbar's): our folders are ZUI's own `FolderIcon` and `Folder`, with ZUI's motion, menus, Add apps and Uninstall.
@@ -161,7 +161,8 @@ rows give only the date the owner confirmed.
 | 2026-10-11 | 1.0.210 | Start button's robot narrows its eyes while recents is up (owner's request; owner: "recents animations are sick") |
 | 2026-10-11 | 1.0.211 | The tablet bar's pinned folders are ZUI's own folders (owner: "folders in taskbar seem to be native ZUI folders"; no Add apps on them, which the owner prefers) |
 | 2026-10-12 | 0.0.228 | The tablet bar's apps running on under the navigation keys in portrait, and vanishing past Gallery when ZUI's menu opened (owner: "the specific bug seems fixed") |
-| 2026-10-12 | 0.0.231 | App shortcut icons boxy in ZUI's app menu inside our drawer folders (owner, video 15:56; round on ZUI's home screen): every app shortcut in ZUI's menus is now drawn as the owner chose - the app's one-colour icon in ZUI's shortcut grey where it has one, else its icon in a circle (photos stay in colour). At ZUI's own row (`DeepShortcutView.applyShortcutInfo`), read off the main thread and kept; own switch |
+| 2026-10-12 | 0.0.232 | App shortcut icons boxy (owner: ZUI makes app icons round, shortcuts should be too): ZUI shapes every app icon in its icon provider (`GraphicsUtils.getZuiThemeAdaptiveIconDrawable`, while its themed icons are off) and never a shortcut's. Shortcut icons now go through that same call - in ZUI's own rows (`DeepShortcutView`) and in our menus (`TaskbarApps.shortcutIcon`) - so they have exactly the app icons' shape. Replaces 0.0.231's grey glyphs; own switch |
+| 0.0.231 | App shortcut icons boxy in ZUI's app menu inside our drawer folders (owner, video 15:56; round on ZUI's home screen): every app shortcut in ZUI's menus is now drawn as the owner chose - the app's one-colour icon in ZUI's shortcut grey where it has one, else its icon in a circle (photos stay in colour). At ZUI's own row (`DeepShortcutView.applyShortcutInfo`), read off the main thread and kept; own switch |
 | 0.0.229 | Our drawer folders opening three ways: Add apps and the icons snapping in at the end in ZUX Home's drawer, Add apps popping in over Recents (owner: "add apps animation fixed") |
 | 2026-10-09 | 1.0.143 | Tray CPU work: the clock still ticks and the temperatures still show, now that the clock only ticks while the tray is visible and temperatures are only read while shown |
 

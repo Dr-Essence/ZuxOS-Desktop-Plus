@@ -175,11 +175,11 @@ public class MainActivity extends Activity {
                 "Hold an app in the taskbar for open, close, app info and the app's own "
                         + "shortcuts",
                 Const.KEY_TASKBAR_APP_MENU, true);
-        addSwitch("App shortcut icons like ZUI's",
-                "An app's own shortcuts in ZUI's app menus - New chat, Start voice - drawn as "
-                        + "ZUI draws its own icons there: in its grey where the app has a "
-                        + "one-colour icon, else in a circle",
-                Const.KEY_SHORTCUT_GLYPHS, true);
+        addSwitch("App shortcut icons in ZUI's shape",
+                "An app's own shortcuts in the app menus - New chat, Start voice - get the same "
+                        + "icon shape ZUI gives every app icon, instead of the app's square "
+                        + "backing",
+                Const.KEY_SHORTCUT_SHAPES, true);
         addSwitch("Keep the launcher's recents off the taskbar",
                 "With \"Only open apps\" on, the launcher's own recent and recommended apps are "
                         + "never added to the taskbar - not even for a moment when an app opens "
