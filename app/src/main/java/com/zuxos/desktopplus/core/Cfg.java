@@ -512,9 +512,12 @@ public final class Cfg {
         return getBool(Const.KEY_TILE_EDIT, true);
     }
 
-    /** A desktop of its own for each monitor. Read as the desktop attaches. */
+    /**
+     * A desktop of its own for each monitor. Read as the desktop attaches. Off by default (owner,
+     * 2026-10-12): every monitor shows the same desktop unless this is turned on.
+     */
     public static boolean monitorLayouts() {
-        return getBool(Const.KEY_MONITOR_LAYOUTS, true);
+        return getBool(Const.KEY_MONITOR_LAYOUTS, false);
     }
 
     /** The start animation as the monitor's desktop comes up. */

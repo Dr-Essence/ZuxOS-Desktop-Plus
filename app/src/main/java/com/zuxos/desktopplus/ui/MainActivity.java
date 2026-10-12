@@ -95,9 +95,9 @@ public class MainActivity extends Activity {
                 Const.KEY_PAGE_DOTS, false);
         addSwitch("A desktop for each monitor",
                 "Each external screen keeps its own icons and folders. A monitor plugged in for "
-                        + "the first time starts from the desktop you have now. The launcher "
-                        + "restarts to apply it",
-                Const.KEY_MONITOR_LAYOUTS, true);
+                        + "the first time starts from the desktop you have now. Off: every "
+                        + "monitor shows the same desktop. The launcher restarts to apply it",
+                Const.KEY_MONITOR_LAYOUTS, false);
         addSwitch("Start animation",
                 "Desktop Mode+ greets you on the monitor as its desktop comes up, once each "
                         + "time it is plugged in",
