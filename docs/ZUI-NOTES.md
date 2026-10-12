@@ -260,6 +260,16 @@ vendor power HAL's, not in these jars.
     the home screen. Reordering and moving apps in and out of our drawer folders has no ZUI path
     to follow: it would be ours, on the drawer's own `DragController` (ZUX Home) or the overlay's
     (taskbar), with a drop target of our own. The probe's "drawer drag" section reads both.
+  - Where the taskbar drawer's system drag lands (read 2026-10-12): SystemUI's
+    `DragAndDropController` window ("ShellDropTarget", type 2200 with ZUI's split, full screen,
+    `PRIVATE_FLAG_INTERCEPT_GLOBAL_DRAG_AND_DROP`, so it gets the clip at the start) takes it
+    for floating or split (`SplitDragPolicy`). ZUI's clip carries `DISALLOW_HIT_REGION` (its
+    transient bar) which `getTargetAtLocation` skips - but the window still covers it, so
+    nothing under it gets the drop. ZUX Home itself takes drags from other windows only for its
+    own pin MIME (`BaseItemDragListener`: a `DragLayer` listener starting a `DragController`
+    drag with `simulatedDndStartPoint`, every later event to `onDragEvent`). ZUI's
+    `PinToTaskbarShortcut` exists but its flag (`enablePinningAppWithContextMenu`) is compiled
+    off.
 - **ZUI's bar overflow (read 2026-10-12).** Only in ZUI's desktop mode
   (`zui_ov_desktop_mode` = 1, `TaskbarView.B`): `updateRecents` counts hotseat plus recent apps
   plus one against `getMaxNumIconViews()` (field `v`, from the width left after the search box,

@@ -1,12 +1,15 @@
 package com.zuxos.desktopplus.hook;
 
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Process;
 import android.os.UserHandle;
+import android.os.UserManager;
 
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.hook.drawer.NativeDrawerHooks;
+import com.zuxos.desktopplus.model.Item;
 
 /**
  * What is behind a launcher icon.
@@ -121,6 +124,31 @@ public final class IconInfo {
             }
         }
         return out;
+    }
+
+    /**
+     * The app behind a launcher icon as one of our items - its component, user and title - or
+     * null when it is not one app.
+     */
+    public static Item itemOf(Context ctx, Object info) {
+        String pkg = packageOf(info);
+        ComponentName component = NativeDrawerHooks.componentOf(info);
+        if (pkg == null || component == null) {
+            return null;
+        }
+        Object title = Reflect.field(info, "title");
+        String label = title == null ? "" : title.toString();
+        return Item.app(pkg, component.getClassName(), serialOf(ctx, userOf(info)),
+                label.isEmpty() ? pkg : label);
+    }
+
+    private static long serialOf(Context ctx, UserHandle user) {
+        try {
+            UserManager users = (UserManager) ctx.getSystemService(Context.USER_SERVICE);
+            return users == null ? 0L : users.getSerialNumberForUser(user);
+        } catch (Throwable t) {
+            return 0L;
+        }
     }
 
     /** Which user the icon belongs to - a work-profile app is not the personal one. */

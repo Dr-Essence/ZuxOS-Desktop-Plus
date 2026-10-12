@@ -5,6 +5,7 @@ import android.content.pm.LauncherApps;
 import android.content.pm.ShortcutInfo;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.drawable.AdaptiveIconDrawable;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.util.LruCache;
@@ -89,7 +90,8 @@ final class ShortcutShapes {
 
     /**
      * The shortcut's icon cut to ZUI's shape by ZUI's icon factory, as an app's icon is, drawn
-     * into a bitmap of our own; null where that cannot be had, for the caller's own.
+     * into a bitmap of our own. An icon that is not adaptive has no shape to cut and comes as
+     * the app drew it; null where there is none, for the caller's own.
      */
     static Drawable shaped(Context ctx, ShortcutInfo shortcut) {
         if (shortcut == null || sShape == null || !Cfg.shortcutShapes()) {
@@ -102,6 +104,12 @@ final class ShortcutShapes {
                     ctx.getResources().getDisplayMetrics().densityDpi);
             if (raw == null) {
                 return null;
+            }
+            if (!(raw instanceof AdaptiveIconDrawable)) {
+                // ZUI's factory sets any other icon on a white plate (wrapToAdaptiveIcon), as it
+                // does a legacy app's - a white square over a plain glyph (owner, 16:59). Left
+                // as the app drew it.
+                return raw;
             }
             factory = (AutoCloseable) sObtain.invoke(null, ctx);
             Object info = sShape.invoke(factory, raw);

@@ -180,6 +180,11 @@ public class MainActivity extends Activity {
                         + "icon shape ZUI gives every app icon, instead of the app's square "
                         + "backing",
                 Const.KEY_SHORTCUT_SHAPES, true);
+        addSwitch("Drag apps onto the taskbar to pin them",
+                "An app dragged out of ZUI's taskbar drawer and let go on the taskbar is pinned "
+                        + "there; anywhere else it still opens in a floating window or split "
+                        + "screen. Needs System UI ticked in LSPosed",
+                Const.KEY_BAR_DROP, true);
         addSwitch("Keep the launcher's recents off the taskbar",
                 "With \"Only open apps\" on, the launcher's own recent and recommended apps are "
                         + "never added to the taskbar - not even for a moment when an app opens "

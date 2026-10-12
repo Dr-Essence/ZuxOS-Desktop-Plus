@@ -812,7 +812,7 @@ public final class NativeDrawerHooks {
             Item item = folderBehind(view);
             if (item == null) {
                 String pkg = IconInfo.packageOf(tag);
-                item = pkg == null ? null : itemFor(view.getContext(), tag, pkg);
+                item = pkg == null ? null : IconInfo.itemOf(view.getContext(), tag);
             }
             if (item == null) {
                 return false;
@@ -874,26 +874,6 @@ public final class NativeDrawerHooks {
     /** Whether a view is inside the drawer's own window rather than some other one. */
     private static boolean inStockDrawer(View view) {
         return view.isAttachedToWindow() && TaskbarBridge.isAllAppsWindow(view.getRootView());
-    }
-
-    /** An entry in the launcher's drawer, as one of our items. */
-    private static Item itemFor(Context ctx, Object entry, String pkg) {
-        ComponentName component = componentOf(entry);
-        if (component == null) {
-            return null;
-        }
-        String label = titleOf(entry);
-        return Item.app(pkg, component.getClassName(), serialOf(ctx, IconInfo.userOf(entry)),
-                label == null || label.isEmpty() ? pkg : label);
-    }
-
-    private static long serialOf(Context ctx, UserHandle user) {
-        try {
-            UserManager users = (UserManager) ctx.getSystemService(Context.USER_SERVICE);
-            return users == null ? 0L : users.getSerialNumberForUser(user);
-        } catch (Throwable t) {
-            return 0L;
-        }
     }
 
     /** True for one of the synthetic entries this class puts in the drawer for a folder. */

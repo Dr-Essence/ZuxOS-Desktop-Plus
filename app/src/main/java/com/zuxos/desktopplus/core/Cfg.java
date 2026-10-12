@@ -490,6 +490,10 @@ public final class Cfg {
         return getBool(Const.KEY_SHORTCUT_SHAPES, true);
     }
 
+    public static boolean barDrop() {
+        return getBool(Const.KEY_BAR_DROP, true);
+    }
+
     public static boolean drawerGlass() {
         return getBool(Const.KEY_DRAWER_GLASS, true);
     }

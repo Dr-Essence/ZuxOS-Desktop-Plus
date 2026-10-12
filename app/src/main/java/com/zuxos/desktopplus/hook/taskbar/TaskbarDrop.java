@@ -14,11 +14,13 @@ import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Tone;
 import com.zuxos.desktopplus.core.Ui;
 import com.zuxos.desktopplus.desktop.DragPayload;
+import com.zuxos.desktopplus.hook.Windows;
 import com.zuxos.desktopplus.logic.PinList;
 import com.zuxos.desktopplus.model.Item;
 
 /**
- * Drop an app on the taskbar to pin it there.
+ * Drop an app on the taskbar to pin it there: one of ours, or one dragged out of ZUI's taskbar
+ * drawer ({@link ZuiBarDrop}).
  *
  * <p>The strip that catches the drop is ours and spans the bar. It is not the launcher's drag
  * layer: that view belongs to the launcher and may have a drag listener of its own, and a view
@@ -51,6 +53,25 @@ final class TaskbarDrop {
         } catch (Throwable t) {
             L.d("taskbar drop: not installed (" + t + ")");
         }
+    }
+
+    /**
+     * Where the bar on this display catches drops, on screen - the strip, over the bar's row -
+     * or null while it is not showing.
+     */
+    static RectF barOnScreen(int display) {
+        for (View root : Windows.roots()) {
+            ViewGroup dragLayer = TaskbarTray.dragLayerOf(root);
+            DropStrip strip = dragLayer == null ? null : stripIn(dragLayer);
+            if (strip != null && strip.isShown() && strip.getWidth() > 0
+                    && TaskbarTray.displayIdOf(strip) == display) {
+                int[] at = new int[2];
+                strip.getLocationOnScreen(at);
+                return new RectF(at[0], at[1], at[0] + strip.getWidth(),
+                        at[1] + strip.getHeight());
+            }
+        }
+        return null;
     }
 
     private static DropStrip stripIn(ViewGroup dragLayer) {
@@ -115,6 +136,10 @@ final class TaskbarDrop {
         }
 
         private boolean onDrag(View v, DragEvent event) {
+            Item zui = ZuiBarDrop.itemFor(event, TaskbarTray.displayIdOf(this));
+            if (zui != null) {
+                return onZuiDrag(event, zui);
+            }
             if (!DragPayload.isOurs(event)) {
                 return false;
             }
@@ -151,11 +176,46 @@ final class TaskbarDrop {
             }
         }
 
+        /**
+         * ZUI's own drawer drag ({@link ZuiBarDrop}), let go here: pinned as one of ours is.
+         * Anything not let go here was the shell's, as before.
+         */
+        private boolean onZuiDrag(DragEvent event, Item item) {
+            switch (event.getAction()) {
+                case DragEvent.ACTION_DRAG_LOCATION:
+                    mWhere = event.getX();
+                    invalidate();
+                    return true;
+                case DragEvent.ACTION_DRAG_EXITED:
+                    mWhere = -1f;
+                    invalidate();
+                    return true;
+                case DragEvent.ACTION_DROP:
+                    mWhere = -1f;
+                    invalidate();
+                    if (pin(item, event.getX())) {
+                        ZuiBarDrop.pinned();
+                        return true;
+                    }
+                    return false;
+                case DragEvent.ACTION_DRAG_ENDED:
+                    mWhere = -1f;
+                    invalidate();
+                    ZuiBarDrop.ended(event.getResult());
+                    return true;
+                default:
+                    return true;
+            }
+        }
+
         private boolean pin(DragPayload payload, float x) {
-            if (payload == null || payload.item == null) {
+            return payload != null && pin(payload.item, x);
+        }
+
+        private boolean pin(Item item, float x) {
+            if (item == null) {
                 return false;
             }
-            Item item = payload.item;
             if (PinList.holds(TaskbarPins.pins(getContext()), item.key())) {
                 // Already here: a pin dragged along the bar, or the same app dropped again.
                 // Either way it moves to where it was let go.
