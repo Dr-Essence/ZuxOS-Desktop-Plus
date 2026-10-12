@@ -236,6 +236,40 @@ vendor power HAL's, not in these jars.
   folder by the same only when `isFromLauncher()`; any other folder ends at 1.0. A folder of
   ours in the drawer's window therefore had its apps snap from 0.89 to 1.0 as the motion ended;
   the module reads that scale as 1.0 while ZUI builds the motion for one of ours (0.0.215).
+- **Drag in the tablet drawers (read 2026-10-12, for "through ZUI's path" #2).** Both drawers
+  share `BaseAllAppsAdapter`; its long press comes from the context
+  (`getAllAppsItemLongClickListener()`).
+  - ZUX Home's drawer (`Launcher`): the stock `ItemLongClickListener.INSTANCE_ALL_APPS` ->
+    `Workspace.beginDragShared(view, appsView, new DragOptions())`, popup first and the drag
+    once the finger moves, on `LauncherDragController`. On drag start the Workspace sends the
+    Launcher to `SPRING_LOADED` (drawer closes, home shows); a drop lands through
+    `Workspace.onDropExternal` (`o1`): new folder `y0`, into a folder `o0` ->
+    `FolderIcon.acceptDrop` / `onDrop` -> `Folder.addFolderContent` ->
+    `ModelWriter.addOrMoveItemInDatabase`. The drop-target bar (`DropTargetBar2`) holds Cancel
+    and Uninstall. `FolderIcon` is no drop target of its own; an open `Folder` is.
+  - The taskbar's drawer (`TaskbarOverlayContext`): `TaskbarDragController.startDragOnLongClick`
+    drags only with ZUI's one-vision features on (`CommercialManager.isOVFeatureEnable`,
+    `ENABLE_ONE_VISION_ALL_FEATURE`, 1 by default) outside desktop mode, else the popup only; on
+    the monitor, the popup only. Its drag becomes a system drag (`startDragAndDrop` with an
+    activity or shortcut clip) for split and floating windows; no drop target in the launcher
+    (`getDefaultDropTarget()` null, folders refused), and the overlay closes at drag end.
+  - ZUI's drawer never reorders: `AlphabeticalAppsList` always sorts by pinyin and label;
+    `isZuiRow()` is only the region. The drawer is no drop target and has no folders of its own
+    (no folder view type in the adapter) - drawer folders are only ours.
+  - So "ZUI's path" for drag in the drawers exists only for drags out of ZUX Home's drawer onto
+    the home screen. Reordering and moving apps in and out of our drawer folders has no ZUI path
+    to follow: it would be ours, on the drawer's own `DragController` (ZUX Home) or the overlay's
+    (taskbar), with a drop target of our own. The probe's "drawer drag" section reads both.
+- **ZUI's bar overflow (read 2026-10-12).** Only in ZUI's desktop mode
+  (`zui_ov_desktop_mode` = 1, `TaskbarView.B`): `updateRecents` counts hotseat plus recent apps
+  plus one against `getMaxNumIconViews()` (field `v`, from the width left after the search box,
+  nav keys and margins, per icon and gap) and puts the excess recent apps behind
+  `TaskbarOverflowView` (`taskbar_overflow_view.xml`). Tapping it toggles `#overflow_rv`
+  (`TaskbarViewController.toggleOverlayList`), a horizontal list fed by `ZuiOverflowAdapter`
+  (`GroupTask`s, ZUI's own icon views, click and drag as on the bar). The regular tablet bar
+  has no overflow. Our row is not ZUI's items, so it cannot be fed into it as it is; an
+  overflow for our row would be ours, in ZUI's look. The probe's "bar overflow" section reads
+  ZUI's count, whether its button is up, and how much of our row fits.
 - The taskbar's drawer takes back by registering itself with its window's
   `OnBackInvokedDispatcher` (`TaskbarAllAppsSlideInView`); a `Folder` registers nothing there, so
   back skips it. `AbstractFloatingView` is an `OnBackAnimationCallback` whose `onBackInvoked`

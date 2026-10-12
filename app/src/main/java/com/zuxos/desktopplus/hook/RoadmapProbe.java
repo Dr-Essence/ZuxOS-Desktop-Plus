@@ -148,6 +148,8 @@ public final class RoadmapProbe {
         section(sb, () -> windowFrames(ctx));
         section(sb, () -> Notifications.describe(ctx));
         section(sb, RoadmapProbe::taskbars);
+        section(sb, () -> drawerDrag(ctx));
+        section(sb, RoadmapProbe::overflow);
         return sb.toString();
     }
 
@@ -317,6 +319,133 @@ public final class RoadmapProbe {
             positionNames(sb, layer.getContext());
         }
         return sb.toString();
+    }
+
+    /**
+     * What a drag inside the tablet's drawers would build on (through ZUI's path #2), read only.
+     * ZUX Home's drawer drags onto its home screen with the Launcher's drag controller; the
+     * taskbar's drawer hands a drag to the system, or only opens the app's popup
+     * ({@code docs/ZUI-NOTES.md}). Most telling with a drawer open.
+     */
+    private static String drawerDrag(Context ctx) throws Exception {
+        StringBuilder sb = new StringBuilder("\ndrawer drag (through ZUI's path #2)\n");
+        ClassLoader loader = ctx.getClassLoader();
+        Object launcher = null;
+        Class<?> launcherClass = Reflect.findClass("com.android.launcher3.Launcher", loader);
+        if (launcherClass != null) {
+            Object tracker = launcherClass.getField("ACTIVITY_TRACKER").get(null);
+            launcher = Reflect.call(tracker, "getCreatedContext");
+        }
+        if (launcher == null) {
+            sb.append("  ZUX Home: no launcher activity\n");
+        } else {
+            Object drag = Reflect.call(launcher, "getDragController");
+            Object bar = Reflect.call(launcher, "getDropTargetBar");
+            Object targets = Reflect.field(bar, "mDropTargets");
+            sb.append("  ZUX Home: state ")
+                    .append(Reflect.call(Reflect.call(launcher, "getStateManager"), "getState"))
+                    .append(", drag ").append(className(drag))
+                    .append(" dragging ").append(Reflect.call(drag, "isDragging"))
+                    .append(", drop target bar ").append(className(bar))
+                    .append(" with ").append(targets instanceof Object[]
+                            ? ((Object[]) targets).length + " targets" : "no target list")
+                    .append('\n');
+        }
+        Class<?> commercial = Reflect.findClass("com.zui.launcher.utils.CommercialManager",
+                loader);
+        if (commercial != null) {
+            Object manager = null;
+            for (java.lang.reflect.Method m : commercial.getMethods()) {
+                if (m.getName().equals("getInstance") && m.getParameterCount() == 1) {
+                    manager = m.invoke(null, ctx);
+                }
+            }
+            sb.append("  taskbar drawer drags (OV features on): ")
+                    .append(Reflect.call(manager, "isOVFeatureEnable")).append('\n');
+        }
+        for (View root : Windows.roots()) {
+            ViewGroup layer = TaskbarTray.dragLayerOf(root);
+            if (layer == null || !layer.getContext().getClass().getName().contains("Taskbar")) {
+                continue;
+            }
+            Object controllers = Reflect.field(layer.getContext(), "mControllers");
+            Object allApps = controllers == null ? null
+                    : Reflect.field(controllers, "taskbarAllAppsController");
+            Object overlay = fieldNamed(allApps, "TaskbarOverlayContext");
+            Object drag = Reflect.call(overlay, "getDragController");
+            sb.append("  --- ").append(TaskbarScope.label(layer)).append(": drawer open ")
+                    .append(Reflect.call(allApps, "isOpen"))
+                    .append(", drag ").append(className(drag))
+                    .append(" dragging ").append(Reflect.call(drag, "isDragging"))
+                    .append(", system drag ").append(Reflect.call(drag, "isSystemDragInProgress"))
+                    .append('\n');
+        }
+        return sb.toString();
+    }
+
+    /**
+     * ZUI's own overflow button for a bar that runs out of room, read only: it exists in ZUI's
+     * desktop mode only, where ZUI counts what fits ({@code getMaxNumIconViews}) and puts the
+     * rest of its recent apps behind it. Beside it, how much of our own row fits.
+     */
+    private static String overflow() {
+        StringBuilder sb = new StringBuilder("\nbar overflow (portrait bar running out of room)\n");
+        for (View root : Windows.roots()) {
+            ViewGroup layer = TaskbarTray.dragLayerOf(root);
+            if (layer == null || !layer.getContext().getClass().getName().contains("Taskbar")) {
+                continue;
+            }
+            sb.append("  --- ").append(TaskbarScope.label(layer)).append(": ZUI's desktop mode ")
+                    .append(Reflect.call(layer.getContext(), "isInDesktopMode")).append('\n');
+            for (View row : Reflect.findByIdNames(layer, "taskbar_view")) {
+                Object button = Reflect.call(row, "getTaskbarOverflowView");
+                sb.append("    ZUI fits ").append(Reflect.call(row, "getMaxNumIconViews"))
+                        .append(" icons; its overflow button ")
+                        .append(button == null ? "not made"
+                                : ((View) button).getParent() != null ? "shown" : "made, not shown")
+                        .append('\n');
+            }
+            Object controllers = Reflect.field(layer.getContext(), "mControllers");
+            Object rowController = controllers == null ? null
+                    : Reflect.field(controllers, "taskbarViewController");
+            Object adapter = Reflect.field(rowController, "mZuiOverflowAdapter");
+            if (adapter != null) {
+                sb.append("    behind it: ").append(Reflect.call(adapter, "getItemCount"))
+                        .append(" apps\n");
+            }
+            for (View ours : Reflect.findByClassFragments(layer, "TaskbarRunning$ScrollRow")) {
+                View content = ours instanceof ViewGroup && ((ViewGroup) ours).getChildCount() > 0
+                        ? ((ViewGroup) ours).getChildAt(0) : null;
+                sb.append("    our row: ").append(content == null ? 0 : content.getWidth())
+                        .append(" px of icons in ").append(ours.getWidth()).append(" px of room")
+                        .append(content instanceof ViewGroup
+                                ? ", " + ((ViewGroup) content).getChildCount() + " icons" : "")
+                        .append('\n');
+            }
+        }
+        return sb.toString();
+    }
+
+    private static String className(Object o) {
+        return o == null ? "not found" : o.getClass().getSimpleName();
+    }
+
+    /** A field read by its type's name: this build renames its fields. */
+    private static Object fieldNamed(Object owner, String typeName) {
+        for (Class<?> c = owner == null ? null : owner.getClass(); c != null;
+                c = c.getSuperclass()) {
+            for (Field f : c.getDeclaredFields()) {
+                if (f.getType().getSimpleName().equals(typeName)) {
+                    try {
+                        f.setAccessible(true);
+                        return f.get(owner);
+                    } catch (Throwable t) {
+                        return null;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     /**
