@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Region;
+import android.os.Build;
 import android.view.AttachedSurfaceControl;
 import android.view.DragEvent;
 import android.view.View;
@@ -99,7 +100,9 @@ public final class ShellDropBar {
     /** The drag's region ZUI keeps out of the shell, out of the shell's window's touch too. */
     private static void leaveBar(View window, DragEvent event) {
         restore();
-        if (!Cfg.enabled() || !Cfg.barDrop()) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || !Cfg.enabled()
+                || !Cfg.barDrop()) {
+            // A window's touchable region can be set from Android 13; the tablet runs 16.
             return;
         }
         ClipData clip = event.getClipData();
@@ -112,7 +115,8 @@ public final class ShellDropBar {
             }
             return;
         }
-        Object extra = intent.getExtra(DISALLOW);
+        // Read through the extras: Intent.getExtra is not in the public SDK.
+        Object extra = intent.getExtras() == null ? null : intent.getExtras().get(DISALLOW);
         AttachedSurfaceControl surface = window.getRootSurfaceControl();
         if (!(extra instanceof RectF) || ((RectF) extra).isEmpty() || surface == null) {
             return;
@@ -132,7 +136,7 @@ public final class ShellDropBar {
     private static void restore() {
         AttachedSurfaceControl narrowed = sNarrowed;
         sNarrowed = null;
-        if (narrowed != null) {
+        if (narrowed != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             try {
                 narrowed.setTouchableRegion(null);
             } catch (Throwable t) {

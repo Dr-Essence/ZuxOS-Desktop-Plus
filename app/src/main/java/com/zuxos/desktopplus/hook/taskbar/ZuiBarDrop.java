@@ -39,7 +39,8 @@ final class ZuiBarDrop {
     private static final String CONTEXT = "com.android.launcher3.views.ActivityContext";
     /** ZUI's {@code DragAndDropConstants.EXTRA_DISALLOW_HIT_REGION}, as SystemUI reads it. */
     private static final String DISALLOW = "DISALLOW_HIT_REGION";
-    private static final String ACTIVITY = ClipDescription.MIMETYPE_APPLICATION_ACTIVITY;
+    /** Android's {@code ClipDescription.MIMETYPE_APPLICATION_ACTIVITY}, the clip ZUI drags. */
+    private static final String ACTIVITY = "application/vnd.android.activity";
 
     private static Class<?> sTaskbarContext;
     private static Method sLookup;
@@ -106,7 +107,7 @@ final class ZuiBarDrop {
                         : item.pkg) + " left to ZUI" + (bar == null ? " (no bar showing)" : ""));
                 return;
             }
-            Object zui = intent.getExtra(DISALLOW);
+            Object zui = intent.getExtras() == null ? null : intent.getExtras().get(DISALLOW);
             if (zui instanceof RectF) {
                 // ZUI's own transient bar stays left alone as well.
                 bar.union((RectF) zui);
