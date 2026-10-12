@@ -97,8 +97,7 @@ final class TaskbarMarks {
      */
     static int markColor(Context ctx) {
         if (!Tone.glazedNow()) {
-            int id = ctx.getResources().getIdentifier("taskbar_running_app_dot_indicator_color",
-                    "color", ctx.getPackageName());
+            int id = dotColorId(ctx);
             if (id != 0) {
                 try {
                     return ctx.getColor(id);
@@ -108,6 +107,17 @@ final class TaskbarMarks {
             }
         }
         return Tone.lightOnDark(ctx) ? 0xCCFFFFFF : 0x99000000;
+    }
+
+    /** ZUI's running-dot colour's id, looked up by name once: this is asked on every frame. */
+    private static int sDotColorId = -1;
+
+    private static int dotColorId(Context ctx) {
+        if (sDotColorId < 0) {
+            sDotColorId = ctx.getResources().getIdentifier(
+                    "taskbar_running_app_dot_indicator_color", "color", ctx.getPackageName());
+        }
+        return sDotColorId;
     }
 
     /** Re-draws them without re-reading what is open; for when the bar has just been laid out. */

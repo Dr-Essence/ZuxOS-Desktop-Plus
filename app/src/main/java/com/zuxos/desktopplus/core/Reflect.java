@@ -77,11 +77,67 @@ public final class Reflect {
         }
     }
 
-    /** Depth-first search for views whose id entry name equals one of {@code names}. */
+    /**
+     * Depth-first search for views whose id entry name equals one of {@code names}.
+     *
+     * <p>The bar's layout asks this several times a pass, so each name is turned into an id once,
+     * in the root's own package, and the tree is walked comparing numbers. A name that package does
+     * not have - an id of another package - is looked for by name as before.
+     */
     public static List<View> findByIdNames(View root, String... names) {
         List<View> out = new ArrayList<>();
-        collect(root, out, names);
+        int[] ids = idsOf(root, names);
+        if (ids != null) {
+            collectIds(root, out, ids);
+        } else {
+            collect(root, out, names);
+        }
         return out;
+    }
+
+    /** Package and name to id, as resolved once: ids do not change in a running process. */
+    private static final java.util.Map<String, Integer> IDS =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** The ids of {@code names} in the root's package; null when any one is not there. */
+    private static int[] idsOf(View root, String[] names) {
+        try {
+            String pkg = root.getContext().getPackageName();
+            int[] ids = new int[names.length];
+            for (int i = 0; i < names.length; i++) {
+                String key = pkg + "/" + names[i];
+                Integer id = IDS.get(key);
+                if (id == null) {
+                    id = root.getResources().getIdentifier(names[i], "id", pkg);
+                    IDS.put(key, id);
+                }
+                if (id == 0) {
+                    return null;
+                }
+                ids[i] = id;
+            }
+            return ids;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private static void collectIds(View v, List<View> out, int[] ids) {
+        int id = v.getId();
+        if (id != View.NO_ID) {
+            for (int want : ids) {
+                if (id == want) {
+                    out.add(v);
+                    break;
+                }
+            }
+        }
+        if (v instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) {
+                collectIds(g.getChildAt(i), out, ids);
+            }
+        }
     }
 
     private static void collect(View v, List<View> out, String[] names) {

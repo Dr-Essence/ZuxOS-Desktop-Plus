@@ -1259,15 +1259,16 @@ public final class TaskbarRunning {
             if (mOpen.isEmpty() || !Cfg.runningMarks() || mTheme.retro()) {
                 return;
             }
-            mMarkPaint.setColor(TaskbarMarks.markColor(getContext()));
+            // Once a frame, not once an icon: this draws on every frame of a scroll.
+            int color = TaskbarMarks.markColor(getContext());
+            mMarkPaint.setColor(color);
             for (int i = 0; i < getChildCount(); i++) {
                 View icon = getChildAt(i);
                 if (icon.getVisibility() != VISIBLE || icon.getWidth() <= 0 || icon.getAlpha() <= 0f
                         || !RunningOrder.anyRunning(IconInfo.packagesOfView(icon), mOpen)) {
                     continue;
                 }
-                mMarkPaint.setAlpha((int) (Color.alpha(TaskbarMarks.markColor(getContext()))
-                        * Math.min(1f, icon.getAlpha())));
+                mMarkPaint.setAlpha((int) (Color.alpha(color) * Math.min(1f, icon.getAlpha())));
                 TaskbarMarks.drawMark(canvas, mMarkPaint, getContext(),
                         icon.getLeft() + icon.getTranslationX(), icon.getWidth(),
                         icon.getBottom() + icon.getTranslationY(), getHeight());
