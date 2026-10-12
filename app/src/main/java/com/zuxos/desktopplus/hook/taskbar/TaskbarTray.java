@@ -35,6 +35,7 @@ import com.zuxos.desktopplus.hook.panel.QuickPanel;
 import com.zuxos.desktopplus.hook.panel.Shortcuts;
 import com.zuxos.desktopplus.hook.panel.SysState;
 import com.zuxos.desktopplus.hook.shots.Shots;
+import com.zuxos.desktopplus.logic.RowEdge;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
@@ -429,29 +430,23 @@ public final class TaskbarTray {
      */
     static boolean onRow(FrameLayout.LayoutParams lp, View reference, int height,
             int horizontal) {
-        int vertical = Gravity.BOTTOM;
-        int edge = 0;
+        int[] at;
         if (reference != null && reference.getLayoutParams() instanceof FrameLayout.LayoutParams) {
             FrameLayout.LayoutParams row = (FrameLayout.LayoutParams) reference.getLayoutParams();
-            // Unspecified is the frame layout's own default, the top.
-            int its = row.gravity == -1 ? Gravity.TOP : row.gravity & Gravity.VERTICAL_GRAVITY_MASK;
-            vertical = its == Gravity.TOP ? Gravity.TOP : Gravity.BOTTOM;
-            edge = vertical == Gravity.TOP ? row.topMargin : row.bottomMargin;
-            if (height > 0 && reference.getHeight() > height) {
-                edge += (reference.getHeight() - height) / 2;
-            }
+            at = RowEdge.place(row.gravity, row.topMargin, row.bottomMargin,
+                    reference.getHeight(), height);
+        } else {
+            at = RowEdge.fallback();
         }
-        int gravity = vertical | horizontal;
-        int top = vertical == Gravity.TOP ? edge : 0;
-        int bottom = vertical == Gravity.TOP ? 0 : edge;
-        if (lp.gravity == gravity && lp.height == height && lp.topMargin == top
-                && lp.bottomMargin == bottom) {
+        int gravity = at[0] | horizontal;
+        if (lp.gravity == gravity && lp.height == height && lp.topMargin == at[1]
+                && lp.bottomMargin == at[2]) {
             return false;
         }
         lp.gravity = gravity;
         lp.height = height;
-        lp.topMargin = top;
-        lp.bottomMargin = bottom;
+        lp.topMargin = at[1];
+        lp.bottomMargin = at[2];
         return true;
     }
 

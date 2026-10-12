@@ -48,6 +48,7 @@ import com.zuxos.desktopplus.desktop.DesktopHost;
 import com.zuxos.desktopplus.hook.Overlays;
 import com.zuxos.desktopplus.hook.taskbar.BarEdge;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarRunning;
+import com.zuxos.desktopplus.logic.PopupSide;
 import com.zuxos.desktopplus.notify.NotifyProvider;
 
 import java.util.ArrayList;
@@ -307,7 +308,7 @@ public final class NotifyPopup {
 
     /** A distance toward the stack's own screen edge: right, or left at the left corner. */
     private static float away(float distance) {
-        return sLeft ? -distance : distance;
+        return PopupSide.away(distance, sLeft);
     }
 
     /**
@@ -670,7 +671,7 @@ public final class NotifyPopup {
                     }
                     if (mDragging) {
                         // Toward its edge it follows; the other way it only gives a little.
-                        setTranslationX(away(dx > 0 ? dx : dx * 0.15f));
+                        setTranslationX(away(PopupSide.follow(dx)));
                     }
                     return true;
                 case MotionEvent.ACTION_UP:
@@ -682,7 +683,7 @@ public final class NotifyPopup {
                         mVelocity.recycle();
                         mVelocity = null;
                     }
-                    if (mDragging && (dx > getWidth() / 3f || vx > mFling)) {
+                    if (mDragging && PopupSide.closes(dx, getWidth(), vx, mFling)) {
                         close(this);
                     } else if (mDragging) {
                         if (theme.retro()) {

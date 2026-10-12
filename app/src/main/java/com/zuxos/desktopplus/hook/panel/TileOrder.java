@@ -4,6 +4,7 @@ import android.content.Context;
 
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Storage;
+import com.zuxos.desktopplus.logic.TileOrderMath;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -15,9 +16,8 @@ import java.util.List;
  * Which quick panel tiles show, and in what order: the user's edit (#3), kept in the launcher's
  * own files as the drawer keeps its order - the launcher cannot write the module's settings.
  *
- * <p>Tiles are known by a stable id. An id saved for a tile that no longer exists is dropped; a
- * tile added in a later build, which no saved edit knows, shows at the end. Loaded once per
- * process, written on each change.
+ * <p>Tiles are known by a stable id; what a stale or partial edit means is
+ * {@link TileOrderMath}'s. Loaded once per process, written on each change.
  */
 final class TileOrder {
 
@@ -33,30 +33,13 @@ final class TileOrder {
     /** The tiles to show, in order, from those this build has ({@code known}, default order). */
     static synchronized List<String> shown(Context ctx, List<String> known) {
         load(ctx);
-        List<String> shown = new ArrayList<>();
-        for (String id : ORDER) {
-            if (known.contains(id) && !HIDDEN.contains(id) && !shown.contains(id)) {
-                shown.add(id);
-            }
-        }
-        for (String id : known) {
-            if (!shown.contains(id) && !HIDDEN.contains(id)) {
-                shown.add(id);
-            }
-        }
-        return shown;
+        return TileOrderMath.shown(ORDER, HIDDEN, known);
     }
 
     /** The tiles taken off the panel, in the order they were taken off. */
     static synchronized List<String> hidden(Context ctx, List<String> known) {
         load(ctx);
-        List<String> hidden = new ArrayList<>();
-        for (String id : HIDDEN) {
-            if (known.contains(id) && !hidden.contains(id)) {
-                hidden.add(id);
-            }
-        }
-        return hidden;
+        return TileOrderMath.hidden(HIDDEN, known);
     }
 
     /** Keeps the user's edit. */

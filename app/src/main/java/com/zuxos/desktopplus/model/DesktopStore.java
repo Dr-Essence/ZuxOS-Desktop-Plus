@@ -7,6 +7,7 @@ import com.zuxos.desktopplus.core.Const;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.core.Storage;
+import com.zuxos.desktopplus.logic.MonitorKey;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -53,11 +54,7 @@ public final class DesktopStore {
      */
     public static String monitorKey(Display display) {
         Object id = Reflect.call(display, "getUniqueId");
-        if (!(id instanceof String) || ((String) id).isEmpty()) {
-            return null;
-        }
-        String key = ((String) id).replaceAll("[^A-Za-z0-9._-]", "_");
-        return key.length() > 80 ? key.substring(0, 80) : key;
+        return id instanceof String ? MonitorKey.of((String) id) : null;
     }
 
     public List<Item> items() {

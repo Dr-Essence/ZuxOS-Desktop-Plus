@@ -676,7 +676,6 @@ public final class QuickPanel {
         if (grid.getChildCount() > 0) {
             section.addView(grid);
         }
-        sBadgesIn = sEditing;
         if (sEditing) {
             section.addView(sectionLabel(ctx, theme, hidden.isEmpty()
                     ? "Every tile is on the panel" : "Add"));
@@ -694,6 +693,7 @@ public final class QuickPanel {
                 section.addView(spare);
             }
         }
+        sBadgesIn = sEditing;
         return section;
     }
 
@@ -843,13 +843,17 @@ public final class QuickPanel {
                             moved.add(shown.get(c));
                         }
                         int[] to = slots[order.indexOf(from)];
+                        Object panel = token();
+                        if (!moved.equals(shown)) {
+                            TileOrder.save(ctx, moved, hidden);
+                        }
                         lift(holder, theme, 1f);
                         slide(holder, theme, to[0] - slots[from][0], to[1] - slots[from][1], () -> {
                             setInteracting(false);
-                            if (!moved.equals(shown)) {
-                                TileOrder.save(ctx, moved, hidden);
+                            // Closed while it settled: nothing left to show it in.
+                            if (isStill(panel)) {
+                                onActed.run();
                             }
-                            onActed.run();
                         });
                         return true;
                     }
