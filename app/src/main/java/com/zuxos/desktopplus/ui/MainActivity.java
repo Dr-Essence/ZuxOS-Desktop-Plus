@@ -421,8 +421,13 @@ public class MainActivity extends Activity {
             public void onStartTrackingTouch(SeekBar seekBar) {
             }
 
+            /**
+             * Let go: the launcher is told, as for a switch. Saved without telling it, a pop-up's
+             * time and width waited for ZUX Home to come to the front again.
+             */
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
+                save(key, mPrefs.edit().putInt(key, min + seekBar.getProgress()));
             }
         });
         mRoot.addView(bar, rowParams());

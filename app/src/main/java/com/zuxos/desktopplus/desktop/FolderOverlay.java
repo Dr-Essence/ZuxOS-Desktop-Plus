@@ -40,6 +40,8 @@ public class FolderOverlay extends FrameLayout {
     private final TextView mEmpty;
     private GlassPanel mPanel;
     private Item mFolder;
+    /** The name was changed since the folder opened. */
+    private boolean mRenamed;
     /** The icon it was opened from, which it closes back into. */
     private View mSource;
 
@@ -73,8 +75,12 @@ public class FolderOverlay extends FrameLayout {
 
             @Override
             public void afterTextChanged(Editable s) {
-                if (mFolder != null) {
-                    mListener.onRenamed(mFolder, s.toString());
+                // The name follows the typing; it is saved once, when the folder closes. Saved
+                // here, every key wrote the layout and rebuilt the drawer, and so did every
+                // opening, since putting the name in the field counts as typing it.
+                if (mFolder != null && !s.toString().equals(mFolder.label)) {
+                    mFolder.label = s.toString();
+                    mRenamed = true;
                 }
             }
         });
@@ -152,6 +158,7 @@ public class FolderOverlay extends FrameLayout {
         Theme theme = Theme.of(this);
         mPanel.theme(theme);
         mName.setText(folder.label != null ? folder.label : "Folder");
+        mRenamed = false;
         rebuild(iconSizePx, showLabels, labelShadow);
         theme.applyFont(mPanel);
         bringToFront();
@@ -248,6 +255,10 @@ public class FolderOverlay extends FrameLayout {
         final View source = mSource;
         mFolder = null;
         mSource = null;
+        if (mRenamed) {
+            mRenamed = false;
+            mListener.onRenamed(folder, folder.label);
+        }
         FolderStyle.zoomOut(mPanel, source, () -> {
             setVisibility(GONE);
             if (folder != null) {

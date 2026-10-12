@@ -68,6 +68,12 @@ public final class MenuRows {
      */
     public static View row(Context ctx, Theme theme, String title, Drawable icon, boolean indent,
             boolean enabled, View.OnClickListener onClick) {
+        // A menu fading out still takes taps: a second one, on any row, ran a second action.
+        View.OnClickListener once = v -> {
+            if (!closing(v)) {
+                onClick.onClick(v);
+            }
+        };
         LinearLayout row = new LinearLayout(ctx);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -110,7 +116,7 @@ public final class MenuRows {
 
         if (enabled && theme.retro()) {
             selectable(row, text, icon, color, theme);
-            row.setOnClickListener(onClick);
+            row.setOnClickListener(once);
         } else if (enabled) {
             // The iOS menu row: a soft rounded light under the row the pointer is on, deeper and
             // a touch smaller while pressed, springing back on release.
@@ -156,7 +162,7 @@ public final class MenuRows {
                 }
                 return false;
             });
-            row.setOnClickListener(onClick);
+            row.setOnClickListener(once);
         }
         return row;
     }
@@ -224,6 +230,17 @@ public final class MenuRows {
     }
 
     private static final int TAG_CLOSING = 0x7A000301;
+
+    /** Whether the menu this view is in has begun to close. */
+    private static boolean closing(View view) {
+        for (View v = view; v != null;
+                v = v.getParent() instanceof View ? (View) v.getParent() : null) {
+            if (Boolean.TRUE.equals(v.getTag(TAG_CLOSING))) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /** The rows come in one after another, each rising a little - the iOS context menu. */
     private static void stagger(View pane) {

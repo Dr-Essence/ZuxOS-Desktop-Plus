@@ -407,8 +407,10 @@ public class CellLayoutView extends ViewGroup implements View.OnDragListener {
         if (dragged.type == Item.TYPE_WIDGET || target.type == Item.TYPE_WIDGET) {
             return false;
         }
-        // Folders do not nest: dropping a folder onto a folder is a reject, not a merge.
-        return !(dragged.type == Item.TYPE_FOLDER && target.type == Item.TYPE_FOLDER);
+        // Folders do not nest: a folder dropped onto an app or a folder is put down beside it,
+        // not merged. Onto an app it made a new folder with the dragged one inside, which
+        // nothing could open; the drawer already refused it.
+        return dragged.type != Item.TYPE_FOLDER;
     }
 
     private boolean handleDrop(DragPayload payload, float x, float y) {

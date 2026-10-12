@@ -77,6 +77,8 @@ public class DrawerPanel extends FrameLayout implements View.OnDragListener {
     private final WrapGrid mGrid;
     private final EditText mSearch;
     private final List<Item> mEntries = new ArrayList<>();
+    /** Every entry in order, before the search filters it: what an order is saved from. */
+    private final List<Item> mAll = new ArrayList<>();
     private final GlassPanel mSheet;
 
     private String mQuery = "";
@@ -426,6 +428,8 @@ public class DrawerPanel extends FrameLayout implements View.OnDragListener {
         }
         mEntries.addAll(mStore.folders());
         sortEntries();
+        mAll.clear();
+        mAll.addAll(mEntries);
         if (!mQuery.isEmpty()) {
             List<Item> filtered = new ArrayList<>();
             for (Item i : mEntries) {
@@ -506,11 +510,14 @@ public class DrawerPanel extends FrameLayout implements View.OnDragListener {
         return s != null ? s : "";
     }
 
-    /** Persists the current visible order as the custom order. */
+    /**
+     * Persists the current order as the custom order: all of it, not just what a search shows,
+     * which dropped every app the search hid from the order.
+     */
     public void commitOrder() {
         List<String> order = mStore.order();
         order.clear();
-        for (Item i : mEntries) {
+        for (Item i : mAll) {
             order.add(i.key());
         }
         mListener.onDrawerChanged();
@@ -568,7 +575,15 @@ public class DrawerPanel extends FrameLayout implements View.OnDragListener {
         }
         Item moved = mEntries.remove(from);
         index = Math.max(0, Math.min(index, mEntries.size()));
+        // In the whole list: before the entry it was dropped on, or after the last one shown.
+        // With a search on, the two lists differ.
+        Item before = index < mEntries.size() ? mEntries.get(index) : null;
+        Item last = mEntries.isEmpty() ? null : mEntries.get(mEntries.size() - 1);
         mEntries.add(index, moved);
+        mAll.remove(moved);
+        int at = before != null ? mAll.indexOf(before)
+                : last != null ? mAll.indexOf(last) + 1 : mAll.size();
+        mAll.add(Math.max(0, Math.min(at, mAll.size())), moved);
         commitOrder();
         // Rearranging by hand means the user wants their own order, not A-Z.
         mListener.onOrderCustomised();
@@ -589,13 +604,13 @@ public class DrawerPanel extends FrameLayout implements View.OnDragListener {
         folder.children.add(copyOf(first));
         folder.children.add(copyOf(second));
         mStore.folders().add(folder);
-        // Keep the folder where the first app was so it does not jump to the end.
-        int at = indexOfKey(first.key());
+        // Keep the folder where the first app was so it does not jump to the end. Its place in
+        // the saved order, not on screen: the two differ by every hidden or filtered-out app.
         List<String> order = mStore.order();
-        order.remove(first.key());
         order.remove(second.key());
-        if (at >= 0 && at <= order.size()) {
-            order.add(at, folder.key());
+        int at = order.indexOf(first.key());
+        if (at >= 0) {
+            order.set(at, folder.key());
         } else {
             order.add(folder.key());
         }
@@ -605,6 +620,10 @@ public class DrawerPanel extends FrameLayout implements View.OnDragListener {
     }
 
     public void addToFolder(Item folder, Item item) {
+        if (mStore.folderContaining(item.key()) != null) {
+            // Already in a folder - this one or another: an app is in the drawer once.
+            return;
+        }
         folder.children.add(copyOf(item));
         mStore.order().remove(item.key());
         mListener.onDrawerChanged();

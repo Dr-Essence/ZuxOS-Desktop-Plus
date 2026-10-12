@@ -17,6 +17,7 @@ import android.view.View;
 import android.view.ViewTreeObserver;
 
 import com.zuxos.desktopplus.core.L;
+import com.zuxos.desktopplus.core.Threads;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -81,8 +82,8 @@ public final class ScreenBackdrop {
 
     private static synchronized Handler worker() {
         if (sWorker == null) {
-            HandlerThread thread = new HandlerThread("zux-glass-capture",
-                    android.os.Process.THREAD_PRIORITY_DISPLAY);
+            HandlerThread thread = Threads.guarded(new HandlerThread("zux-glass-capture",
+                    android.os.Process.THREAD_PRIORITY_DISPLAY));
             thread.start();
             sWorker = new Handler(thread.getLooper());
         }

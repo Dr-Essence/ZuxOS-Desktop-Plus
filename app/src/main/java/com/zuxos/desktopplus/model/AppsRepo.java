@@ -175,6 +175,9 @@ public final class AppsRepo {
         mStale = false;
         mApps.clear();
         mByKey.clear();
+        // An app changed is the reason for a reload, and its icon may be what changed: kept, the
+        // desktop and the drawer showed the old one until ZUX Home restarted.
+        mIconCache.clear();
         if (mLauncherApps == null || mUserManager == null) {
             L.w("LauncherApps unavailable - cannot list apps");
             return;

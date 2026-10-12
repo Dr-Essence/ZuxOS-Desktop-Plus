@@ -8,6 +8,7 @@ import android.os.HandlerThread;
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
+import com.zuxos.desktopplus.core.Threads;
 import com.zuxos.desktopplus.hook.Tasks;
 
 import java.lang.reflect.Method;
@@ -122,7 +123,7 @@ public final class SystemKeepAlive {
         if (adj + kills == 0) {
             return;
         }
-        HandlerThread thread = new HandlerThread("zux-keepalive");
+        HandlerThread thread = Threads.guarded(new HandlerThread("zux-keepalive"));
         thread.start();
         Handler handler = new Handler(thread.getLooper());
         Runnable loop = new Runnable() {

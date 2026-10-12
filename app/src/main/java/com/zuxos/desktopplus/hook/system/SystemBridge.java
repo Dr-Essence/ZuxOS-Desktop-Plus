@@ -11,6 +11,7 @@ import android.os.HandlerThread;
 
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
+import com.zuxos.desktopplus.core.Threads;
 import com.zuxos.desktopplus.hook.Targets;
 
 /**
@@ -36,7 +37,7 @@ public final class SystemBridge {
             return;
         }
         sInstalled = true;
-        HandlerThread thread = new HandlerThread("zux-bridge");
+        HandlerThread thread = Threads.guarded(new HandlerThread("zux-bridge"));
         thread.start();
         Handler handler = new Handler(thread.getLooper());
         // After boot, once the system has a context to register with.

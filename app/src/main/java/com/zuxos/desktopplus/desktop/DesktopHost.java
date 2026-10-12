@@ -1762,6 +1762,13 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
         if (old == null) {
             return;
         }
+        if (old instanceof WidgetFrame
+                && ((WidgetFrame) old).builtWidth == mGrid.getCellWidth() * item.spanX
+                && ((WidgetFrame) old).builtHeight == mGrid.getCellHeight() * item.spanY) {
+            // Already built for this size: only moved, or the frame closed with nothing
+            // changed. Built again anyway, the widget blinked and reloaded on every Done.
+            return;
+        }
         mGrid.removeView(old);
         if (!addItemView(item)) {
             mStore.remove(item);
