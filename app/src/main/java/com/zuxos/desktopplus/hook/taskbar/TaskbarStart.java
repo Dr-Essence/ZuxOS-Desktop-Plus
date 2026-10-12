@@ -294,6 +294,16 @@ final class TaskbarStart {
         }
     }
 
+    /**
+     * Something in the launcher was pressed - its home screen, a drawer, a bar: every robot is
+     * awake, and its 30 seconds to falling asleep begin again.
+     */
+    static void poke() {
+        for (StartButton button : BUTTONS.keySet()) {
+            button.mRobot.poke();
+        }
+    }
+
     /** The eyes of this display's start buttons, as its drawers are. */
     private static void eyesOn(int display) {
         boolean up = drawerUp(display);
@@ -735,6 +745,7 @@ final class TaskbarStart {
             // A bar put up while ZUI's drawer or recents is already up: the eyes as they are.
             int display = TaskbarTray.displayIdOf(this);
             shown(drawerUp(display), recentsUp(display));
+            mRobot.setSleeps(Cfg.robotSleep());
         }
 
         /** Takes ZUI's button: what a press presses, and the icon size to match. */

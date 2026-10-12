@@ -502,6 +502,10 @@ public final class Cfg {
         return getBool(Const.KEY_NAV_KEYS_EDGE, true);
     }
 
+    public static boolean robotSleep() {
+        return getBool(Const.KEY_ROBOT_SLEEP, true);
+    }
+
     public static boolean drawerGlass() {
         return getBool(Const.KEY_DRAWER_GLASS, true);
     }

@@ -60,15 +60,39 @@ final class TaskbarDrop {
      * or null while it is not showing.
      */
     static RectF barOnScreen(int display) {
+        DropStrip strip = stripOn(display);
+        if (strip == null) {
+            return null;
+        }
+        int[] at = new int[2];
+        strip.getLocationOnScreen(at);
+        return new RectF(at[0], at[1], at[0] + strip.getWidth(), at[1] + strip.getHeight());
+    }
+
+    /**
+     * A drag over the bar from another window, at {@code screenX} - the line where it would land
+     * - or gone from it, with a negative x.
+     */
+    static void hintAt(int display, float screenX) {
+        DropStrip strip = stripOn(display);
+        if (strip != null) {
+            strip.hint(screenX < 0 ? -1f : screenX - strip.screenLeft());
+        }
+    }
+
+    /** An app let go over the bar from another window, at {@code screenX}: pinned there. */
+    static boolean pinAt(int display, Item item, float screenX) {
+        DropStrip strip = stripOn(display);
+        return strip != null && strip.pin(item, screenX - strip.screenLeft());
+    }
+
+    private static DropStrip stripOn(int display) {
         for (View root : Windows.roots()) {
             ViewGroup dragLayer = TaskbarTray.dragLayerOf(root);
             DropStrip strip = dragLayer == null ? null : stripIn(dragLayer);
             if (strip != null && strip.isShown() && strip.getWidth() > 0
                     && TaskbarTray.displayIdOf(strip) == display) {
-                int[] at = new int[2];
-                strip.getLocationOnScreen(at);
-                return new RectF(at[0], at[1], at[0] + strip.getWidth(),
-                        at[1] + strip.getHeight());
+                return strip;
             }
         }
         return null;
@@ -206,6 +230,17 @@ final class TaskbarDrop {
                 default:
                     return true;
             }
+        }
+
+        void hint(float x) {
+            mWhere = x;
+            invalidate();
+        }
+
+        int screenLeft() {
+            int[] at = new int[2];
+            getLocationOnScreen(at);
+            return at[0];
         }
 
         private boolean pin(DragPayload payload, float x) {

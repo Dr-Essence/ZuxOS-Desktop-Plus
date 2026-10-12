@@ -145,6 +145,10 @@ public final class TaskbarMenu {
         // - and the desktop's own drag layer inherits from it too. Without this the home screen
         // would answer a long press with the taskbar's menu.
         int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
+            // Any press in the launcher keeps the start button's robot awake.
+            TaskbarStart.poke();
+        }
         if (action != MotionEvent.ACTION_DOWN && sPending == null) {
             // Every move of every drag layer in the launcher arrives here: nothing to do unless
             // a hold on the bar is being timed.

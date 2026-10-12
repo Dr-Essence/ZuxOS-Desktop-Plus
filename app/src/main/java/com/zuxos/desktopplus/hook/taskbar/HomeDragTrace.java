@@ -76,7 +76,11 @@ final class HomeDragTrace {
         }
     }
 
-    /** One of the drag's events reaching a window of the home screen's activity. */
+    /**
+     * A system drag's start, entry and drop reaching one of the launcher's windows - its home
+     * screen, the bar, the taskbar's drawer - named by the window's title: which of them is told
+     * of the drag, and which one is under the finger when it is let go.
+     */
     private static void systemDrag(Object root, Object[] args) {
         try {
             if (args.length != 1 || !(args[0] instanceof DragEvent)) {
@@ -84,28 +88,39 @@ final class HomeDragTrace {
             }
             DragEvent event = (DragEvent) args[0];
             int action = event.getAction();
-            if (action != DragEvent.ACTION_DRAG_STARTED && action != DragEvent.ACTION_DROP) {
+            if (action != DragEvent.ACTION_DRAG_STARTED && action != DragEvent.ACTION_DRAG_ENTERED
+                    && action != DragEvent.ACTION_DROP) {
                 return;
             }
-            Object view = Reflect.field(root, "mView");
-            Activity home = view instanceof View ? activityOf(((View) view).getContext()) : null;
-            if (home == null || !home.getClass().getName().contains("Launcher")) {
-                return;
-            }
+            Object attrs = Reflect.field(root, "mWindowAttributes");
+            CharSequence title = attrs instanceof android.view.WindowManager.LayoutParams
+                    ? ((android.view.WindowManager.LayoutParams) attrs).getTitle() : null;
             ClipDescription what = event.getClipDescription();
-            L.i("home drag trace: " + home.getClass().getSimpleName() + "'s window "
-                    + (action == DragEvent.ACTION_DROP ? "got a drop at "
-                    + Math.round(event.getX()) + "," + Math.round(event.getY())
-                    : "told of a drag of " + (what == null || what.getMimeTypeCount() == 0
-                    ? "nothing" : what.getMimeType(0)))
-                    + " on " + homeState(home));
+            String where = Math.round(event.getX()) + "," + Math.round(event.getY());
+            L.i("home drag trace: window \"" + title + "\" "
+                    + (action == DragEvent.ACTION_DRAG_STARTED ? "told of a drag of "
+                    + (what == null || what.getMimeTypeCount() == 0 ? "nothing" : what.getMimeType(0))
+                    : action == DragEvent.ACTION_DRAG_ENTERED ? "entered at " + where
+                    : "got a drop at " + where)
+                    + (action == DragEvent.ACTION_DRAG_STARTED ? "" : ", " + homeState(windowContext(root))));
         } catch (Throwable t) {
             L.d("home drag trace: a system drag not read (" + t + ")");
         }
     }
 
+    /** The context of a window's root: an activity's window gives its activity. */
+    private static Context windowContext(Object root) {
+        Object view = Reflect.field(root, "mView");
+        Object window = view == null ? null : Reflect.field(view, "mWindow");
+        Object context = window == null ? null : Reflect.call(window, "getContext");
+        if (context instanceof Context) {
+            return (Context) context;
+        }
+        return view instanceof View ? ((View) view).getContext() : null;
+    }
+
     private static String homeState(Context ctx) {
-        Activity home = activityOf(ctx);
+        Activity home = ctx == null ? null : activityOf(ctx);
         Object states = home == null ? null : Reflect.call(home, "getStateManager");
         Object state = states == null ? null : Reflect.call(states, "getState");
         return (home == null ? "no home" : home.getClass().getSimpleName()) + " in "

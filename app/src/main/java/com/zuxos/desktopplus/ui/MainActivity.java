@@ -193,6 +193,10 @@ public class MainActivity extends Activity {
                 "On the tablet the back, home and recents keys sit flush with the bar's right "
                         + "edge; ZUI's room there comes back while it has a button to show in it",
                 Const.KEY_NAV_KEYS_EDGE, true);
+        addSwitch("Start button robot falls asleep",
+                "After 30 seconds with nothing pressed the robot shuts its eyes and dozes off, "
+                        + "z's drifting up; any press wakes it",
+                Const.KEY_ROBOT_SLEEP, true);
         addSwitch("Keep the launcher's recents off the taskbar",
                 "With \"Only open apps\" on, the launcher's own recent and recommended apps are "
                         + "never added to the taskbar - not even for a moment when an app opens "

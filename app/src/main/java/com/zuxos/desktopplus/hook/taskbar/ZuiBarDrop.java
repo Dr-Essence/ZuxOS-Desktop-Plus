@@ -49,6 +49,9 @@ final class ZuiBarDrop {
     private static Item sItem;
     private static int sDisplay = -1;
     private static boolean sPinned;
+    private static int sDepth;
+    /** Our catcher in the drawer's own window for the drag under way, or null. */
+    private static View sCatcher;
 
     private ZuiBarDrop() {
     }
@@ -67,14 +70,19 @@ final class ZuiBarDrop {
                     new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
-                            starting((View) param.thisObject, param.args);
+                            // Once per drag: the public call goes through a second one.
+                            if (sDepth++ == 0) {
+                                starting((View) param.thisObject, param.args);
+                            }
                         }
 
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            if (sItem != null && !Boolean.TRUE.equals(param.getResult())) {
+                            if (--sDepth == 0 && sItem != null
+                                    && !Boolean.TRUE.equals(param.getResult())) {
                                 // Android did not start it: nothing to wait for.
                                 sItem = null;
+                                removeCatcher();
                             }
                         }
                     }).size();
@@ -116,6 +124,7 @@ final class ZuiBarDrop {
             sItem = item;
             sDisplay = display;
             sPinned = false;
+            addCatcher(source.getRootView(), bar);
             L.i("zui bar drop: ZUI's drag of " + item.pkg + " on display " + display
                     + ", the bar " + bar.toShortString() + " left to the bar"
                     + (zui instanceof RectF ? " (with ZUI's own " + ((RectF) zui).toShortString()
@@ -131,6 +140,70 @@ final class ZuiBarDrop {
         ClipDescription description = event.getClipDescription();
         return sItem != null && display == sDisplay && description != null
                 && description.hasMimeType(ACTIVITY) ? sItem : null;
+    }
+
+    /**
+     * While a system drag is under way the bar gives its touch region up ("let touches pass
+     * through", Launcher3's {@code TaskbarInsetsController}), so a drop over the bar lands in
+     * the window under it - ZUI's drawer, which ignores it. A view of ours over the whole of the
+     * drawer's window, there for this drag only, takes a drop over the bar to the bar. The shell
+     * still covers the rest of the screen, so nothing else ever reaches it.
+     */
+    private static void addCatcher(View root, RectF bar) {
+        removeCatcher();
+        if (!(root instanceof android.view.ViewGroup) || TaskbarTray.dragLayerOf(root) != null) {
+            // The bar's own window: its strip does it.
+            return;
+        }
+        View catcher = new View(root.getContext());
+        catcher.setOnDragListener((v, event) -> onCatcherDrag(v, event, bar));
+        ((android.view.ViewGroup) root).addView(catcher, new android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+        sCatcher = catcher;
+    }
+
+    private static boolean onCatcherDrag(View catcher, DragEvent event, RectF bar) {
+        Item item = itemFor(event, sDisplay);
+        if (item == null) {
+            return false;
+        }
+        int[] at = new int[2];
+        catcher.getLocationOnScreen(at);
+        float x = at[0] + event.getX();
+        boolean over = bar.contains(x, at[1] + event.getY());
+        switch (event.getAction()) {
+            case DragEvent.ACTION_DRAG_LOCATION:
+                TaskbarDrop.hintAt(sDisplay, over ? x : -1f);
+                return true;
+            case DragEvent.ACTION_DRAG_EXITED:
+                TaskbarDrop.hintAt(sDisplay, -1f);
+                return true;
+            case DragEvent.ACTION_DROP:
+                TaskbarDrop.hintAt(sDisplay, -1f);
+                if (over && TaskbarDrop.pinAt(sDisplay, item, x)) {
+                    pinned();
+                    return true;
+                }
+                L.i("zui bar drop: let go in the drawer's window at " + Math.round(x) + ","
+                        + Math.round(at[1] + event.getY()) + (over ? ", over the bar" : ""));
+                return false;
+            case DragEvent.ACTION_DRAG_ENDED:
+                TaskbarDrop.hintAt(sDisplay, -1f);
+                ended(event.getResult());
+                catcher.post(ZuiBarDrop::removeCatcher);
+                return true;
+            default:
+                return true;
+        }
+    }
+
+    private static void removeCatcher() {
+        View catcher = sCatcher;
+        sCatcher = null;
+        if (catcher != null && catcher.getParent() instanceof android.view.ViewGroup) {
+            ((android.view.ViewGroup) catcher.getParent()).removeView(catcher);
+        }
     }
 
     /** ZUI's drag was let go on the bar and its app pinned. */
