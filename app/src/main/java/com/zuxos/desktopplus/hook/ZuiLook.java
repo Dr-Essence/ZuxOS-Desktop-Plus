@@ -45,7 +45,8 @@ public final class ZuiLook {
             }
             String zui = title.equals("Close") ? "recent_task_option_close"
                     : title.equals("New window") ? "new_window_option_taskbar"
-                    : title.equals("App info") ? "applications_settings" : null;
+                    : title.equals("App info") ? "applications_settings"
+                    : title.equals("Select") ? "listview_x_title_no_item_selected" : null;
             int id = zui == null ? 0 : ctx.getResources().getIdentifier(zui, "string",
                     ctx.getPackageName());
             return id != 0 ? ctx.getString(id) : title;

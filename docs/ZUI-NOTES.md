@@ -270,6 +270,15 @@ vendor power HAL's, not in these jars.
     drag with `simulatedDndStartPoint`, every later event to `onDragEvent`). ZUI's
     `PinToTaskbarShortcut` exists but its flag (`enablePinningAppWithContextMenu`) is compiled
     off.
+- **Selecting on the home screen (read 2026-10-12).** ZUI's edit mode (`LauncherState.EDIT_MODE`,
+  `PMRLauncher.getEditModePanel()` = `ZuiEditModePanel`) selects: a tap there goes to
+  `ZuiEditModeCustom.onItemClick` -> `switchSelectedState(view)` (home-screen apps and shortcuts,
+  `WorkspaceItemInfo` and app pairs only; check mark by `drawSelectedFlag`; 24 at most). A drag of
+  a selected icon carries every selected one (`MultiDragSupport.initSelectedViewAndDragView`,
+  from `LauncherDragController.startDrag`; drop slots by `MultiDragExt.getDropLocations`). It
+  can also make a folder of them (`combineFolderBySelectedIcons`) or remove them. ZUI has no
+  icon wiggle; Launcher3's nearest is the repeating reorder shake (`ReorderPreviewAnimation`,
+  mode 1, kept per icon in a map it is handed). The drawers have no selection.
 - **ZUI's bar overflow (read 2026-10-12).** Only in ZUI's desktop mode
   (`zui_ov_desktop_mode` = 1, `TaskbarView.B`): `updateRecents` counts hotseat plus recent apps
   plus one against `getMaxNumIconViews()` (field `v`, from the width left after the search box,

@@ -91,6 +91,8 @@ public final class Const {
     public static final String KEY_SHORTCUT_SHAPES = "shortcut_shapes";
     /** An app dragged out of ZUI's taskbar drawer and let go on the taskbar is pinned there. */
     public static final String KEY_BAR_DROP = "bar_drop";
+    /** Select in a home-screen app's menu: ZUI's edit mode, that app selected and shaking. */
+    public static final String KEY_HOME_SELECT = "home_select";
     /** Translucent glass behind the launcher's own app drawer. */
     public static final String KEY_DRAWER_GLASS = "native_drawer_glass";
     /** Hold an app in the stock drawer to drag it onto the desktop or the taskbar. */

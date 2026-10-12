@@ -18,6 +18,7 @@ import com.zuxos.desktopplus.hook.IconInfo;
 import com.zuxos.desktopplus.hook.ZuiLook;
 import com.zuxos.desktopplus.hook.ZuiShortcuts;
 import com.zuxos.desktopplus.hook.drawer.ZuiFolders;
+import com.zuxos.desktopplus.hook.home.HomeSelect;
 import com.zuxos.desktopplus.logic.PinList;
 import com.zuxos.desktopplus.model.Item;
 
@@ -40,8 +41,9 @@ import de.robv.android.xposed.XposedBridge;
  * Digital Wellbeing's - with ZUI's own icons in ZUI's shortcut colour ({@link ZuiShortcuts}).
  * Nothing of ZUI's menu is touched after it is built.
  *
- * <p>Ours: pin to the taskbar (or unpin), and for an app with a window on the tablet, a new window
- * and close. The monitor keeps its own menus.
+ * <p>Ours: Select on the home screen ({@link HomeSelect}, ZUI's edit mode), pin to the taskbar
+ * (or unpin), and for an app with a window on the tablet, a new window and close. The monitor
+ * keeps its own menus.
  */
 final class ZuiAppRows {
 
@@ -202,6 +204,12 @@ final class ZuiAppRows {
             // ZUI's shortcut colour as the popup itself resolves it - light or dark as the popup
             // is - for ZUI's icons of ours, some drawn in a fixed colour, and our one glyph.
             int colour = ZuiLook.shortcutIcon(((View) param.thisObject).getContext());
+            if (HomeSelect.selectable(target, info)) {
+                // First of ours, as One UI has it: several apps chosen to move together.
+                Row select = new Row("Select", "", () -> HomeSelect.select(target, icon));
+                all.add(ZuiShortcuts.make(ctx, select.title, iconFor(ctx, select, colour),
+                        select.action, target, info, icon));
+            }
             for (Row row : rowsFor(ctx, info, pkg, component)) {
                 all.add(ZuiShortcuts.make(ctx, row.title, iconFor(ctx, row, colour), row.action,
                         target, info, icon));

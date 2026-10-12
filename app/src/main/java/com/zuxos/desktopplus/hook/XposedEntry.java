@@ -8,6 +8,7 @@ import com.zuxos.desktopplus.hook.drawer.DrawerFromTop;
 import com.zuxos.desktopplus.hook.drawer.DrawerRetro;
 import com.zuxos.desktopplus.hook.drawer.NativeDrawerHooks;
 import com.zuxos.desktopplus.hook.home.ActivityWatcher;
+import com.zuxos.desktopplus.hook.home.HomeSelect;
 import com.zuxos.desktopplus.hook.home.HotseatButton;
 import com.zuxos.desktopplus.hook.home.PinRequestHooks;
 import com.zuxos.desktopplus.hook.home.SettingsRestart;
@@ -102,6 +103,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
                 TaskbarTray.install(lpparam.classLoader);
             }
             HotseatButton.install(lpparam.classLoader);
+            HomeSelect.install(lpparam.classLoader);
         } catch (Throwable t) {
             L.e("handleLoadPackage failed for " + lpparam.packageName, t);
         }

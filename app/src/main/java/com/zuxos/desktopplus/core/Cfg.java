@@ -494,6 +494,10 @@ public final class Cfg {
         return getBool(Const.KEY_BAR_DROP, true);
     }
 
+    public static boolean homeSelect() {
+        return getBool(Const.KEY_HOME_SELECT, true);
+    }
+
     public static boolean drawerGlass() {
         return getBool(Const.KEY_DRAWER_GLASS, true);
     }
