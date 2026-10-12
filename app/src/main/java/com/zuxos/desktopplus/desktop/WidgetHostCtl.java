@@ -143,6 +143,28 @@ public class WidgetHostCtl {
         }
     }
 
+    /**
+     * Whether a widget that cannot be shown now is gone for good: its provider is no longer on the
+     * device. Not when it is only out of reach for a moment - its app being updated, or the widget
+     * failing once as it was made - which deleted it for good.
+     */
+    public boolean providerGone(Item item) {
+        if (item.pkg == null || item.cls == null) {
+            // Saved before the provider was recorded: only the system's word is left.
+            return infoFor(item.widgetId) == null;
+        }
+        try {
+            mActivity.getPackageManager().getReceiverInfo(
+                    new android.content.ComponentName(item.pkg, item.cls),
+                    PackageManager.MATCH_DISABLED_COMPONENTS);
+            return false;
+        } catch (PackageManager.NameNotFoundException gone) {
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     public void updateSize(AppWidgetHostView view, int widthPx, int heightPx) {
         if (view == null) {
             return;

@@ -60,6 +60,8 @@ public final class StartAnimation {
 
     private static View sRoot;
     private static WindowManager sWm;
+    /** The display it is showing on, while it is. */
+    private static int sOn = -1;
 
     private StartAnimation() {
     }
@@ -165,6 +167,7 @@ public final class StartAnimation {
         }
         sRoot = root;
         sWm = wm;
+        sOn = displayId;
         L.i("start animation on display " + displayId + (retro ? " (Retro)" : ""));
 
         if (!moves) {
@@ -196,8 +199,19 @@ public final class StartAnimation {
         }, HOLD_MS + Motion.SHORT);
     }
 
+    /**
+     * This monitor's desktop has gone: its animation too, if it is the one showing. Another
+     * monitor's, still plugged in, plays on.
+     */
+    public static void dismissOn(int displayId) {
+        if (sOn == displayId) {
+            dismiss();
+        }
+    }
+
     /** Gone now: at its end, or with the monitor's desktop. */
     public static void dismiss() {
+        sOn = -1;
         View root = sRoot;
         WindowManager wm = sWm;
         sRoot = null;

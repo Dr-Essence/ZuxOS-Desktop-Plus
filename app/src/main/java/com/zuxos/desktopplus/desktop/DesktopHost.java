@@ -180,6 +180,18 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
         int gridPad = Ui.dp(activity, 8);
         mGrid.setPadding(gridPad, gridPad, gridPad, gridPad);
         mGridTransition = Anim.enableLayoutTransitions(mGrid);
+        // The grid's room changed - the tablet turned, the monitor's resolution, the bar's size,
+        // the cell size: laid out again. Left as they were, icons past the new edge were out of
+        // sight, and widgets kept the size they were made for.
+        mGrid.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (mBuiltCols > 0 && (mGrid.getCols() != mBuiltCols || mGrid.getRows() != mBuiltRows
+                    || mGrid.getCellWidth() != mBuiltCellW
+                    || mGrid.getCellHeight() != mBuiltCellH)) {
+                mBuiltCols = 0;
+                // Posted: building inside a layout pass would ask for another one.
+                mGrid.post(this::rebuildItems);
+            }
+        });
         mRoot.addView(mGrid, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
@@ -270,10 +282,25 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
         return null;
     }
 
-    /** The desktop currently on screen, for hooks with no activity of their own. */
+    /**
+     * The desktop currently on screen, for hooks with no activity of their own: the last one to
+     * attach, or - that one gone, another still up - a monitor's, else the tablet's. Null with
+     * none: then a pinned shortcut is written to the layout file, which a desktop still up on it
+     * would write over with its own copy.
+     */
     public static synchronized DesktopHost current() {
         DesktopHost host = sCurrent.get();
-        return host != null && ACTIVE.containsValue(host) ? host : null;
+        if (host != null && ACTIVE.containsValue(host)) {
+            return host;
+        }
+        DesktopHost any = null;
+        for (DesktopHost other : ACTIVE.values()) {
+            if (other.mExternal) {
+                return other;
+            }
+            any = other;
+        }
+        return any;
     }
 
     /**
@@ -415,8 +442,8 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
         }
         DisplayTimeline.note("desktop detached from display " + host.mDisplayId);
         if (host.mExternal) {
-            NotifyPopup.dismissAll();
-            StartAnimation.dismiss();
+            NotifyPopup.dismissOn(host.mDisplayId);
+            StartAnimation.dismissOn(host.mDisplayId);
         }
         try {
             host.mRepo.stopWatching();
@@ -431,11 +458,45 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
         }
     }
 
+    /**
+     * Every desktop's layout and the drawer written out, and waited for: for a restart the
+     * launcher makes itself, which would otherwise take a change of the last moment with it - a
+     * folder being renamed, a save still queued.
+     */
+    public static void saveAllNow() {
+        List<DesktopHost> hosts;
+        synchronized (DesktopHost.class) {
+            hosts = new ArrayList<>(ACTIVE.values());
+        }
+        for (DesktopHost host : hosts) {
+            try {
+                host.mStore.save();
+            } catch (Throwable t) {
+                L.w("desktop: layout not saved before the restart (" + t + ")");
+            }
+        }
+        if (!hosts.isEmpty()) {
+            hosts.get(0).mDrawerStore.save();
+        }
+        Storage.flush();
+    }
+
     public void onResume() {
         mWidgets.start();
         clearTaskbar();
         Cfg.reload();
         boolean appsChanged = mRepo.reloadIfStale();
+        java.util.Locale locale = java.util.Locale.getDefault();
+        if (!appsChanged && !locale.equals(mLocale)) {
+            // The language changed: no app did, so nothing told the list, and every name in the
+            // drawer and the pickers stayed in the old one.
+            mRepo.reload();
+            appsChanged = true;
+        }
+        mLocale = locale;
+        if (appsChanged) {
+            forgetUninstalled();
+        }
         long signature = configSignature();
         // Resuming is not a reason to tear the desktop down: rebuild only when the apps or the
         // settings actually moved, otherwise the existing views (and widgets) stay as they are.
@@ -444,6 +505,64 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
             rebuildItems();
         }
     }
+
+    /**
+     * Takes the apps uninstalled meanwhile off the desktop and out of folders, as any launcher
+     * does: left, each stayed as a grey square that opened nothing. Only on a real uninstall,
+     * and only when the app is not there now - not while it is being updated, nor for an app of
+     * a work profile that is only switched off.
+     */
+    private void forgetUninstalled() {
+        java.util.Set<String> removed = mRepo.takeRemoved();
+        if (removed.isEmpty()) {
+            return;
+        }
+        boolean desktop = false;
+        for (Item item : new ArrayList<>(mStore.items())) {
+            if (item.type == Item.TYPE_FOLDER) {
+                if (dropUninstalled(item.children, removed)) {
+                    desktop = true;
+                    dissolveIfEmpty(item);
+                }
+            } else if (item.type != Item.TYPE_WIDGET && gone(item, removed)) {
+                mStore.remove(item);
+                desktop = true;
+            }
+        }
+        boolean drawer = false;
+        for (Item folder : new ArrayList<>(mDrawerStore.folders())) {
+            if (dropUninstalled(folder.children, removed)) {
+                drawer = true;
+                dissolveIfEmpty(folder);
+            }
+        }
+        if (desktop) {
+            save();
+            L.i("desktop: took off what was uninstalled (" + removed + ")");
+        }
+        if (drawer) {
+            mDrawerStore.save();
+        }
+    }
+
+    private boolean dropUninstalled(List<Item> items, java.util.Set<String> removed) {
+        boolean any = false;
+        for (java.util.Iterator<Item> it = items.iterator(); it.hasNext(); ) {
+            if (gone(it.next(), removed)) {
+                it.remove();
+                any = true;
+            }
+        }
+        return any;
+    }
+
+    private boolean gone(Item item, java.util.Set<String> removed) {
+        return item.pkg != null && removed.contains(item.pkg)
+                && !mRepo.installed(item.pkg, mRepo.userFor(item.userSerial));
+    }
+
+    /** The language the apps' names were read in. */
+    private java.util.Locale mLocale = java.util.Locale.getDefault();
 
     /** Changes to any of these mean the desktop has to be laid out again. */
     private long configSignature() {
@@ -681,8 +800,8 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
         if (glp.topMargin != over.top || glp.bottomMargin != over.bottom) {
             glp.topMargin = over.top;
             glp.bottomMargin = over.bottom;
+            // Laid out again by the grid's own listener once its room has changed.
             mGrid.setLayoutParams(glp);
-            mGrid.post(this::rebuildItems);
         }
         Insets reserved = BarEdge.reserved(mDisplayId);
         FrameLayout.LayoutParams tlp = (FrameLayout.LayoutParams) mTrash.getLayoutParams();
@@ -754,9 +873,13 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
         if (page < 0) {
             return;
         }
-        Item item = payload.source == DragPayload.SRC_DRAWER
-                ? copyForDesktop(payload.item) : payload.item;
-        if (payload.source == DragPayload.SRC_FOLDER && payload.folder != null) {
+        boolean copy = payload.source == DragPayload.SRC_DRAWER || foreign(payload);
+        if (copy && payload.item.type == Item.TYPE_WIDGET) {
+            toast("A widget stays on its own screen");
+            return;
+        }
+        Item item = copy ? copyForDesktop(payload.item) : payload.item;
+        if (!copy && payload.source == DragPayload.SRC_FOLDER && payload.folder != null) {
             payload.folder.children.remove(item);
             dissolveIfEmpty(payload.folder);
         }
@@ -891,6 +1014,11 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
 
     /** A rebuild is waiting for the grid's first layout. */
     private boolean mRebuildWaiting;
+    /** The grid the items were last placed on; 0 before the first time. */
+    private int mBuiltCols;
+    private int mBuiltRows;
+    private int mBuiltCellW;
+    private int mBuiltCellH;
 
     /** Rebuilds every desktop view from the store; safe to call at any time. */
     public void rebuildItems() {
@@ -926,10 +1054,11 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
             mGrid.removeAllViews();
             boolean paged = Cfg.pages();
             List<Item> dead = new ArrayList<>();
-            for (Item item : mStore.items()) {
-                if (paged && item.page != mPage) {
-                    continue;
-                }
+            mBuiltCols = mGrid.getCols();
+            mBuiltRows = mGrid.getRows();
+            mBuiltCellW = mGrid.getCellWidth();
+            mBuiltCellH = mGrid.getCellHeight();
+            for (Item item : byRoom(mStore.items(), paged)) {
                 if (!addItemView(item)) {
                     dead.add(item);
                 }
@@ -983,9 +1112,11 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
             // what a launcher restart does - so it gets a fresh view rather than a resize.
             AppWidgetHostView view = mWidgets.createView(item);
             if (view == null) {
-                if (SystemClock.uptimeMillis() < WIDGETS_SETTLE_MS) {
-                    // Just after boot a widget's provider may not be known yet: left out of this
-                    // pass and kept, rather than deleted for good over a moment's wait.
+                if (SystemClock.uptimeMillis() < WIDGETS_SETTLE_MS
+                        || !mWidgets.providerGone(item)) {
+                    // Just after boot a widget's provider may not be known yet, and an app being
+                    // updated has none for a moment: left out of this pass and kept, rather than
+                    // deleted for good over a moment's wait.
                     L.d("widget " + item.widgetId + " not ready yet, kept for the next rebuild");
                     return true;
                 }
@@ -1036,10 +1167,51 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
         return true;
     }
 
+    /**
+     * This page's items in the order they are placed: those at their own place first, then those
+     * going back to theirs, then the ones that need a free cell - so none takes a cell another
+     * still has a right to.
+     */
+    private List<Item> byRoom(List<Item> items, boolean paged) {
+        List<Item> placed = new ArrayList<>();
+        List<Item> returning = new ArrayList<>();
+        List<Item> rest = new ArrayList<>();
+        for (Item item : items) {
+            if (paged && item.page != mPage) {
+                continue;
+            }
+            if (item.displaced()) {
+                (fits(item, item.homeX(), item.homeY()) ? returning : rest).add(item);
+            } else {
+                (fits(item, item.x, item.y) ? placed : rest).add(item);
+            }
+        }
+        placed.addAll(returning);
+        placed.addAll(rest);
+        return placed;
+    }
+
+    private boolean fits(Item item, int x, int y) {
+        int cols = Math.max(1, mGrid.getCols());
+        int rows = Math.max(1, mGrid.getRows());
+        return x >= 0 && y >= 0 && x + Math.min(item.spanX, cols) <= cols
+                && y + Math.min(item.spanY, rows) <= rows;
+    }
+
     private void place(View view, Item item) {
         int spanX = Math.min(item.spanX, Math.max(1, mGrid.getCols()));
         int spanY = Math.min(item.spanY, Math.max(1, mGrid.getRows()));
+        if (item.displaced()
+                && mGrid.isFree(item.homeX(), item.homeY(), spanX, spanY, null)) {
+            // The room is back: home again.
+            item.goHome();
+        }
         if (item.x < 0 || item.y < 0 || !mGrid.isFree(item.x, item.y, spanX, spanY, null)) {
+            // Past the grid's edge - a smaller screen, the tablet turned - it is only shown
+            // elsewhere and keeps its place for when the room comes back; a new item, or one
+            // whose cell is taken, simply gets the free one.
+            boolean away = item.displaced() || (item.x >= 0 && item.y >= 0
+                    && !fits(item, item.x, item.y));
             int[] free = item.x < 0
                     ? mGrid.findFreeCell(spanX, spanY, null)
                     : mGrid.findNearestFreeCell(item.x, item.y, spanX, spanY, null);
@@ -1047,8 +1219,12 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
                 L.w("no room on the desktop for " + item.key());
                 free = new int[]{0, 0};
             }
-            item.x = free[0];
-            item.y = free[1];
+            if (away) {
+                item.showAt(free[0], free[1]);
+            } else {
+                item.x = free[0];
+                item.y = free[1];
+            }
         }
         mGrid.addItemView(view, item.x, item.y, spanX, spanY);
     }
@@ -1136,6 +1312,20 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
     @Override
     public void onDropOnCell(DragPayload payload, int cellX, int cellY) {
         try {
+            if (foreign(payload)) {
+                if (payload.item.type == Item.TYPE_WIDGET) {
+                    toast("A widget stays on its own screen");
+                    return;
+                }
+                // From the other screen's desktop: a copy here, that one keeps its own.
+                Item copy = adopt(copyForDesktop(payload.item));
+                copy.x = cellX;
+                copy.y = cellY;
+                mStore.add(copy);
+                addItemView(copy);
+                save();
+                return;
+            }
             switch (payload.source) {
                 case DragPayload.SRC_DRAWER: {
                     boolean first = true;
@@ -1198,16 +1388,15 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
             return;
         }
         try {
-            Item dragged = payload.source == DragPayload.SRC_DRAWER
-                    ? copyForDesktop(payload.item) : payload.item;
-            if (payload.source == DragPayload.SRC_FOLDER && payload.folder != null) {
-                payload.folder.children.remove(dragged);
+            // From the drawer, or from the other screen's desktop: copies, the originals stay.
+            boolean copies = payload.source == DragPayload.SRC_DRAWER || foreign(payload);
+            if (!copies && payload.source == DragPayload.SRC_FOLDER && payload.folder != null) {
+                payload.folder.children.remove(payload.item);
                 dissolveIfEmpty(payload.folder);
             }
             if (target.type == Item.TYPE_FOLDER) {
                 for (Item one : payload.items()) {
-                    Item copy = payload.source == DragPayload.SRC_DRAWER
-                            ? copyForDesktop(one) : one;
+                    Item copy = copies ? copyForDesktop(one) : one;
                     mStore.remove(copy);
                     target.children.add(copy);
                 }
@@ -1219,8 +1408,7 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
                 folder.children.add(target);
                 mStore.remove(target);
                 for (Item one : payload.items()) {
-                    Item copy = payload.source == DragPayload.SRC_DRAWER
-                            ? copyForDesktop(one) : one;
+                    Item copy = copies ? copyForDesktop(one) : one;
                     mStore.remove(copy);
                     folder.children.add(copy);
                 }
@@ -1254,6 +1442,10 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
     }
 
     private void removeItem(DragPayload payload) {
+        if (foreign(payload)) {
+            // The other screen's: not this desktop's to take away - nor its widget to delete.
+            return;
+        }
         try {
             if (payload.source == DragPayload.SRC_FOLDER && payload.folder != null) {
                 payload.folder.children.remove(payload.item);
@@ -1268,6 +1460,23 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
             rebuildItems();
         } catch (Throwable t) {
             L.e("remove failed", t);
+        }
+    }
+
+    /**
+     * Whether a drag came from the other screen's desktop - with the tablet's and the monitor's
+     * both up, one process holds both - rather than from this one. Its item is that desktop's:
+     * moved here as it is, it was in both layouts at once and saved in neither as it showed.
+     */
+    private boolean foreign(DragPayload payload) {
+        switch (payload.source) {
+            case DragPayload.SRC_DESKTOP:
+                return !mStore.items().contains(payload.item);
+            case DragPayload.SRC_FOLDER:
+                return payload.folder == null || !(mStore.items().contains(payload.folder)
+                        || inDrawer(payload.folder));
+            default:
+                return false;
         }
     }
 
@@ -1465,8 +1674,8 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
                 "Grid cell size", "dp", override(mActivity, Const.KEY_CELL_SIZE, Cfg.cellSizeDp()),
                 72, 180, value -> {
                     writeSetting(Const.KEY_CELL_SIZE, value);
+                    // Laid out again by the grid's own listener.
                     mGrid.setPreferredCellPx(Ui.dp(mActivity, value));
-                    mGrid.post(this::rebuildItems);
                 })));
         entries.add(new Menus.Entry("Export layout + launcher info", this::exportDiagnostics));
         entries.add(new Menus.Entry("Module settings", this::openModuleSettings));
@@ -1531,6 +1740,7 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
             }
             item.x = index % cols;
             item.y = index / cols;
+            item.stay();
             index++;
         }
         save();

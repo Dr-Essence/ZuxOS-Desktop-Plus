@@ -69,6 +69,8 @@ public final class AppsRepo {
     private LauncherApps.Callback mCallback;
     private volatile boolean mStale = true;
     private volatile boolean mWatching;
+    /** Packages uninstalled since last asked; main thread, where the callback comes. */
+    private final java.util.Set<String> mRemoved = new java.util.HashSet<>();
 
     public AppsRepo(Context ctx) {
         mCtx = ctx;
@@ -98,7 +100,9 @@ public final class AppsRepo {
         mCallback = new LauncherApps.Callback() {
             @Override
             public void onPackageRemoved(String packageName, UserHandle user) {
+                // Uninstalled: an update replacing the app does not come here.
                 mStale = true;
+                mRemoved.add(packageName);
             }
 
             @Override
@@ -130,6 +134,22 @@ public final class AppsRepo {
             L.d("could not watch for app changes: " + t);
             mCallback = null;
             mWatching = false;
+        }
+    }
+
+    /** The packages uninstalled since the last time this was asked, emptied by asking. */
+    public java.util.Set<String> takeRemoved() {
+        java.util.Set<String> removed = new java.util.HashSet<>(mRemoved);
+        mRemoved.clear();
+        return removed;
+    }
+
+    /** Whether a package is installed and usable for this user; true when it cannot be told. */
+    public boolean installed(String pkg, UserHandle user) {
+        try {
+            return mLauncherApps == null || mLauncherApps.isPackageEnabled(pkg, user);
+        } catch (Throwable t) {
+            return true;
         }
     }
 

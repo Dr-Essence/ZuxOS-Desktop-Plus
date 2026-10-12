@@ -91,7 +91,8 @@ public final class DrawerStore {
         mOrder.clear();
         mFolders.clear();
         mHidden.clear();
-        String raw = Storage.read(Storage.file(mCtx, Const.FILE_DRAWER));
+        java.io.File file = Storage.file(mCtx, Const.FILE_DRAWER);
+        String raw = Storage.read(file);
         if (raw == null) {
             return;
         }
@@ -106,7 +107,12 @@ public final class DrawerStore {
             JSONArray folders = root.optJSONArray("folders");
             if (folders != null) {
                 for (int i = 0; i < folders.length(); i++) {
-                    mFolders.add(Item.fromJson(folders.getJSONObject(i)));
+                    // One folder that cannot be read is left out, not the whole drawer with it.
+                    try {
+                        mFolders.add(Item.fromJson(folders.getJSONObject(i)));
+                    } catch (Throwable bad) {
+                        L.w("drawer: folder " + i + " unreadable, left out (" + bad + ")");
+                    }
                 }
             }
             JSONArray hidden = root.optJSONArray("hidden");
@@ -116,7 +122,10 @@ public final class DrawerStore {
                 }
             }
         } catch (Throwable t) {
-            L.e("drawer state is corrupt, starting empty", t);
+            // The next save writes over it: what is there is kept aside first.
+            Storage.keepAside(file);
+            L.e("drawer state is corrupt, starting empty; the old file kept as "
+                    + file.getName() + ".bad", t);
         }
     }
 

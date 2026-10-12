@@ -50,6 +50,32 @@ public final class Storage {
         }
     }
 
+    /**
+     * A copy of a file that could not be read, beside it as {@code <name>.bad}, before the next
+     * save writes over it: a layout lost to one bad byte can still be mended by hand.
+     */
+    public static void keepAside(File f) {
+        String content = read(f);
+        if (content != null) {
+            write(new File(f.getParentFile(), f.getName() + ".bad"), content);
+        }
+    }
+
+    /**
+     * Waits, briefly, for every write already queued - before the process ends on purpose, so a
+     * change made a moment before is not lost with it.
+     */
+    public static void flush() {
+        if (Thread.currentThread().getName().equals(IO_THREAD)) {
+            return;
+        }
+        try {
+            IO.submit(() -> { }).get(1, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (Throwable t) {
+            L.w("storage: queued writes not confirmed before the restart (" + t + ")");
+        }
+    }
+
     public static File dir(Context ctx) {
         File d = new File(ctx.getFilesDir(), Const.DATA_DIR);
         if (!d.exists() && !d.mkdirs()) {

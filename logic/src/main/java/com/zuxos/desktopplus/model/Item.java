@@ -38,6 +38,61 @@ public class Item {
     public int widgetId = -1;
     public final List<Item> children = new ArrayList<>();
 
+    /**
+     * Its own place while a grid too small for it - a rotated tablet, a smaller monitor - shows
+     * it elsewhere ({@link #showAt}); -1 when it is where it belongs. Never a place of its own:
+     * this is what is saved meanwhile, so the room coming back brings the item back.
+     */
+    private int mHomeX = -1;
+    private int mHomeY = -1;
+    /** Where it is shown meanwhile. Moved from there, by the user, that is its place from then. */
+    private int mShownX = -1;
+    private int mShownY = -1;
+
+    /** Shown at another cell for lack of room, keeping its own place to go back to. */
+    public void showAt(int cellX, int cellY) {
+        if (!displaced()) {
+            mHomeX = x;
+            mHomeY = y;
+        }
+        x = cellX;
+        y = cellY;
+        mShownX = cellX;
+        mShownY = cellY;
+    }
+
+    /** Shown away from its own place, and not moved since. */
+    public boolean displaced() {
+        if (mHomeX >= 0 && (x != mShownX || y != mShownY)) {
+            // Moved by the user while away: where it went is its place now.
+            mHomeX = mHomeY = mShownX = mShownY = -1;
+        }
+        return mHomeX >= 0;
+    }
+
+    /** Its own place while {@link #displaced}. */
+    public int homeX() {
+        return displaced() ? mHomeX : x;
+    }
+
+    public int homeY() {
+        return displaced() ? mHomeY : y;
+    }
+
+    /** Put where it is now on purpose - tidied up, say: that is its own place from now on. */
+    public void stay() {
+        mHomeX = mHomeY = mShownX = mShownY = -1;
+    }
+
+    /** Back at its own place. */
+    public void goHome() {
+        if (displaced()) {
+            x = mHomeX;
+            y = mHomeY;
+        }
+        mHomeX = mHomeY = mShownX = mShownY = -1;
+    }
+
     public static Item app(String pkg, String cls, long userSerial, String label) {
         Item i = new Item();
         i.type = TYPE_APP;
@@ -103,8 +158,9 @@ public class Item {
         JSONObject o = new JSONObject();
         o.put("id", id);
         o.put("type", type);
-        o.put("x", x);
-        o.put("y", y);
+        // Its own place, not where a small grid shows it for now.
+        o.put("x", homeX());
+        o.put("y", homeY());
         o.put("spanX", spanX);
         o.put("spanY", spanY);
         o.put("page", page);

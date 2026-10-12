@@ -81,12 +81,21 @@ public final class DesktopStore {
             JSONArray arr = root.optJSONArray("items");
             if (arr != null) {
                 for (int i = 0; i < arr.length(); i++) {
-                    mItems.add(Item.fromJson(arr.getJSONObject(i)));
+                    // One item that cannot be read is left out, not the whole desktop with it.
+                    try {
+                        mItems.add(Item.fromJson(arr.getJSONObject(i)));
+                    } catch (Throwable bad) {
+                        L.w("desktop: item " + i + " of " + mFileName + " unreadable, left out ("
+                                + bad + ")");
+                    }
                 }
             }
             L.d("loaded " + mItems.size() + " desktop items");
         } catch (Throwable t) {
-            L.e("desktop layout is corrupt, starting empty", t);
+            // The next save writes over it: what is there is kept aside first.
+            Storage.keepAside(f);
+            L.e("desktop layout is corrupt, starting empty; the old file kept as "
+                    + f.getName() + ".bad", t);
             mItems.clear();
         }
     }

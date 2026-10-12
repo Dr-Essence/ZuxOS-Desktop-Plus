@@ -162,8 +162,18 @@ public final class NotifyPopup {
         return sStack;
     }
 
-    /** All cards away at once: the monitor's desktop has gone. */
-    public static void dismissAll() {
+    /**
+     * This monitor's desktop has gone: its cards with it. Cards on another monitor, still up,
+     * stay.
+     */
+    public static void dismissOn(int display) {
+        if (sDisplay == display || sDisplay == -1) {
+            dismissAll();
+        }
+    }
+
+    /** All cards away at once. */
+    private static void dismissAll() {
         for (Card card : new ArrayList<>(CARDS.values())) {
             MAIN.removeCallbacks(card.hide);
         }

@@ -10,6 +10,7 @@ import android.view.ViewGroup;
 
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
+import com.zuxos.desktopplus.desktop.DesktopHost;
 
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -120,7 +121,13 @@ final class TaskbarRecovery {
                 + "s after boot) - restarting the launcher so it builds the bar for the monitor");
         // Written synchronously: the process is about to go.
         prefs.edit().putLong(KEY_AT, wall).commit();
-        new Handler(Looper.getMainLooper()).postDelayed(
-                () -> android.os.Process.killProcess(android.os.Process.myPid()), 1500L);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            try {
+                DesktopHost.saveAllNow();
+            } catch (Throwable t) {
+                L.w("taskbar recovery: layouts not saved first (" + t + ")");
+            }
+            android.os.Process.killProcess(android.os.Process.myPid());
+        }, 1500L);
     }
 }

@@ -9,6 +9,7 @@ import android.os.Build;
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.Const;
 import com.zuxos.desktopplus.core.L;
+import com.zuxos.desktopplus.desktop.DesktopHost;
 
 /**
  * The launcher taking a changed setting with nobody force-stopping it: at once where it can, by
@@ -85,6 +86,7 @@ public final class SettingsRestart {
                     + "them");
             // Coming back for a setting is no new connect: no start animation as it does.
             StartAnimation.skipNext(ctx);
+            DesktopHost.saveAllNow();
             android.os.Process.killProcess(android.os.Process.myPid());
         } catch (Throwable t) {
             L.w("settings: could not restart for the change (" + t + ")");
