@@ -184,12 +184,18 @@ public final class ZuiFolders {
      * they fall back to ZUI's own {@code getAnimatorZui}, which asks where the folder is at each
      * step - and to no motion rather than a crash (01:32) should that fail too.
      *
-     * <p>The home motion scales the folder's apps by the home screen's workspace
-     * ({@code Workspace.getNewScaleFolder()}, about 0.89 while the drawer is up), and only a
-     * folder whose own context is the {@code Launcher} is scaled to match when it ends. Ours, in
-     * the drawer's window, ended at 1.0, so its apps grew with the panel to 0.89 and then
-     * snapped to full size (23:05). While ZUI builds the motion for one of ours, the home
-     * screen's scale reads 1.0: the scale ZUI ends a folder off the home screen at.
+     * <p>One motion for every folder of ours, in either drawer, whatever the home screen is
+     * doing. While ZUI builds it ({@link #sBuilding}):
+     * <ul>
+     *   <li>the home screen's folder scale ({@code Workspace.getNewScaleFolder()}, about 0.89
+     *       while a drawer is up) reads 1.0. ZUI animates the apps to that scale and then shows the
+     *       real ones at full size, so they grew and then snapped - in the taskbar's drawer
+     *       (23:05) and, left out of that fix, in ZUX Home's own (15:52, the Add apps button and
+     *       every icon's backing appearing in the last frame);</li>
+     *   <li>Recents reads as not showing ({@code Launcher.isInOverViewState()}). ZUI leaves the
+     *       Add apps button out of the motion while it shows, and the button then popped in after
+     *       the folder had opened, when the drawer was opened from Recents (15:52).</li>
+     * </ul>
      */
     private static int hookAnimator(ClassLoader loader, Class<?> folderCls) {
         Class<?> manager = Reflect.findClass(FOLDER + "AnimationManager", loader);
@@ -219,13 +225,13 @@ public final class ZuiFolders {
                 try {
                     Object folder = ofFolder.get(param.thisObject);
                     Object where = folder == null ? null : sFolderActivity.get(folder);
-                    if (!isOurs(folder) || isLauncher(where) || bar.isInstance(where)) {
+                    if (!isOurs(folder) || bar.isInstance(where)) {
                         return;
                     }
-                    if (launcher() != null) {
+                    if (isLauncher(where) || launcher() != null) {
                         // With ZUI's Launcher at hand our folders take its home motion, at the
-                        // scale they end at.
-                        sUnscaled = hooked > 0;
+                        // scale they end at, the same in both drawers.
+                        sBuilding = true;
                         return;
                     }
                     try {
@@ -242,15 +248,18 @@ public final class ZuiFolders {
 
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
-                sUnscaled = false;
+                sBuilding = false;
             }
         }).size();
     }
 
     /** Set on the main thread while ZUI builds the home motion for one of our folders. */
-    private static boolean sUnscaled;
+    private static boolean sBuilding;
 
-    /** The home screen's folder scale read as 1.0 while {@link #sUnscaled}; see hookAnimator. */
+    /**
+     * While {@link #sBuilding}: the home screen's folder scale reads 1.0 and Recents as not
+     * showing; see hookAnimator.
+     */
     private static int hookHomeScale(ClassLoader loader) {
         try {
             Class<?> workspace = Reflect.findClass("com.android.launcher3.Workspace", loader);
@@ -258,7 +267,7 @@ public final class ZuiFolders {
                     "getNewScaleFolder", new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            if (sUnscaled && param.getResult() instanceof Float) {
+                            if (sBuilding && param.getResult() instanceof Float) {
                                 param.setResult(1f);
                             }
                         }
@@ -266,6 +275,20 @@ public final class ZuiFolders {
             if (hooked == 0) {
                 L.w("zui folders: the home screen's folder scale not found - drawer folder apps "
                         + "snap to size as they open");
+            }
+            Class<?> launcher = Reflect.findClass(LAUNCHER, loader);
+            int overview = launcher == null ? 0 : XposedBridge.hookAllMethods(launcher,
+                    "isInOverViewState", new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            if (sBuilding) {
+                                param.setResult(Boolean.FALSE);
+                            }
+                        }
+                    }).size();
+            if (overview == 0) {
+                L.w("zui folders: Recents' state not found - over Recents, Add apps pops in "
+                        + "after our folders open");
             }
             return hooked;
         } catch (Throwable t) {
