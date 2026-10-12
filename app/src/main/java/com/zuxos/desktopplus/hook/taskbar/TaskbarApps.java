@@ -221,6 +221,7 @@ public final class TaskbarApps {
         }
         Health.hooked("taskbar: icon menu", hooked, Cfg::taskbarAppMenu);
         ZuiAppRows.install(loader);
+        ShortcutGlyphs.install(loader);
         L.i("taskbar apps: icon menu installed x" + hooked);
         if (hooked == 0) {
             L.w("taskbar apps: nothing to hook for the icon menu - holding an icon will do "

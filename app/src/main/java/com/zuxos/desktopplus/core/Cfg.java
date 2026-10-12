@@ -486,6 +486,10 @@ public final class Cfg {
         return getBool(Const.KEY_TASKBAR_APP_MENU, true);
     }
 
+    public static boolean shortcutGlyphs() {
+        return getBool(Const.KEY_SHORTCUT_GLYPHS, true);
+    }
+
     public static boolean drawerGlass() {
         return getBool(Const.KEY_DRAWER_GLASS, true);
     }

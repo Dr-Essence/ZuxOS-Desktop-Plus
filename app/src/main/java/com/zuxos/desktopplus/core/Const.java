@@ -87,6 +87,8 @@ public final class Const {
     public static final String KEY_TASKBAR_RUNNING_ONLY = "taskbar_running_only";
     /** Hold a taskbar icon for open, close, app info and the app's own shortcuts. */
     public static final String KEY_TASKBAR_APP_MENU = "taskbar_app_menu";
+    /** An app's own shortcuts in ZUI's app menu drawn like ZUI's own menu icons. */
+    public static final String KEY_SHORTCUT_GLYPHS = "shortcut_glyphs";
     /** Translucent glass behind the launcher's own app drawer. */
     public static final String KEY_DRAWER_GLASS = "native_drawer_glass";
     /** Hold an app in the stock drawer to drag it onto the desktop or the taskbar. */
