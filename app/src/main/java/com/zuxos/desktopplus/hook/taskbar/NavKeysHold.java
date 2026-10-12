@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
+import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.Health;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
@@ -19,7 +20,8 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * Keeps the tablet bar's navigation keys at the end of the bar.
+ * Keeps the tablet bar's navigation keys at the end of the bar, flush with its edge while ZUI
+ * has nothing to show beside them.
  *
  * <p>With desktop windows showing, Launcher3 lays the keys out at the start of the tablet's bar
  * instead of the end - its desktop-windowing layout - and back again when they go. Our start
@@ -250,8 +252,61 @@ final class NavKeysHold {
         if (side != end(keys)) {
             layout = layout.toEnd();
         }
+        // ZUI's own margin at the bar's edge, kept: ours may be 0 while its place is free.
+        int edge = layout.edge(keys);
+        if (edge > 0) {
+            ZUI_EDGE.put(keys, edge);
+        } else if (ZUI_EDGE.containsKey(keys)) {
+            layout.setEdge(keys, ZUI_EDGE.get(keys));
+        }
         IN_APP.put(keys, layout);
         sAtEnd = layout;
+    }
+
+    /** Per keys container: the margin ZUI keeps between them and the bar's right edge. */
+    private static final Map<View, Integer> ZUI_EDGE = new WeakHashMap<>();
+
+    /**
+     * Whether the room ZUI keeps at the bar's right edge is empty: its contextual buttons there
+     * ({@code zui_contextual_container}, {@code end_contextual_buttons} - the accessibility
+     * button) show nothing. ZUI's layoutter keeps it either way
+     * ({@code inlineNavButtonsEndSpacing}); the keys then stopped short of the edge (owner).
+     */
+    private static boolean edgeFree(View keys) {
+        if (!Cfg.navKeysEdge() || !(keys.getParent() instanceof ViewGroup)) {
+            return false;
+        }
+        if (sRoomIds == null) {
+            // Looked up once: this is asked before frames are drawn.
+            android.content.res.Resources res = keys.getResources();
+            String pkg = keys.getContext().getPackageName();
+            sRoomIds = new int[]{res.getIdentifier("zui_contextual_container", "id", pkg),
+                    res.getIdentifier("end_contextual_buttons", "id", pkg)};
+        }
+        ViewGroup bar = (ViewGroup) keys.getParent();
+        for (int id : sRoomIds) {
+            View container = id == 0 ? null : bar.findViewById(id);
+            if (container != null && showsAnything(container)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** ZUI's contextual buttons that live in the room at the edge, by id. */
+    private static int[] sRoomIds;
+
+    private static boolean showsAnything(View container) {
+        if (container.getVisibility() != View.VISIBLE || !(container instanceof ViewGroup)) {
+            return false;
+        }
+        ViewGroup group = (ViewGroup) container;
+        for (int i = 0; i < group.getChildCount(); i++) {
+            if (group.getChildAt(i).getVisibility() == View.VISIBLE) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -270,6 +325,11 @@ final class NavKeysHold {
             target = any != null && any.kidWidths.length == group.getChildCount() ? any
                     : Layout.guessed(group);
         }
+        // Flush with the bar's right edge while ZUI has nothing to show there, its own margin
+        // back as soon as it does.
+        target = target.copy();
+        Integer zui = ZUI_EDGE.get(keys);
+        target.setEdge(keys, edgeFree(keys) ? 0 : zui != null ? zui : target.edge(keys));
         boolean changed = target.applyTo(group);
         if (changed && sHomeSaid < 6) {
             sHomeSaid++;
@@ -290,6 +350,35 @@ final class NavKeysHold {
         int[] kidWidths;
         int[] kidStarts;
         int[] kidEnds;
+
+        Layout copy() {
+            Layout l = new Layout();
+            l.gravity = gravity;
+            l.width = width;
+            l.marginStart = marginStart;
+            l.marginEnd = marginEnd;
+            l.kidWidths = kidWidths.clone();
+            l.kidStarts = kidStarts.clone();
+            l.kidEnds = kidEnds.clone();
+            return l;
+        }
+
+        /**
+         * The margin toward the bar's right edge, where the keys sit: ZUI lays them out right
+         * to left, so that is their start.
+         */
+        int edge(View keys) {
+            return keys.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL ? marginStart
+                    : marginEnd;
+        }
+
+        void setEdge(View keys, int margin) {
+            if (keys.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL) {
+                marginStart = margin;
+            } else {
+                marginEnd = margin;
+            }
+        }
 
         /** The same layout at the other side: gravity and margins mirrored. */
         Layout toEnd() {

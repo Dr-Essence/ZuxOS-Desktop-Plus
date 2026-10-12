@@ -189,6 +189,10 @@ public class MainActivity extends Activity {
                 "Select in a home-screen app's menu opens ZUI's edit mode with that app selected: "
                         + "tap others to add them, then drag them together. Selected apps shake",
                 Const.KEY_HOME_SELECT, true);
+        addSwitch("Navigation keys at the bar's right edge",
+                "On the tablet the back, home and recents keys sit flush with the bar's right "
+                        + "edge; ZUI's room there comes back while it has a button to show in it",
+                Const.KEY_NAV_KEYS_EDGE, true);
         addSwitch("Keep the launcher's recents off the taskbar",
                 "With \"Only open apps\" on, the launcher's own recent and recommended apps are "
                         + "never added to the taskbar - not even for a moment when an app opens "

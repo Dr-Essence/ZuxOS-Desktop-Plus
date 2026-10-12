@@ -498,6 +498,10 @@ public final class Cfg {
         return getBool(Const.KEY_HOME_SELECT, true);
     }
 
+    public static boolean navKeysEdge() {
+        return getBool(Const.KEY_NAV_KEYS_EDGE, true);
+    }
+
     public static boolean drawerGlass() {
         return getBool(Const.KEY_DRAWER_GLASS, true);
     }

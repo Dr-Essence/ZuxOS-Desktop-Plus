@@ -93,6 +93,8 @@ public final class Const {
     public static final String KEY_BAR_DROP = "bar_drop";
     /** Select in a home-screen app's menu: ZUI's edit mode, that app selected and shaking. */
     public static final String KEY_HOME_SELECT = "home_select";
+    /** The tablet bar's navigation keys flush with its right edge while nothing shows there. */
+    public static final String KEY_NAV_KEYS_EDGE = "nav_keys_edge";
     /** Translucent glass behind the launcher's own app drawer. */
     public static final String KEY_DRAWER_GLASS = "native_drawer_glass";
     /** Hold an app in the stock drawer to drag it onto the desktop or the taskbar. */
