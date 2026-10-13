@@ -270,6 +270,18 @@ vendor power HAL's, not in these jars.
     drag with `simulatedDndStartPoint`, every later event to `onDragEvent`). ZUI's
     `PinToTaskbarShortcut` exists but its flag (`enablePinningAppWithContextMenu`) is compiled
     off.
+- **Who an app's drag reaches (read 2026-10-13, `services.jar` `DragState`).** A drag whose clip
+  is an app, a shortcut or a task (`containsApplicationExtras`) is sent only to the window it
+  started in and to windows that intercept global drags (SystemUI's "ShellDropTarget"):
+  `isValidDropTarget` refuses every other window. So the taskbar drawer's drag never reaches the
+  bar's window or ZUX Home's home screen - only the drawer's own window ("Taskbar Overlay") and
+  the shell. And while any system drag is under way the bar's touch region can stand in the way
+  of the window below it (Launcher3 empties it only for the bar's own drags,
+  `TaskbarInsetsController.updateInsetsTouchability`). A drag of our own MIME is no app clip and
+  reaches every window. ZUX Home takes a drag from elsewhere into its own `DragController` with
+  `DragOptions.simulatedDndStartPoint` and `onDragEvent` (`DragDriver.b`, as
+  `BaseItemDragListener` does), which works from any window of the same process sharing its
+  origin.
 - **Selecting on the home screen (read 2026-10-12).** ZUI's edit mode (`LauncherState.EDIT_MODE`,
   `PMRLauncher.getEditModePanel()` = `ZuiEditModePanel`) selects: a tap there goes to
   `ZuiEditModeCustom.onItemClick` -> `switchSelectedState(view)` (home-screen apps and shortcuts,

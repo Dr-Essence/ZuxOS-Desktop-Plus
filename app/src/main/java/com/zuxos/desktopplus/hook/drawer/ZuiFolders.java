@@ -1,5 +1,6 @@
 package com.zuxos.desktopplus.hook.drawer;
 
+import android.content.ComponentName;
 import android.content.Context;
 import android.view.Display;
 import android.view.Gravity;
@@ -12,8 +13,10 @@ import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.Health;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
+import com.zuxos.desktopplus.hook.IconInfo;
 import com.zuxos.desktopplus.hook.IconPress;
 import com.zuxos.desktopplus.hook.Mirror;
+import com.zuxos.desktopplus.hook.ZuiApps;
 import com.zuxos.desktopplus.hook.ZuiMenu;
 import com.zuxos.desktopplus.model.DrawerStore;
 import com.zuxos.desktopplus.model.Item;
@@ -1083,9 +1086,10 @@ public final class ZuiFolders {
     }
 
     /**
-     * An app held inside one of our folders: ZUI's app popup as ZUI shows it in that context -
-     * on ZUX Home without a drag ({@code LauncherCustom.skipHotseatDrag}), in the taskbar's
-     * drawer with ZUI's drawer drag.
+     * An app held inside one of our folders: what ZUI's drawer does with a hold on its own apps
+     * - its popup, and its drag once the finger moves - in either drawer. On ZUX Home without
+     * the drag (only the popup, {@code LauncherCustom.skipHotseatDrag}) when the drawer's drag
+     * is switched off.
      */
     private static boolean holdInside(Object folder, View view) {
         try {
@@ -1094,6 +1098,9 @@ public final class ZuiFolders {
             }
             Context ctx = view.getContext();
             Object activity = lookup(ctx);
+            if (isLauncher(activity) && Cfg.drawerDrag() && holdAsDrawerApp(activity, view)) {
+                return true;
+            }
             if (isLauncher(activity)) {
                 Class.forName(POPUP, false, ctx.getClassLoader())
                         .getMethod("showForIcon", View.class).invoke(null, view);
@@ -1112,6 +1119,37 @@ public final class ZuiFolders {
         } catch (Throwable t) {
             L.d("zui folders: no popup inside our folder (" + t + ")");
             return false;
+        }
+    }
+
+    /**
+     * ZUX Home's own drawer hold ({@code getAllAppsItemLongClickListener}: popup, then
+     * {@code Workspace.beginDragShared} as the finger moves) on an app in one of our folders,
+     * with the drawer's own entry for that app as what it holds and drags: ZUI's stand-in item
+     * for our folder's app is no item of its home screen, and dropped there it would be written
+     * as a move of a row that does not exist. With the drawer's entry ZUI copies the app onto
+     * the home screen, as from its drawer, and our folder keeps it. Our folder's rows stay in the
+     * popup: the entry is ours for as long as the hold is being handled.
+     */
+    private static boolean holdAsDrawerApp(Object launcher, View view) {
+        Object stand = view.getTag();
+        Item child = childOf(stand);
+        if (child == null || child.pkg == null || child.cls == null) {
+            return false;
+        }
+        Object app = ZuiApps.appInfo(launcher, new ComponentName(child.pkg, child.cls),
+                IconInfo.userOf(stand));
+        Object hold = Reflect.call(launcher, "getAllAppsItemLongClickListener");
+        if (app == null || !(hold instanceof View.OnLongClickListener)) {
+            return false;
+        }
+        noteChild(app, child);
+        view.setTag(app);
+        try {
+            return ((View.OnLongClickListener) hold).onLongClick(view);
+        } finally {
+            view.setTag(stand);
+            CHILDREN.remove(app);
         }
     }
 

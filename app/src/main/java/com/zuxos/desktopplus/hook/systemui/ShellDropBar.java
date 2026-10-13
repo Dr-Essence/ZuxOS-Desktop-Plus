@@ -54,6 +54,11 @@ public final class ShellDropBar {
             }
             int hooked = XposedBridge.hookAllMethods(controller, "onDrag", new XC_MethodHook() {
                 @Override
+                protected void beforeHookedMethod(MethodHookParam param) {
+                    standAside(param);
+                }
+
+                @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     after(param);
                 }
@@ -94,6 +99,33 @@ public final class ShellDropBar {
             }
         } catch (Throwable t) {
             L.d("shell drop bar: left as the shell had it (" + t + ")");
+        }
+    }
+
+    /** The launcher's word in the clip: the home screen behind takes this drag. */
+    private static final String HOME_TAKES = "com.zuxos.desktopplus.HOME_TAKES";
+
+    /**
+     * With the home screen behind the taskbar's drawer, the drag goes to the home screen
+     * (the launcher's {@code ZuiHomeDrop}, which says so in the clip): the shell declines it
+     * from its start, so its window never shows and never takes it.
+     */
+    private static void standAside(XC_MethodHook.MethodHookParam param) {
+        try {
+            if (param.args.length != 2 || !(param.args[1] instanceof DragEvent)
+                    || ((DragEvent) param.args[1]).getAction() != DragEvent.ACTION_DRAG_STARTED
+                    || !Cfg.enabled() || !Cfg.homeDrop()) {
+                return;
+            }
+            ClipData clip = ((DragEvent) param.args[1]).getClipData();
+            Intent intent = clip == null || clip.getItemCount() == 0 ? null
+                    : clip.getItemAt(0).getIntent();
+            if (intent != null && intent.getBooleanExtra(HOME_TAKES, false)) {
+                param.setResult(Boolean.FALSE);
+                L.i("shell drop bar: the home screen takes this drag, the shell stands aside");
+            }
+        } catch (Throwable t) {
+            L.d("shell drop bar: the shell keeps the drag (" + t + ")");
         }
     }
 

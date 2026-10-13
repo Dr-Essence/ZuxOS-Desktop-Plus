@@ -185,6 +185,11 @@ public class MainActivity extends Activity {
                         + "there; anywhere else it still opens in a floating window or split "
                         + "screen. Needs System UI ticked in LSPosed",
                 Const.KEY_BAR_DROP, true);
+        addSwitch("Drag from the taskbar drawer to the home screen",
+                "With the home screen behind it, an app dragged out of the taskbar's drawer is "
+                        + "placed on the home screen as from ZUX Home's own drawer. Needs System UI "
+                        + "ticked in LSPosed",
+                Const.KEY_HOME_DROP, true);
         addSwitch("Select apps on the home screen",
                 "Select in a home-screen app's menu opens ZUI's edit mode with that app selected: "
                         + "tap others to add them, then drag them together. Selected apps shake",

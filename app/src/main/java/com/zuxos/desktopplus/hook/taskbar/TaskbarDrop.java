@@ -86,6 +86,14 @@ final class TaskbarDrop {
         return strip != null && strip.pin(item, screenX - strip.screenLeft());
     }
 
+    /** A new layout pass on this display's bar: its touch region is worked out again. */
+    static void relayoutBar(int display) {
+        DropStrip strip = stripOn(display);
+        if (strip != null && strip.getParent() instanceof View) {
+            ((View) strip.getParent()).requestLayout();
+        }
+    }
+
     private static DropStrip stripOn(int display) {
         for (View root : Windows.roots()) {
             ViewGroup dragLayer = TaskbarTray.dragLayerOf(root);

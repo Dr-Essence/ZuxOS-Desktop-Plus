@@ -25,10 +25,14 @@ public final class AndroidRobot extends Drawable {
 
     /** Android's own green. */
     public static final int GREEN = 0xFF3DDC84;
+    /** The sleep's z's. */
+    private static final int Z_PURPLE = 0xFFB388FF;
 
     private final Paint mFill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mLine = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mEye = new Paint(Paint.ANTI_ALIAS_FLAG);
+    /** The z's of its sleep: a soft purple, so the robot itself stays green (owner). */
+    private final Paint mZ = new Paint(Paint.ANTI_ALIAS_FLAG);
     private float mScale = 1f;
     private float mLeft;
     private float mTop;
@@ -52,6 +56,11 @@ public final class AndroidRobot extends Drawable {
         mLine.setStrokeCap(Paint.Cap.ROUND);
         mEye.setColor(0xFFFFFFFF);
         mEye.setStyle(Paint.Style.FILL);
+        mZ.setColor(Z_PURPLE);
+        mZ.setStyle(Paint.Style.STROKE);
+        mZ.setStrokeCap(Paint.Cap.ROUND);
+        mZ.setStrokeJoin(Paint.Join.ROUND);
+        mZ.setStrokeWidth(0.9f);
     }
 
     @Override
@@ -168,9 +177,8 @@ public final class AndroidRobot extends Drawable {
      */
     private void drawZs(Canvas canvas) {
         long t = android.os.SystemClock.uptimeMillis() - mAsleepSince;
+        // The robot's own alpha (the bar fading it) on the z's too.
         int alpha = mLine.getAlpha();
-        float width = mLine.getStrokeWidth();
-        mLine.setStrokeWidth(0.9f);
         for (int i = 0; i < 3; i++) {
             float p = ((t + i * Z_MS / 3f) % Z_MS) / Z_MS;
             float size = (0.9f + 1.3f * p) * mSleep;
@@ -178,13 +186,11 @@ public final class AndroidRobot extends Drawable {
             float y = 9.5f - 9f * p;
             // In over the first fifth, out over the last two.
             float fade = p < 0.2f ? p / 0.2f : p > 0.6f ? (1f - p) / 0.4f : 1f;
-            mLine.setAlpha(Math.round(alpha * fade * mSleep));
-            canvas.drawLine(x - size, y - size, x + size, y - size, mLine);
-            canvas.drawLine(x + size, y - size, x - size, y + size, mLine);
-            canvas.drawLine(x - size, y + size, x + size, y + size, mLine);
+            mZ.setAlpha(Math.round(alpha * fade * mSleep));
+            canvas.drawLine(x - size, y - size, x + size, y - size, mZ);
+            canvas.drawLine(x + size, y - size, x - size, y + size, mZ);
+            canvas.drawLine(x - size, y + size, x + size, y + size, mZ);
         }
-        mLine.setAlpha(alpha);
-        mLine.setStrokeWidth(width);
     }
 
     /**

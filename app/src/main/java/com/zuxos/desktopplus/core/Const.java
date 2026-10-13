@@ -97,6 +97,8 @@ public final class Const {
     public static final String KEY_NAV_KEYS_EDGE = "nav_keys_edge";
     /** The start button's robot falls asleep after 30 seconds with nothing pressed. */
     public static final String KEY_ROBOT_SLEEP = "robot_sleep";
+    /** An app dragged out of the taskbar's drawer with the home screen behind lands there. */
+    public static final String KEY_HOME_DROP = "home_drop";
     /** Translucent glass behind the launcher's own app drawer. */
     public static final String KEY_DRAWER_GLASS = "native_drawer_glass";
     /** Hold an app in the stock drawer to drag it onto the desktop or the taskbar. */
