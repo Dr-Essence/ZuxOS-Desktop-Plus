@@ -30,10 +30,10 @@ import java.util.List;
  * {@code BaseItemDragListener}: a drag of its own, started at the system drag's point
  * ({@code DragOptions.simulatedDndStartPoint}), fed every {@code DragEvent}
  * ({@code DragController.onDragEvent}). The drawer's window is told of the drag, and it is in the
- * same process on the same screen: it starts ZUX Home's drag there and hands it every event. From
- * then on it is ZUI's drag, from ZUI's drawer - the home screen opening as for its own drawer
- * ({@code SPRING_LOADED}), its reorder, folders, drop animation and database - with the system's
- * shadow hidden so only ZUI's own icon is dragged. SystemUI stands aside for it (the clip says so,
+ * same process on the same screen: it starts ZUX Home's drag there and hands it every event, moved
+ * from its own coordinates to the home screen's. From then on it is ZUI's drag, from ZUI's drawer -
+ * the home screen opening as for its own drawer ({@code SPRING_LOADED}), its reorder, folders,
+ * drop animation and database - with the system's shadow hidden so only ZUI's own icon is dragged. SystemUI stands aside for it (the clip says so,
  * {@code ShellDropBar}).
  */
 final class ZuiHomeDrop {
@@ -48,6 +48,12 @@ final class ZuiHomeDrop {
     /** ZUX Home's drag controller carrying the drag under way, or null. Main thread. */
     private static Object sController;
     private static View sFaded;
+    /** From the catcher's coordinates to the home screen's, for the drag under way. */
+    private static int sDx;
+    private static int sDy;
+    private static Method sObtain;
+    private static java.lang.reflect.Field sX;
+    private static java.lang.reflect.Field sY;
 
     private ZuiHomeDrop() {
     }
@@ -86,11 +92,10 @@ final class ZuiHomeDrop {
             int[] here = new int[2];
             homeLayer.getLocationOnScreen(home);
             catcher.getLocationOnScreen(here);
-            if (home[0] != here[0] || home[1] != here[1]) {
-                // The events are passed on as they are: both windows must share their origin.
-                L.i("zui home drop: the home screen is not where the drawer is");
-                return false;
-            }
+            // The drawer's window and the home screen's need not share their origin (15:45): every
+            // event is moved from the catcher's place to the home screen's.
+            sDx = here[0] - home[0];
+            sDy = here[1] - home[1];
             Object apps = Reflect.call(launcher, "getAppsView");
             Object app = ZuiApps.appInfo(launcher, new ComponentName(item.pkg, item.cls),
                     IconInfo.userOf(source.getTag()));
@@ -102,7 +107,8 @@ final class ZuiHomeDrop {
                 return false;
             }
             Object options = Class.forName(OPTIONS, false, loader).getConstructor().newInstance();
-            Point at = new Point(Math.round(started.getX()), Math.round(started.getY()));
+            Point at = new Point(Math.round(started.getX() + sDx),
+                    Math.round(started.getY() + sDy));
             options.getClass().getField("simulatedDndStartPoint").set(options, at);
             Drawable drawable = (Drawable) icon;
             int half = Math.max(1, drawable.getIntrinsicWidth()) / 2;
@@ -127,7 +133,8 @@ final class ZuiHomeDrop {
             drawer.animate().alpha(0f).setDuration(Motion.SHORT).setInterpolator(Motion.EXIT)
                     .start();
             sFaded = drawer;
-            L.i("zui home drop: the drag of " + item.pkg + " handed to the home screen");
+            L.i("zui home drop: the drag of " + item.pkg + " handed to the home screen, moved by "
+                    + sDx + "," + sDy);
             return true;
         } catch (Throwable t) {
             L.w("zui home drop: not handed to the home screen (" + t + ")");
@@ -162,8 +169,42 @@ final class ZuiHomeDrop {
         if (controller == null) {
             return false;
         }
-        Object handled = Reflect.call(controller, "onDragEvent", event);
-        return Boolean.TRUE.equals(handled);
+        DragEvent moved = moved(event);
+        try {
+            return Boolean.TRUE.equals(Reflect.call(controller, "onDragEvent", moved));
+        } finally {
+            if (moved != event) {
+                moved.recycle();
+            }
+        }
+    }
+
+    /**
+     * The event where the home screen has it: a copy moved by the two windows' offset
+     * ({@code DragEvent.obtain(DragEvent)}, its {@code mX}/{@code mY}), or the event itself when
+     * they share their origin or the copy cannot be made.
+     */
+    private static DragEvent moved(DragEvent event) {
+        if (sDx == 0 && sDy == 0) {
+            return event;
+        }
+        try {
+            if (sObtain == null) {
+                sObtain = DragEvent.class.getDeclaredMethod("obtain", DragEvent.class);
+                sX = DragEvent.class.getDeclaredField("mX");
+                sY = DragEvent.class.getDeclaredField("mY");
+                sObtain.setAccessible(true);
+                sX.setAccessible(true);
+                sY.setAccessible(true);
+            }
+            DragEvent copy = (DragEvent) sObtain.invoke(null, event);
+            sX.setFloat(copy, event.getX() + sDx);
+            sY.setFloat(copy, event.getY() + sDy);
+            return copy;
+        } catch (Throwable t) {
+            L.d("zui home drop: an event not moved (" + t + ")");
+            return event;
+        }
     }
 
     /** Let go over the bar instead: ZUI's drag gives up, the bar pins the app. */

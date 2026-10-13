@@ -280,8 +280,17 @@ vendor power HAL's, not in these jars.
   `TaskbarInsetsController.updateInsetsTouchability`). A drag of our own MIME is no app clip and
   reaches every window. ZUX Home takes a drag from elsewhere into its own `DragController` with
   `DragOptions.simulatedDndStartPoint` and `onDragEvent` (`DragDriver.b`, as
-  `BaseItemDragListener` does), which works from any window of the same process sharing its
-  origin.
+  `BaseItemDragListener` does), which works from any window of the same process once each event
+  is moved to the home screen's coordinates (the drawer's window and the home screen's do not
+  share their origin, log 15:46).
+- **The drawer's window during a drag (read 2026-10-13).** While a system drag is under way ZUI
+  makes "Taskbar Overlay" untouchable (`TaskbarOverlayDragLayer.onComputeInternalInsets` empties
+  its touch region when `TaskbarOverlayContext.s()`, any system drag, is true), so the shell under
+  it takes the drag; the window is then told only that a drag started. Its layer keeps the bar's
+  height clear at its bottom. ZUI's own listener on that layer (`TaskbarDragController.i0` ->
+  `W`) answers false to a drop. ZUX Home's drawer hold (`ItemLongClickListener`, the all-apps
+  instance) returns false even after it started its drag with `beginDragShared`; whether
+  `DragController.isDragging()` is true says whether it took the hold.
 - **Selecting on the home screen (read 2026-10-12).** ZUI's edit mode (`LauncherState.EDIT_MODE`,
   `PMRLauncher.getEditModePanel()` = `ZuiEditModePanel`) selects: a tap there goes to
   `ZuiEditModeCustom.onItemClick` -> `switchSelectedState(view)` (home-screen apps and shortcuts,

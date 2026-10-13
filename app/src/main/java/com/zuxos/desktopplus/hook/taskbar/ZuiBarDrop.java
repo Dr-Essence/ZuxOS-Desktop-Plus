@@ -57,6 +57,8 @@ final class ZuiBarDrop {
     private static View sSource;
     /** The home screen is behind the drawer: it takes the drag ({@link ZuiHomeDrop}). */
     private static boolean sHome;
+    /** The bar's place on the screen for the drag under way. */
+    private static RectF sBar;
 
     private ZuiBarDrop() {
     }
@@ -92,6 +94,7 @@ final class ZuiBarDrop {
                         }
                     }).size();
             hooked += hookBarYields(loader);
+            hooked += hookDrawerTakes(loader);
             Health.hooked("taskbar: apps dragged onto the bar are pinned", hooked, Cfg::barDrop);
             L.i("zui bar drop: ZUI's drawer drags can be let go on the bar x" + hooked);
         } catch (Throwable t) {
@@ -136,6 +139,7 @@ final class ZuiBarDrop {
             sPinned = false;
             sHome = home;
             sSource = source;
+            sBar = bar;
             addCatcher(source.getRootView(), bar);
             TaskbarDrop.relayoutBar(display);
             L.i("zui bar drop: ZUI's drag of " + item.pkg + " on display " + display
@@ -158,9 +162,12 @@ final class ZuiBarDrop {
     /**
      * While a system drag is under way the bar gives its touch region up ("let touches pass
      * through", Launcher3's {@code TaskbarInsetsController}), so a drop over the bar lands in
-     * the window under it - ZUI's drawer, which ignores it. A view of ours over the whole of the
-     * drawer's window, there for this drag only, takes a drop over the bar to the bar. The shell
-     * still covers the rest of the screen, so nothing else ever reaches it.
+     * the window under it - ZUI's drawer, which ignores it. A view of ours in the drawer's window,
+     * there for this drag only, takes a drop over the bar to the bar. It reaches past the window
+     * on every side: the drawer's layer keeps the bar's height clear at its bottom, and a drop
+     * over the bar came at the window's very edge (y 1904 of 1904, 15:43), outside a view the
+     * layer's own size. The shell still covers the rest of the screen, so nothing else ever
+     * reaches it.
      */
     private static void addCatcher(View root, RectF bar) {
         removeCatcher();
@@ -168,7 +175,17 @@ final class ZuiBarDrop {
             // The bar's own window: its strip does it.
             return;
         }
-        View catcher = new View(root.getContext());
+        View catcher = new View(root.getContext()) {
+            @Override
+            protected void onMeasure(int widthSpec, int heightSpec) {
+                int width = Math.max(root.getWidth(), MeasureSpec.getSize(widthSpec));
+                int height = Math.max(root.getHeight(), MeasureSpec.getSize(heightSpec));
+                setMeasuredDimension(width * REACH, height * REACH);
+                // Centred on the window: as far past each edge as the window is wide or high.
+                setTranslationX(-width * (REACH - 1) / 2f);
+                setTranslationY(-height * (REACH - 1) / 2f);
+            }
+        };
         catcher.setOnDragListener((v, event) -> onCatcherDrag(v, event, bar));
         int display = sDisplay;
         catcher.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
@@ -193,6 +210,14 @@ final class ZuiBarDrop {
         sCatcher = catcher;
     }
 
+    /** How many times the window's size the catcher spans, centred on it. */
+    private static final int REACH = 3;
+
+    /** Over the bar, its far edge included: the screen's edge is where a finger lets go of it. */
+    private static boolean overBar(RectF bar, float x, float y) {
+        return x >= bar.left && x <= bar.right && y >= bar.top && y <= bar.bottom + 1f;
+    }
+
     private static boolean onCatcherDrag(View catcher, DragEvent event, RectF bar) {
         Item item = itemFor(event, sDisplay);
         if (item == null) {
@@ -201,7 +226,8 @@ final class ZuiBarDrop {
         int[] at = new int[2];
         catcher.getLocationOnScreen(at);
         float x = at[0] + event.getX();
-        boolean over = bar.contains(x, at[1] + event.getY());
+        float y = at[1] + event.getY();
+        boolean over = overBar(bar, x, y);
         switch (event.getAction()) {
             case DragEvent.ACTION_DRAG_STARTED:
                 if (sHome && sSource != null) {
@@ -229,7 +255,7 @@ final class ZuiBarDrop {
                     return true;
                 }
                 L.i("zui bar drop: let go in the drawer's window at " + Math.round(x) + ","
-                        + Math.round(at[1] + event.getY()) + (over ? ", over the bar" : ""));
+                        + Math.round(y) + (over ? ", over the bar" : ""));
                 return false;
             case DragEvent.ACTION_DRAG_ENDED:
                 TaskbarDrop.hintAt(sDisplay, -1f);
@@ -290,6 +316,58 @@ final class ZuiBarDrop {
                 }).size();
     }
 
+    /**
+     * The drawer's window takes the drag where it is ours. ZUI makes that window untouchable for
+     * as long as a system drag is under way ({@code TaskbarOverlayDragLayer.onComputeInternalInsets}
+     * empties its touch region), so the shell under it gets the drag; Android then tells the
+     * drawer's window only that a drag started, never where it moves or is let go. While ZUI's
+     * drag of ours is under way the window keeps the bar's part, which the shell leaves alone - or,
+     * with the home screen taking the drag and the shell stood aside, all of it.
+     */
+    private static int hookDrawerTakes(ClassLoader loader) {
+        Class<?> layer = Reflect.findClass(
+                "com.android.launcher3.taskbar.overlay.TaskbarOverlayDragLayer", loader);
+        if (layer == null) {
+            L.w("zui bar drop: the drawer's window not found - a drop on the bar stays lost");
+            return 0;
+        }
+        return XposedBridge.hookAllMethods(layer, "onComputeInternalInsets",
+                new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) {
+                        try {
+                            View catcher = sCatcher;
+                            if (sItem == null || catcher == null || param.args.length != 1
+                                    || catcher.getRootView() != param.thisObject) {
+                                return;
+                            }
+                            Object info = param.args[0];
+                            if (sHome) {
+                                Reflect.call(info, "setTouchableInsets", TOUCHABLE_INSETS_FRAME);
+                                return;
+                            }
+                            RectF bar = sBar;
+                            Object region = Reflect.field(info, "touchableRegion");
+                            if (bar == null || !(region instanceof android.graphics.Region)) {
+                                return;
+                            }
+                            int[] at = new int[2];
+                            ((View) param.thisObject).getLocationOnScreen(at);
+                            ((android.graphics.Region) region).union(new android.graphics.Rect(
+                                    Math.round(bar.left) - at[0], Math.round(bar.top) - at[1],
+                                    Math.round(bar.right) - at[0],
+                                    Math.round(bar.bottom) - at[1]));
+                            Reflect.call(info, "setTouchableInsets", TOUCHABLE_INSETS_REGION);
+                        } catch (Throwable t) {
+                            L.d("zui bar drop: the drawer's window kept ZUI's touch region ("
+                                    + t + ")");
+                        }
+                    }
+                }).size();
+    }
+
+    /** {@code ViewTreeObserver.InternalInsetsInfo.TOUCHABLE_INSETS_FRAME}. */
+    private static final int TOUCHABLE_INSETS_FRAME = 0;
     /** {@code ViewTreeObserver.InternalInsetsInfo.TOUCHABLE_INSETS_REGION}. */
     private static final int TOUCHABLE_INSETS_REGION = 3;
 
@@ -315,6 +393,7 @@ final class ZuiBarDrop {
             sItem = null;
             sSource = null;
             sHome = false;
+            sBar = null;
             sPlaced = false;
         }
     }

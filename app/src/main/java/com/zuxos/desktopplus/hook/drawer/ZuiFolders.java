@@ -169,6 +169,7 @@ public final class ZuiFolders {
             hooked += hookHomeContext(loader);
             hooked += hookBack(folder);
             hooked += hookDrawerClose(loader);
+            hooked += hookHeldOut(loader);
             ZuiFolderWrites.install(loader);
             ZuiFolderAdd.install(loader, folder);
             ZuiFolderBlur.install(folder);
@@ -1130,6 +1131,10 @@ public final class ZuiFolders {
      * as a move of a row that does not exist. With the drawer's entry ZUI copies the app onto
      * the home screen, as from its drawer, and our folder keeps it. Our folder's rows stay in the
      * popup: the entry is ours for as long as the hold is being handled.
+     *
+     * <p>ZUI's hold answers false even when it took the hold ({@code ItemLongClickListener}
+     * returns false after {@code beginDragShared}); whether its drag is waiting on the finger
+     * says whether it did. Our folder is shut once the drag is under way, as ZUI's drawer is.
      */
     private static boolean holdAsDrawerApp(Object launcher, View view) {
         Object stand = view.getTag();
@@ -1140,17 +1145,56 @@ public final class ZuiFolders {
         Object app = ZuiApps.appInfo(launcher, new ComponentName(child.pkg, child.cls),
                 IconInfo.userOf(stand));
         Object hold = Reflect.call(launcher, "getAllAppsItemLongClickListener");
-        if (app == null || !(hold instanceof View.OnLongClickListener)) {
+        Object drags = Reflect.call(launcher, "getDragController");
+        if (app == null || drags == null || !(hold instanceof View.OnLongClickListener)) {
             return false;
         }
         noteChild(app, child);
         view.setTag(app);
         try {
-            return ((View.OnLongClickListener) hold).onLongClick(view);
+            ((View.OnLongClickListener) hold).onLongClick(view);
         } finally {
             view.setTag(stand);
             CHILDREN.remove(app);
         }
+        boolean took = Boolean.TRUE.equals(Reflect.call(drags, "isDragging"));
+        sHeldOut = took;
+        if (!took) {
+            L.i("zui folders: ZUI's drawer did not take the hold on " + child.pkg);
+        }
+        return took;
+    }
+
+    /** ZUI's drag of an app out of one of our folders is waiting on the finger or under way. */
+    private static boolean sHeldOut;
+
+    /**
+     * Our folder shuts as the drag out of it starts, as ZUI's drawer closes for its own: the home
+     * screen opens to take it ({@code Workspace.onDragStart}), and the folder would stay over it.
+     */
+    private static int hookHeldOut(ClassLoader loader) {
+        Class<?> workspace = Reflect.findClass("com.android.launcher3.Workspace", loader);
+        if (workspace == null) {
+            L.w("zui folders: ZUI's home screen not found - a folder stays open over a drag");
+            return 0;
+        }
+        int hooked = XposedBridge.hookAllMethods(workspace, "onDragStart", new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                if (sHeldOut) {
+                    sHeldOut = false;
+                    closeOpenFolders();
+                }
+            }
+        }).size();
+        hooked += XposedBridge.hookAllMethods(workspace, "onDragEnd", new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                // Let go before it moved: only the popup was shown, and the folder stays.
+                sHeldOut = false;
+            }
+        }).size();
+        return hooked;
     }
 
     // --- our model ---------------------------------------------------------
