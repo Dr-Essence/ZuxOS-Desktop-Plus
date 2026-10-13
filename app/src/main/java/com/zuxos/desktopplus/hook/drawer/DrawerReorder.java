@@ -73,6 +73,8 @@ final class DrawerReorder {
     private int mPending = -1;
     private final Runnable mReorder = this::reorder;
     private String mOutcome;
+    /** Put back by {@link #cancel}: the dragged entry showing in its place. */
+    private boolean mAtRest;
 
     private DrawerReorder(ViewGroup root, ViewGroup grid, View sheet, String key, int display) {
         mRoot = root;
@@ -145,6 +147,11 @@ final class DrawerReorder {
 
     /** The drag is at ({@code sx}, {@code sy}) on the screen, over the drawer. */
     void moveToScreen(float sx, float sy) {
+        if (mAtRest) {
+            // Back over the drawer: the dragged entry's place is the gap again.
+            mAtRest = false;
+            preview();
+        }
         Rect grid = onScreen(mGrid);
         int edge = Ui.dp(mGrid.getContext(), EDGE_DP);
         int step = Ui.dp(mGrid.getContext(), SCROLL_STEP_DP);
@@ -194,7 +201,12 @@ final class DrawerReorder {
         mPending = -1;
     }
 
-    /** Back to how the drawer was, for a drag that left the drawer. */
+    /**
+     * Back to how the drawer was, for a drag that left the drawer or ended without a drop: every
+     * cell home and showing, the dragged one too. Put back by drawing the preview again, the
+     * dragged entry's cell stayed hidden, and the drawer's list reused that hidden view for
+     * whatever it showed there next - a folder gone until ZUX Home restarted (owner, 22:52).
+     */
     void cancel() {
         mGrid.removeCallbacks(mFold);
         mGrid.removeCallbacks(mReorder);
@@ -202,7 +214,9 @@ final class DrawerReorder {
         mResting = null;
         unfold();
         mTo = mFrom >= 0 ? mFrom : mOrder.size();
-        preview();
+        mSent.clear();
+        settle(mGrid, null);
+        mAtRest = true;
     }
 
     /**
