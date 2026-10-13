@@ -61,7 +61,9 @@ final class ZuiHomeDrop {
         if (tasks.isEmpty() || !ctx.getPackageName().equals(Tasks.packageOf(tasks.get(0)))) {
             return false;
         }
-        Object config = Reflect.field(tasks.get(0).configuration, "windowConfiguration");
+        // TaskInfo.configuration is not in the public SDK: read by name.
+        Object config = Reflect.field(Reflect.field(tasks.get(0), "configuration"),
+                "windowConfiguration");
         Object mode = config == null ? null : Reflect.call(config, "getWindowingMode");
         return !(mode instanceof Integer) || (Integer) mode == FULLSCREEN;
     }
