@@ -27,6 +27,7 @@ import com.zuxos.desktopplus.hook.Mirror;
 import com.zuxos.desktopplus.hook.ZuiMenu;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarApps;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarBridge;
+import com.zuxos.desktopplus.hook.taskbar.TaskbarMenu;
 import com.zuxos.desktopplus.model.AppsRepo;
 import com.zuxos.desktopplus.model.DrawerStore;
 import com.zuxos.desktopplus.model.Item;
@@ -849,7 +850,16 @@ public final class NativeDrawerHooks {
                 return false;
             }
             Item folder = folderBehind(view);
-            if (folder == null || !ZuiMenu.show(view, DrawerHold.menuEntries(view, folder))) {
+            if (folder == null) {
+                return false;
+            }
+            List<TaskbarMenu.Entry> menu = DrawerHold.menuEntries(view, folder);
+            // In ZUX Home's own drawer the menu comes first and the folder drags to the home
+            // screen once the finger moves, as ZUI's drawer apps do.
+            if (ZuiFolderHome.hold(view, folder, menu)) {
+                return true;
+            }
+            if (!ZuiMenu.show(view, menu)) {
                 return false;
             }
             // As ZUI does after a popup on a hold without a drag (skipHotseatDrag).

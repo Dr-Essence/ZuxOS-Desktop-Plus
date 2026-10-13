@@ -172,6 +172,7 @@ public final class ZuiFolders {
             hooked += hookHeldOut(loader);
             ZuiFolderWrites.install(loader);
             ZuiFolderAdd.install(loader, folder);
+            hooked += ZuiFolderHome.install(loader);
             ZuiFolderBlur.install(folder);
             Health.hooked("drawer: our folders as ZUI's", hooked);
             L.i("zui folders: our drawer folders as ZUI's own on the tablet x" + hooked);
@@ -1058,6 +1059,30 @@ public final class ZuiFolders {
                     + folder.children.size() + " apps in ZUI's app store");
         }
         return rank == 0 ? null : info;
+    }
+
+    /**
+     * Fresh copies of our folder's apps as ZUI's home screen makes its own
+     * ({@code AppInfo.makeWorkspaceItem}), for a folder of ZUI's ({@link ZuiFolderHome}).
+     */
+    static List<Object> homeApps(Context activity, Item folder) {
+        List<Object> apps = new java.util.ArrayList<>();
+        for (Item child : folder.children) {
+            Object entry = sFiled.get(child.key());
+            if (entry == null) {
+                continue;
+            }
+            try {
+                Object made = entry.getClass().getMethod("makeWorkspaceItem", Context.class)
+                        .invoke(entry, activity);
+                if (made != null) {
+                    apps.add(made);
+                }
+            } catch (Throwable t) {
+                L.d("zui folders: " + child.pkg + " not copied for the home screen (" + t + ")");
+            }
+        }
+        return apps;
     }
 
     private static synchronized int idOf(Item folder) {

@@ -190,6 +190,10 @@ public class MainActivity extends Activity {
                         + "placed on the home screen as from ZUX Home's own drawer. Needs System UI "
                         + "ticked in LSPosed",
                 Const.KEY_HOME_DROP, true);
+        addSwitch("Drag a drawer folder to the home screen",
+                "In ZUX Home's drawer, hold one of our folders and move your finger: it lands on "
+                        + "the home screen as ZUI's own folder with its apps; the drawer keeps it",
+                Const.KEY_DRAWER_FOLDER_HOME, true);
         addSwitch("Select apps on the home screen",
                 "Select in a home-screen app's menu opens ZUI's edit mode with that app selected: "
                         + "tap others to add them, then drag them together. Selected apps shake",

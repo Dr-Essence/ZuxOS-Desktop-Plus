@@ -510,6 +510,10 @@ public final class Cfg {
         return getBool(Const.KEY_ROBOT_BREATH, true);
     }
 
+    public static boolean drawerFolderHome() {
+        return getBool(Const.KEY_DRAWER_FOLDER_HOME, true);
+    }
+
     public static boolean homeDrop() {
         return getBool(Const.KEY_HOME_DROP, true);
     }

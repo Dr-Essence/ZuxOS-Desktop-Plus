@@ -99,6 +99,8 @@ public final class Const {
     public static final String KEY_ROBOT_SLEEP = "robot_sleep";
     /** The start button's robot breathes: gently awake, slower and deeper asleep. */
     public static final String KEY_ROBOT_BREATH = "robot_breath";
+    /** A folder of ours in ZUX Home's drawer drags onto the home screen as ZUI's own folder. */
+    public static final String KEY_DRAWER_FOLDER_HOME = "drawer_folder_home";
     /** An app dragged out of the taskbar's drawer with the home screen behind lands there. */
     public static final String KEY_HOME_DROP = "home_drop";
     /** Translucent glass behind the launcher's own app drawer. */
