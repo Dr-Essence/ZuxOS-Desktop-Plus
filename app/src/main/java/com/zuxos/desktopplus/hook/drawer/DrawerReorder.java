@@ -211,14 +211,22 @@ final class DrawerReorder {
             NativeDrawerHooks.moveInDrawer(mKey, mTo);
         }
         String key = shown;
-        // Once the grid has laid out the new order: anything still off its place springs home,
-        // and the dropped entry is handed to whoever lands on it.
+        // Once the grid has laid out the new order, the dropped entry is handed to whoever lands
+        // on it. A move or a take-out leaves every entry where the preview drew it: ZUI's list
+        // re-binds its cells where they stand (DiffUtil without moves, no item animator), so
+        // each one, its offset dropped at once, shows its new entry in the place the preview
+        // had it. Sprung home instead, the cells would swap for a moment and spring back. A fold
+        // changes the grid's length: what moved springs into place.
         mGrid.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
             @Override
             public boolean onPreDraw() {
                 mGrid.getViewTreeObserver().removeOnPreDrawListener(this);
                 View there = landed != null ? cellOf(key) : null;
-                settle(mGrid, folded ? null : there);
+                if (folded) {
+                    settle(mGrid, null);
+                } else {
+                    snap(mGrid, there);
+                }
                 if (landed != null) {
                     landed.at(there, folded);
                 }
@@ -368,6 +376,22 @@ final class DrawerReorder {
                 child.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(Motion.SPRING_MS)
                         .setInterpolator(Motion.SPRING).start();
             }
+        }
+    }
+
+    /**
+     * Every cell in its laid-out place and showing, at once - but {@code landing}, which stays
+     * hidden for the drag's own icon to land on.
+     */
+    private static void snap(ViewGroup grid, View landing) {
+        for (int i = 0; i < grid.getChildCount(); i++) {
+            View child = grid.getChildAt(i);
+            child.animate().cancel();
+            child.setTranslationX(0f);
+            child.setTranslationY(0f);
+            child.setScaleX(1f);
+            child.setScaleY(1f);
+            child.setAlpha(child == landing ? 0f : 1f);
         }
     }
 

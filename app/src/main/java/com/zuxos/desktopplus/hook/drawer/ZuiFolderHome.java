@@ -7,7 +7,6 @@ import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.hook.IconPress;
-import com.zuxos.desktopplus.hook.ZuiApps;
 import com.zuxos.desktopplus.hook.ZuiMenu;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarMenu;
 import com.zuxos.desktopplus.model.Item;
@@ -42,7 +41,6 @@ final class ZuiFolderHome {
     private static final String DRAGGABLE = "com.android.launcher3.dragndrop.DraggableView";
     private static final String ITEM_INFO = "com.android.launcher3.model.data.ItemInfo";
     private static final String FOLDER_INFO = "com.android.launcher3.model.data.FolderInfo";
-    private static final String STATES = "com.android.launcher3.LauncherState";
 
     /** The folder on its way to the home screen, and its apps, until ZUI has placed it. */
     private static Object sDragged;
@@ -97,19 +95,30 @@ final class ZuiFolderHome {
     static boolean hold(View icon, Item folder, List<TaskbarMenu.Entry> menu) {
         try {
             Context ctx = icon.getContext();
-            if (!Cfg.drawerFolderHome() || !ZuiFolders.isLauncher(ZuiFolders.lookup(ctx))) {
+            if (!Cfg.drawerFolderHome()) {
+                return false;
+            }
+            // The launcher whose drawer holds the icon - ZUX Home's, not the taskbar's.
+            Object launcher = ZuiFolders.lookup(ctx);
+            if (!ZuiFolders.isLauncher(launcher)) {
                 return false;
             }
             ClassLoader loader = ctx.getClassLoader();
-            Object launcher = ZuiApps.launcher(loader);
-            Object drags = launcher == null ? null : Reflect.call(launcher, "getDragController");
-            Object allApps = Class.forName(STATES, false, loader).getField("ALL_APPS").get(null);
+            Object drags = Reflect.call(launcher, "getDragController");
+            // ZUI's own question (Launcher.isInAllAppsState): its isInState is a default method
+            // of an interface, which a search of the classes never finds.
             if (drags == null || Boolean.TRUE.equals(Reflect.call(drags, "isDragging"))
-                    || !Boolean.TRUE.equals(Reflect.call(launcher, "isInState", allApps))) {
+                    || !Boolean.TRUE.equals(Reflect.call(launcher, "isInAllAppsState"))) {
+                L.i("zui folder home: " + folder.label + " held, not dragged - "
+                        + (drags == null ? "ZUI's drag controller not found"
+                        : Boolean.TRUE.equals(Reflect.call(drags, "isDragging"))
+                        ? "a drag is under way" : "the drawer is not open"));
                 return false;
             }
             List<Object> apps = ZuiFolders.homeApps(ctx, folder);
             if (apps.size() < 2) {
+                L.i("zui folder home: " + folder.label + " held, not dragged - " + apps.size()
+                        + " of its apps can go on the home screen");
                 return false;
             }
             Object info = Class.forName(FOLDER_INFO, false, loader).getConstructor()

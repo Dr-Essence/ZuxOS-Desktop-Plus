@@ -15,6 +15,7 @@ import com.zuxos.desktopplus.core.Health;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.hook.IconInfo;
+import com.zuxos.desktopplus.hook.drawer.ZuiFolders;
 import com.zuxos.desktopplus.model.Item;
 
 import java.lang.reflect.Method;
@@ -57,6 +58,11 @@ final class ZuiBarDrop {
     private static View sCatcher;
     /** The drawer's icon the drag started from, for ZUX Home's drag; held only for the drag. */
     private static View sSource;
+    /**
+     * The root of the window the drag started in: it stays attached for as long as the drag
+     * does, where the icon itself may go with ZUI's drawer or folder closing.
+     */
+    private static View sSourceRoot;
     /** The home screen is behind the drawer: it takes the drag ({@link ZuiHomeDrop}). */
     private static boolean sHome;
     /** The bar's place on the screen for the drag under way. */
@@ -133,7 +139,10 @@ final class ZuiBarDrop {
                 bar.union((RectF) zui);
             }
             intent.putExtra(DISALLOW, bar);
-            boolean home = ZuiHomeDrop.homeBehind(source.getContext(), display);
+            // Only the drawer's window hands the drag to the home screen (its catcher); one out
+            // of the bar's own window, a folder of the bar's, keeps the shell for the rest.
+            boolean home = TaskbarTray.dragLayerOf(source.getRootView()) == null
+                    && ZuiHomeDrop.homeBehind(source.getContext(), display);
             if (home) {
                 intent.putExtra(ZuiHomeDrop.HOME_TAKES, true);
             }
@@ -142,6 +151,7 @@ final class ZuiBarDrop {
             sPinned = false;
             sHome = home;
             sSource = source;
+            sSourceRoot = source.getRootView();
             sBar = bar;
             addCatcher(source.getRootView(), bar);
             TaskbarDrop.relayoutBar(display);
@@ -155,11 +165,28 @@ final class ZuiBarDrop {
         }
     }
 
-    /** The app of ZUI's drag under way on this display, or null when this drag is not one. */
+    /**
+     * The app of ZUI's drag under way on this display, or null when this drag is not one. The
+     * drag's end is known by our own state: Android sends {@code ACTION_DRAG_ENDED} without the
+     * clip's description.
+     */
     static Item itemFor(DragEvent event, int display) {
+        if (sItem == null || display != sDisplay) {
+            return null;
+        }
+        if (event.getAction() == DragEvent.ACTION_DRAG_ENDED) {
+            return sItem;
+        }
         ClipDescription description = event.getClipDescription();
-        return sItem != null && display == sDisplay && description != null
-                && description.hasMimeType(ACTIVITY) ? sItem : null;
+        return description != null && description.hasMimeType(ACTIVITY) ? sItem : null;
+    }
+
+    /**
+     * Whether the bar on this display has given up its touches for ZUI's drawer drag, so a drop
+     * over it reaches the drawer's window and our catcher there.
+     */
+    static boolean holdsBar(int display) {
+        return sItem != null && sCatcher != null && display == sDisplay;
     }
 
     /**
@@ -202,7 +229,7 @@ final class ZuiBarDrop {
                 // for us, and the bar takes its touches back.
                 if (sCatcher == v) {
                     sCatcher = null;
-                    ended(false);
+                    finish(null, false);
                     TaskbarDrop.relayoutBar(display);
                 }
             }
@@ -263,9 +290,8 @@ final class ZuiBarDrop {
                 return false;
             case DragEvent.ACTION_DRAG_ENDED:
                 TaskbarDrop.hintAt(sDisplay, -1f);
-                ZuiHomeDrop.end(event);
-                ended(event.getResult());
                 int display = sDisplay;
+                finish(event, event.getResult());
                 catcher.post(() -> {
                     removeCatcher();
                     TaskbarDrop.relayoutBar(display);
@@ -383,12 +409,30 @@ final class ZuiBarDrop {
         }
     }
 
-    /** ZUI's drag was let go on the bar and its app pinned: its card goes with the drop. */
+    /**
+     * ZUI's drag was let go on the bar and its app pinned: its card goes with the drop, emptied
+     * through a view of the window the drag started in - the catcher, or, for a drag out of the
+     * bar's own window, which has none, that window's root. An app dragged out of one of our
+     * folders pinned on the bar moves out of the folder, as ZUI's "Remove from folder" takes it;
+     * one from the taskbar's drawer stays a copy, as every drawer drag is.
+     */
     static void pinned() {
         sPinned = true;
-        View catcher = sCatcher;
-        if (catcher != null) {
-            hideShadow(catcher);
+        View root = sSourceRoot;
+        View inDrag = sCatcher != null ? sCatcher : root;
+        if (inDrag != null) {
+            hideShadow(inDrag);
+        }
+        View source = sSource;
+        if (source == null || root == null || TaskbarTray.dragLayerOf(root) == null) {
+            return;
+        }
+        Runnable out = ZuiFolders.removeAction(source.getTag());
+        if (out != null) {
+            // Once the drop is handled: ZUI's drag still holds the folder's icon until its end.
+            root.post(out);
+            L.i("zui bar drop: " + (sItem != null ? sItem.pkg : "the app")
+                    + " moved out of its folder to the bar");
         }
     }
 
@@ -442,6 +486,15 @@ final class ZuiBarDrop {
         }).size();
     }
 
+    /**
+     * ZUI's drag is over, by its end or by the drawer's window going first: ZUX Home's drag ends
+     * with it ({@code ended} is null when there is no event to hand on), then the outcome.
+     */
+    private static void finish(DragEvent ended, boolean taken) {
+        ZuiHomeDrop.end(ended);
+        ended(taken);
+    }
+
     /** ZUI's drag is over: where it went, for the log. */
     static void ended(boolean taken) {
         if (sItem != null) {
@@ -450,6 +503,7 @@ final class ZuiBarDrop {
                     : taken ? "taken by the shell" : "taken by nothing"));
             sItem = null;
             sSource = null;
+            sSourceRoot = null;
             sHome = false;
             sBar = null;
             sShadowHidden = false;

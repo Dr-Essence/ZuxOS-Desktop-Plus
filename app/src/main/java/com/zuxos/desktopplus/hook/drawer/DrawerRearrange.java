@@ -9,7 +9,6 @@ import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.core.Ui;
 import com.zuxos.desktopplus.core.motion.Motion;
-import com.zuxos.desktopplus.hook.ZuiApps;
 import com.zuxos.desktopplus.model.Item;
 
 import java.lang.reflect.Field;
@@ -39,7 +38,6 @@ final class DrawerRearrange {
     private static final String STATES = "com.android.launcher3.LauncherState";
 
     private static Object sSpringLoaded;
-    private static Object sAllApps;
     /** The drag the drawer is keeping, or null. Main thread. */
     private static Session sSession;
 
@@ -57,7 +55,6 @@ final class DrawerRearrange {
                 return 0;
             }
             sSpringLoaded = launcherStates.getField("SPRING_LOADED").get(null);
-            sAllApps = launcherStates.getField("ALL_APPS").get(null);
             int hooked = XposedBridge.hookAllMethods(workspace, "onDragStart",
                     new XC_MethodHook() {
                         @Override
@@ -100,27 +97,47 @@ final class DrawerRearrange {
                 return;
             }
             Object source = Reflect.field(drag, "dragSource");
-            ClassLoader loader = source == null ? null : source.getClass().getClassLoader();
-            Object launcher = loader == null ? null : ZuiApps.launcher(loader);
-            Object apps = launcher == null ? null : Reflect.call(launcher, "getAppsView");
-            android.view.Display display = apps instanceof View ? ((View) apps).getDisplay() : null;
-            if (apps == null || source != apps || display == null
-                    || display.getDisplayId() != android.view.Display.DEFAULT_DISPLAY
-                    || !Boolean.TRUE.equals(Reflect.call(launcher, "isInState", sAllApps))
-                    || Boolean.TRUE.equals(Reflect.call(apps, "isSearching"))) {
+            if (!(source instanceof View)) {
                 return;
             }
-            Object grid = Reflect.call(apps, "getActiveRecyclerView");
+            // The launcher whose drawer the drag came out of: the source's own, not the last one
+            // made, which may be the monitor's.
+            Object launcher = ZuiFolders.lookup(((View) source).getContext());
+            Object apps = Reflect.call(launcher, "getAppsView");
+            if (apps != source) {
+                // A drag from anywhere but ZUX Home's drawer: not ours to keep, nothing to say.
+                return;
+            }
+            android.view.Display display = ((View) source).getDisplay();
             Object info = Reflect.field(drag, "dragInfo");
             Item folder = ZuiFolderHome.folderDragged(info);
             String key = folder != null ? folder.key() : NativeDrawerHooks.keyOfEntry(info);
+            String why = null;
+            if (display == null
+                    || display.getDisplayId() != android.view.Display.DEFAULT_DISPLAY) {
+                why = "not on the tablet's screen";
+            } else if (!Boolean.TRUE.equals(Reflect.call(launcher, "isInAllAppsState"))) {
+                // ZUI's own question (Launcher.isInAllAppsState). Its isInState is a default
+                // method of an interface, which a search of the classes never finds.
+                why = "the drawer is not open";
+            } else if (Boolean.TRUE.equals(Reflect.call(apps, "isSearching"))) {
+                why = "a search is showing";
+            } else if (key == null) {
+                why = "not an app or folder of the drawer";
+            }
+            Object grid = why == null ? Reflect.call(apps, "getActiveRecyclerView") : null;
             DrawerReorder reorder = grid instanceof ViewGroup
                     ? DrawerReorder.over((ViewGroup) grid, key) : null;
             Object controller = Reflect.call(launcher, "getDragController");
-            if (reorder == null || controller == null) {
-                L.i("drawer rearrange: a drag of " + key + " left to ZUI");
+            if (why == null && (reorder == null || controller == null)) {
+                why = reorder == null ? "its place in the drawer not found"
+                        : "ZUI's drag controller not found";
+            }
+            if (why != null) {
+                L.i("drawer rearrange: a drag of " + key + " left to ZUI - " + why);
                 return;
             }
+            ClassLoader loader = source.getClass().getClassLoader();
             Session session = new Session(launcher, (View) apps, (ViewGroup) grid, controller,
                     reorder, key);
             session.target = Proxy.newProxyInstance(loader,
@@ -187,8 +204,17 @@ final class DrawerRearrange {
                         over(args[0]);
                         return null;
                     case "onDragExit":
-                        reorder.cancel();
+                        // ZUI's drop leaves the target first (DragController.drop: onDragExit,
+                        // then acceptDrop and onDrop), with the drag already complete: the
+                        // gap stays for the drop. Any other exit puts the drawer back.
+                        if (!Boolean.TRUE.equals(Reflect.field(args[0], "dragComplete"))) {
+                            reorder.cancel();
+                        }
                         return null;
+                    case "getDropView":
+                        // The interface's own answer is "this", a view; ours is ZUI's drag
+                        // layer, so the drag's place reaches us as ZUI's layer has it.
+                        return dragLayer();
                     case "onDrop":
                         drop(args[0]);
                         return null;

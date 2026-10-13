@@ -307,6 +307,26 @@ vendor power HAL's, not in these jars.
   no surface either, so the card stays where it was let go until Android's timeout. The shell, an
   interceptor, normally takes the drop and the surface with it. ZUI redraws its card for 300 ms
   from the drag's start (`k0`, `updateDragShadow` each frame).
+- **Drop targets on ZUI's drag controller (read 2026-10-13, for 0.0.252).**
+  - `isInState` is a default method of the interface `StatefulContainer`: a search of the
+    launcher's classes never finds it (`Reflect.call` returned null and the drawer drags of
+    0.0.250/0.0.251 never began). ZUI's own `Launcher.isInAllAppsState()` is declared.
+  - `DragController.drop` sets `dragComplete`, then calls `onDragExit` on the target, and only
+    then `acceptDrop` and `onDrop`. A target that undoes its preview on exit has to tell a drop
+    by `dragComplete`.
+  - `DropTarget.getDropView()` is a default method, `return (View) this`; `DragController.e()`
+    maps every move into it (`mapCoordInSelfToDescendant`), so a target that is not a view must
+    answer one - null throws on the first move. Answered with ZUI's `DragLayer`, the move's
+    `DragObject.x/y` stay in the layer's coordinates.
+  - ZUI's drawer list takes a new order through `DiffUtil` without moves (`isSameAs` is the view
+    type, contents never the same) and no item animator: every cell stays where it is and is
+    bound again with its new entry.
+- **The drag's end and the bar's touch (read 2026-10-13, owner's videos 20:16-20:20).**
+  `ACTION_DRAG_ENDED` carries no clip description, so a listener that recognises a drag by its
+  clip has to recognise its end by its own state. While the taskbar's drawer is open the bar
+  still takes touches over its row (ZUI's region, and ours added by `TaskbarFollow`); a drop of
+  ZUI's drawer drag there lands in the bar's window, which Android never told of the drag, and
+  is lost. Every drop the owner made over our icons was lost this way.
 - **Selecting on the home screen (read 2026-10-12).** ZUI's edit mode (`LauncherState.EDIT_MODE`,
   `PMRLauncher.getEditModePanel()` = `ZuiEditModePanel`) selects: a tap there goes to
   `ZuiEditModeCustom.onItemClick` -> `switchSelectedState(view)` (home-screen apps and shortcuts,

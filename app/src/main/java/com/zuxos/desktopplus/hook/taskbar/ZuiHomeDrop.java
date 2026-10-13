@@ -204,10 +204,19 @@ final class ZuiHomeDrop {
         }
     }
 
-    /** The system drag is over: ZUI's ends with it if it has not, and the drawer comes back. */
+    /**
+     * The system drag is over: ZUI's ends with it if it has not - its end handed on, or, with
+     * none ({@code ended} null: the drawer's window went first), cancelled - and the drawer
+     * comes back. Left going, the home screen stayed open for a drop (20:16:48).
+     */
     static void end(DragEvent ended) {
-        if (sController != null && Boolean.TRUE.equals(Reflect.call(sController, "isDragging"))) {
-            forward(ended);
+        Object controller = sController;
+        if (controller != null && Boolean.TRUE.equals(Reflect.call(controller, "isDragging"))) {
+            if (ended != null) {
+                forward(ended);
+            } else {
+                Reflect.call(controller, "cancelDrag");
+            }
         }
         sController = null;
         View drawer = sFaded;
