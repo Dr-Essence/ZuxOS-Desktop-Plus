@@ -32,6 +32,8 @@ public final class SystemDrag {
     private static Field sUid;
     private static Method sOwningUid;
     private static int sErrors;
+    /** Android's {@code ClipDescription.MIMETYPE_APPLICATION_ACTIVITY}, not in the public SDK. */
+    private static final String ACTIVITY = "application/vnd.android.activity";
     /** For the drop trace: the drag's clip, the window map, and who was told. */
     private static Field sDescription;
     private static Field sService;
@@ -110,7 +112,7 @@ public final class SystemDrag {
                 }
                 ClipDescription clip = (ClipDescription) description;
                 boolean ours = clip.hasMimeType(DragCodec.MIME);
-                if (!ours && !clip.hasMimeType(ClipDescription.MIMETYPE_APPLICATION_ACTIVITY)) {
+                if (!ours && !clip.hasMimeType(ACTIVITY)) {
                     return;
                 }
                 // Read under the window manager's lock, which the caller holds.
