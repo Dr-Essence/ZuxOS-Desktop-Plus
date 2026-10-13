@@ -14,10 +14,11 @@ import com.zuxos.desktopplus.core.motion.Motion;
 /**
  * The Android head, as a start button: the green half-dome with its antennae and eyes - the mark
  * Android itself uses since 2019 - with no body, so it reads as a logo rather than as one more
- * app on the bar. It blinks every few seconds, opens its eyes wide while the drawer is up and
- * narrows them while recents is, and falls asleep when nothing has been pressed for a while -
- * eyes shut, hand-drawn z's drifting up, antennae sagging a little more each second until they hang limp,
- * and a minute on a thought bubble with a dream in it - until the next press.
+ * app on the bar. It breathes, blinks every few seconds, opens its eyes wide while the drawer is
+ * up and narrows them while recents is, and falls asleep when nothing has been pressed for a
+ * while - eyes shut, breathing deeper, hand-drawn z's drifting up, antennae sagging a little more
+ * each second until they hang limp, and a minute on a thought bubble with a dream in it - until
+ * the next press.
  *
  * <p>Built from shapes on a 24-unit grid rather than shipped as an image - the module has no
  * resources of its own inside the launcher's process - and scaled to whatever bounds it is
@@ -87,10 +88,16 @@ public final class AndroidRobot extends Drawable {
         canvas.scale(mScale, mScale);
         // The scale is on the canvas, so the antennae are stroked in grid units.
         mLine.setStrokeWidth(1.4f);
+        long now = android.os.SystemClock.uptimeMillis();
+        // It breathes: the head swells a little from its flat base on each breath in.
+        int head = canvas.save();
+        float breath = mBreathes ? breath(now) : 0f;
+        if (breath > 0f) {
+            canvas.scale(1f + breath * 0.4f, 1f + breath, 12f, 18.2f);
+        }
 
         // Antennae, angled out from the top of the dome; asleep, they droop outward, and go on
         // sagging a little more each second until they hang limp, bent by their own weight.
-        long now = android.os.SystemClock.uptimeMillis();
         float limp = mSleep > 0f ? limp(now) : 0f;
         float droop = mSleep * (DOZE_DEG + (LIMP_DEG - DOZE_DEG) * limp);
         float curl = mSleep * limp * CURL_DEG;
@@ -107,6 +114,7 @@ public final class AndroidRobot extends Drawable {
         canvas.drawOval(new RectF(8.0f - r, 13.8f - r * open, 8.0f + r, 13.8f + r * open), mEye);
         canvas.drawOval(new RectF(16.0f - r, 13.8f - r * open, 16.0f + r, 13.8f + r * open),
                 mEye);
+        canvas.restoreToCount(head);
 
         if (mSleep > 0f) {
             long dream = now - mAsleepSince - DREAM_AFTER_MS;
@@ -147,6 +155,52 @@ public final class AndroidRobot extends Drawable {
         mAntenna.moveTo(x, ANTENNA_Y);
         mAntenna.quadTo(bendX, bendY, tipX, tipY);
         canvas.drawPath(mAntenna, mLine);
+    }
+
+    // --- Breathing ---------------------------------------------------------------------------
+
+    /** One breath awake: in, out and a short rest, at an easy resting pace. */
+    private static final long BREATH_AWAKE_MS = 3800L;
+    /** One breath asleep: slower... */
+    private static final long BREATH_ASLEEP_MS = 6000L;
+    /** How much the head swells on a breath in, awake... */
+    private static final float DEPTH_AWAKE = 0.035f;
+    /** ...and asleep: deeper. */
+    private static final float DEPTH_ASLEEP = 0.075f;
+    private boolean mBreathes = true;
+    /** Where in its breath it is, 0 to 1, carried frame to frame: a change of pace never jumps. */
+    private float mBreathPhase;
+    private long mBreathAt;
+
+    /** Whether it breathes at all (the module's own switch). */
+    public void setBreathes(boolean breathes) {
+        if (breathes != mBreathes) {
+            mBreathes = breathes;
+            invalidateSelf();
+        }
+    }
+
+    /**
+     * How much the head is swollen by its breath now: in quickly and smoothly, out more
+     * slowly, then a moment's rest - a breath, not a pulse. The pace and depth slide from
+     * awake to asleep as it falls asleep, and back as it wakes.
+     */
+    private float breath(long now) {
+        long gone = mBreathAt == 0 ? 0 : Math.min(100L, now - mBreathAt);
+        mBreathAt = now;
+        float pace = BREATH_AWAKE_MS + (BREATH_ASLEEP_MS - BREATH_AWAKE_MS) * mSleep;
+        mBreathPhase = (mBreathPhase + gone / pace) % 1f;
+        float depth = DEPTH_AWAKE + (DEPTH_ASLEEP - DEPTH_AWAKE) * mSleep;
+        float u = mBreathPhase;
+        float in;
+        if (u < 0.4f) {
+            in = (1f - (float) Math.cos(Math.PI * u / 0.4f)) / 2f;
+        } else if (u < 0.9f) {
+            in = (1f + (float) Math.cos(Math.PI * (u - 0.4f) / 0.5f)) / 2f;
+        } else {
+            in = 0f;
+        }
+        return depth * in;
     }
 
     // --- Asleep ------------------------------------------------------------------------------
@@ -271,12 +325,10 @@ public final class AndroidRobot extends Drawable {
     private static final float Z_INK = 0.8f;
     /** The black outline round it, this much wider than the purple. */
     private static final float Z_OUTLINE = 0.5f;
-    /** Pencil black, for the outline and the pencil gone over it again. */
+    /** Pencil black, for the outline. */
     private static final int Z_BLACK = 0xFF1E1B24;
     /** Each z on screen, written out by hand once, when it starts its way up. */
     private final Path[] mZWritten = {new Path(), new Path(), new Path()};
-    /** The same z gone over again in pencil, a touch off the first line, as a hand does. */
-    private final Path[] mZRetraced = {new Path(), new Path(), new Path()};
     /** Which of its trips up each z was written for; a new trip, a new z. */
     private final long[] mZTrip = {-1L, -1L, -1L};
 
@@ -310,7 +362,7 @@ public final class AndroidRobot extends Drawable {
      * Comic z's, written by hand in pencil: rising from above the dome one after another, a
      * second after the eyes have shut, swaying and tilting smoothly as they float up and to the
      * right, growing as they go, fading in and then out. Each is written anew for each trip -
-     * purple, outlined in black, gone over once more in pencil - so no two look alike.
+     * purple, outlined in black - so no two look alike.
      */
     private void drawZs(Canvas canvas, long now) {
         long t = now - mAsleepSince - DOZE_MS - Z_AFTER_MS;
@@ -327,9 +379,7 @@ public final class AndroidRobot extends Drawable {
             long trip = since / Z_MS;
             if (trip != mZTrip[i]) {
                 mZTrip[i] = trip;
-                long seed = mAsleepSince * 31L + trip * 3L + i;
-                writeZ(mZWritten[i], seed);
-                writeZ(mZRetraced[i], seed + 7919L);
+                writeZ(mZWritten[i], mAsleepSince * 31L + trip * 3L + i);
             }
             float p = (since % Z_MS) / (float) Z_MS;
             float size = (0.9f + 1.3f * p) * mSleep;
@@ -356,11 +406,6 @@ public final class AndroidRobot extends Drawable {
             mZ.setAlpha(ink);
             mZ.setStrokeWidth(Z_INK / size);
             canvas.drawPath(mZWritten[i], mZ);
-            // The pencil gone over it once more: thin, faint, a little off.
-            mZ.setColor(Z_BLACK);
-            mZ.setAlpha(ink * 2 / 5);
-            mZ.setStrokeWidth(0.16f / size);
-            canvas.drawPath(mZRetraced[i], mZ);
             canvas.restoreToCount(saved);
         }
     }
@@ -682,11 +727,13 @@ public final class AndroidRobot extends Drawable {
         unscheduleSelf(mTick);
         // Asleep, the z's drift and the dream plays on - 30 frames a second is plenty for
         // things that slow - but every frame while an antenna sags or the bubble pops up, and
-        // while falling asleep or waking; awake, nothing until the next blink.
+        // while falling asleep or waking; awake, 30 a second for its breath, or with breathing
+        // off nothing until the next blink.
         long dream = now - mAsleepSince - DREAM_AFTER_MS;
         boolean quick = sagging(now) || (dream >= 0 && dream < 2 * POP_GAP_MS + POP_MS);
+        long awake = mBreathes ? Math.min(mBlinkAt, now + 33L) : mBlinkAt;
         scheduleSelf(mTick, mSleep >= 1f ? now + (quick ? 16L : 33L)
-                : mSleep > 0f || now >= mBlinkAt ? now + 16L : mBlinkAt);
+                : mSleep > 0f || now >= mBlinkAt ? now + 16L : awake);
     }
 
     @Override

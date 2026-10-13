@@ -746,6 +746,7 @@ final class TaskbarStart {
             int display = TaskbarTray.displayIdOf(this);
             shown(drawerUp(display), recentsUp(display));
             mRobot.setSleeps(Cfg.robotSleep());
+            mRobot.setBreathes(Cfg.robotBreath());
         }
 
         /** Takes ZUI's button: what a press presses, and the icon size to match. */

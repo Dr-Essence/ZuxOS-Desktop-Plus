@@ -202,6 +202,10 @@ public class MainActivity extends Activity {
                 "After 30 seconds with nothing pressed the robot shuts its eyes and dozes off, "
                         + "z's drifting up; any press wakes it",
                 Const.KEY_ROBOT_SLEEP, true);
+        addSwitch("Start button robot breathes",
+                "The robot's head swells gently with each breath - slower and deeper while it "
+                        + "sleeps",
+                Const.KEY_ROBOT_BREATH, true);
         addSwitch("Keep the launcher's recents off the taskbar",
                 "With \"Only open apps\" on, the launcher's own recent and recommended apps are "
                         + "never added to the taskbar - not even for a moment when an app opens "
