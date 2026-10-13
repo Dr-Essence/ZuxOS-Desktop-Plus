@@ -331,7 +331,7 @@ vendor power HAL's, not in these jars.
   (`TaskbarFollow` re-registers last) and adds our row, start button and tray, our row as high
   as the bar (2902-3040 in portrait, probe 20:21); every missed drop in the videos 20:16-20:20
   was let go over the bar; neither the drawer's window nor the shell logged one of them. Not
-  yet seen: the window that got each drop - traced from 0.0.253 (`SystemDrag`, "let go over
+  yet seen: the window that got each drop - traced from 0.0.254 (`SystemDrag`, "let go over
   ... told of the drag").
 - **Selecting on the home screen (read 2026-10-12).** ZUI's edit mode (`LauncherState.EDIT_MODE`,
   `PMRLauncher.getEditModePanel()` = `ZuiEditModePanel`) selects: a tap there goes to
