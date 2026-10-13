@@ -194,6 +194,9 @@ final class TaskbarDrop {
                 case DragEvent.ACTION_DRAG_ENDED:
                     mWhere = -1f;
                     invalidate();
+                    if (event.getAction() == DragEvent.ACTION_DRAG_ENDED) {
+                        ZuiHomeDrop.pinEnded(event);
+                    }
                     if (movingPin(event) != null && (event.getAction()
                             == DragEvent.ACTION_DRAG_EXITED || !event.getResult())) {
                         TaskbarRunning.clearPreview(mDragLayer);

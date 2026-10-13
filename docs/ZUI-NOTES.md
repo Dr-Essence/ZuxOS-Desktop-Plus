@@ -493,6 +493,33 @@ vendor power HAL's, not in these jars.
   transition SystemUI follows.
 - At boot ZUI's taskbar is built a moment before its drawer's list (and so its app store as we
   read it): our bar folders, made from that list, wait for it.
+- A folder's popup is built from `Launcher.getSupportedShortcuts()`; with big folders supported
+  it holds `SystemShortcut.SWITCH_FOLDER` ("Enlarge folder", factory `getShortcut(context,
+  info, view)`) and `RENAME_FOLDER`. The factory makes `SwitchFolder` for any `FolderInfo` of
+  item type 2 outside desktop mode, and its click casts the icon's layout params to the home
+  grid's `CellLayoutLayoutParams` - a folder anywhere else stops ZUX Home. Rename only calls
+  `folder.animateOpen`. Our folders reach this popup because `Workspace.beginDragShared` sets
+  `FolderIcon.startLongPressAction()` (`PopupContainerWithArrow.showForIcon`) as the drag's
+  `preDragCondition` for any `FolderIcon` when `BigFolderConfig.isSupportFeature()` (read
+  2026-10-13).
+- The drawer's list (`AlphabeticalAppsList`) is refilled from the app store by
+  `onAppsUpdated()`, which then calls `updateAdapterItems()`; `updateAdapterItems` alone lays
+  out the list it already has.
+- ZUI's loader (`LoaderTask.run`) binds the home screen, then waits (`waitForIdle`: "step 1
+  loading workspace complete") until the main thread is idle before `LoadAllApps`. The wait is
+  `BaseLauncherBinder.newIdleLock(this)`, a `LooperIdleLock` - an idle handler on the main
+  looper, waited on a second at a time with no limit (`while (!stopped &&
+  lock.awaitLocked(1000))`). Its `queueIdle()` takes the loader's monitor, clears its waiting
+  flag and notifies; the loader holds that monitor while it runs, so `queueIdle` must not be
+  called from the main thread. With ZUX Home in front its main thread did not go idle for 14-23
+  s after a boot (logs 18:59, 21:31, 21:58), and the drawer stayed empty until an app covered
+  it.
+- ZUI's own way in for a drag from outside its views: `DraggableView.ofType(int)` (a static
+  interface method; `DRAGGABLE_ICON` 0) as the drag's `originalView`, as
+  `PendingItemDragHelper` does; the `DragSource` is told the outcome in
+  `onDropCompleted(target, dragObject, success)`. With `DragOptions.simulatedDndStartPoint` set
+  the drag is driven by `SystemDragDriver` from `DragController.onDragEvent`: LOCATION moves,
+  DROP moves and ends, EXITED leaves the drop target, ENDED cancels.
 
 ## Two USB-C ports: which one charges (`services.jar` 16)
 

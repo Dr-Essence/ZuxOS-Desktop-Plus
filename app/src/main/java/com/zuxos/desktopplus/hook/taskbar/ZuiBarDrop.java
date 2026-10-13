@@ -437,7 +437,7 @@ final class ZuiBarDrop {
     }
 
     /** A shadow of nothing: the system's card for ZUI's drag, emptied. */
-    private static final View.DragShadowBuilder NO_SHADOW = new View.DragShadowBuilder() {
+    static final View.DragShadowBuilder NO_SHADOW = new View.DragShadowBuilder() {
         @Override
         public void onProvideShadowMetrics(Point size, Point touch) {
             size.set(1, 1);

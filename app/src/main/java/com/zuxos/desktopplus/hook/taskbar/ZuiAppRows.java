@@ -187,6 +187,12 @@ final class ZuiAppRows {
                 return;
             }
             Object info = icon.getTag();
+            Item folder = ZuiFolders.folderOfIcon(icon);
+            if (folder != null && !hasOurs(zui)) {
+                param.args[3] = withFolderRows(zui, folder, info, icon,
+                        ((View) param.thisObject).getContext());
+                return;
+            }
             String pkg = IconInfo.packageOf(info);
             ComponentName component = componentOf(info);
             if (pkg == null || component == null) {
@@ -224,6 +230,42 @@ final class ZuiAppRows {
         } catch (Throwable t) {
             L.d("zui app rows: none added (" + t + ")");
         }
+    }
+
+    /**
+     * ZUI's menu for one of our folders - its Rename; never its Enlarge, which our folders do
+     * not offer ({@link ZuiFolders}) - with pin or unpin to the taskbar as one of its own.
+     */
+    private static List<Object> withFolderRows(List<Object> zui, Item folder, Object info,
+            View icon, Context popup) throws Exception {
+        Context ctx = icon.getContext();
+        Object target = sLookup.invoke(null, ctx);
+        if (target == null) {
+            return zui;
+        }
+        Row row = PinList.holds(TaskbarPins.pins(ctx), folder.key())
+                ? new Row("Unpin from the taskbar", "ic_unpin", () -> {
+                    TaskbarPins.unpin(ctx, folder.key());
+                    TaskbarRunning.refreshAll();
+                })
+                : new Row("Pin to the taskbar", "ic_pin_zui", () -> {
+                    TaskbarPins.pin(ctx, folder, PinList.AT_THE_END);
+                    TaskbarRunning.refreshAll();
+                });
+        List<Object> all = new ArrayList<>(zui);
+        all.add(ZuiShortcuts.make(ctx, row.title, iconFor(ctx, row, ZuiLook.shortcutIcon(popup)),
+                row.action, target, info, icon));
+        return all;
+    }
+
+    /** Whether the list is already ours ({@code ZuiMenu}'s): nothing of ours added twice. */
+    private static boolean hasOurs(List<Object> shortcuts) {
+        for (Object shortcut : shortcuts) {
+            if (ZuiShortcuts.isOurs(shortcut)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** One of our actions, with the name of ZUI's own icon for it. */

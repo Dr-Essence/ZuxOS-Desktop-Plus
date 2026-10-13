@@ -4,8 +4,13 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.graphics.Point;
 import android.graphics.drawable.Drawable;
+import android.os.Process;
+import android.os.UserHandle;
+import android.os.UserManager;
+import android.view.Display;
 import android.view.DragEvent;
 import android.view.View;
+import android.view.ViewGroup;
 
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
@@ -17,6 +22,7 @@ import com.zuxos.desktopplus.hook.ZuiApps;
 import com.zuxos.desktopplus.model.Item;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.List;
 
 /**
@@ -32,8 +38,15 @@ import java.util.List;
  * same process on the same screen: it starts ZUX Home's drag there and hands it every event, moved
  * from its own coordinates to the home screen's. From then on it is ZUI's drag, from ZUI's drawer -
  * the home screen opening as for its own drawer ({@code SPRING_LOADED}), its reorder, folders,
- * drop animation and database - with the system's shadow hidden so only ZUI's own icon is dragged. SystemUI stands aside for it (the clip says so,
- * {@code ShellDropBar}).
+ * drop animation and database - with the system's shadow hidden so only ZUI's own icon is dragged.
+ * SystemUI stands aside for it (the clip says so, {@code ShellDropBar}).
+ *
+ * <p>A pinned app dragged off the tablet's bar with the home screen behind it goes the same way
+ * ({@link #armForPin}): its drag reaches ZUX Home's windows, a catcher in the home screen's drag
+ * layer starts ZUI's drag the moment the finger leaves the bar - from ZUI's own stand-in for an
+ * icon from elsewhere ({@code DraggableView.ofType}, as {@code PendingItemDragHelper} does) - and
+ * gives it up when the finger goes back over the bar, where the pin moves along it as before.
+ * Placed on the home screen, the app leaves the bar (drag row 2: bar to home moves it).
  */
 final class ZuiHomeDrop {
 
@@ -42,6 +55,9 @@ final class ZuiHomeDrop {
 
     private static final String OPTIONS = "com.android.launcher3.dragndrop.DragOptions";
     private static final String DRAGGABLE = "com.android.launcher3.dragndrop.DraggableView";
+    private static final String DRAG_SOURCE = "com.android.launcher3.DragSource";
+    /** ZUI's {@code DraggableView.DRAGGABLE_ICON}. */
+    private static final int DRAGGABLE_ICON = 0;
     private static final int FULLSCREEN = 1;
 
     /** ZUX Home's drag controller carrying the drag under way, or null. Main thread. */
@@ -80,41 +96,15 @@ final class ZuiHomeDrop {
     static boolean begin(View catcher, View source, Item item, DragEvent started) {
         try {
             ClassLoader loader = catcher.getContext().getClassLoader();
-            Object launcher = ZuiApps.launcher(loader);
-            Class<?> draggable = Class.forName(DRAGGABLE, false, loader);
-            if (launcher == null || !draggable.isInstance(source)) {
+            if (!Class.forName(DRAGGABLE, false, loader).isInstance(source)) {
                 L.i("zui home drop: no home screen to hand the drag to");
                 return false;
             }
-            View homeLayer = (View) Reflect.call(launcher, "getDragLayer");
-            int[] home = new int[2];
-            int[] here = new int[2];
-            homeLayer.getLocationOnScreen(home);
-            catcher.getLocationOnScreen(here);
-            // The drawer's window and the home screen's need not share their origin (15:45): every
-            // event is moved from the catcher's place to the home screen's.
-            sDx = here[0] - home[0];
-            sDy = here[1] - home[1];
-            Object apps = Reflect.call(launcher, "getAppsView");
-            Object app = ZuiApps.appInfo(launcher, new ComponentName(item.pkg, item.cls),
-                    IconInfo.userOf(source.getTag()));
-            Object icon = app == null ? null : Reflect.call(app, "newIcon", launcher);
-            Object controller = Reflect.call(launcher, "getDragController");
-            Method start = startDrag(controller);
-            if (!(icon instanceof Drawable) || controller == null || start == null) {
-                L.i("zui home drop: ZUI's app or drag not found for " + item.pkg);
+            // From ZUI's drawer: ZUI opens the home screen for it as for its own (SPRING_LOADED).
+            if (!startZuiDrag(catcher, source, IconInfo.userOf(source.getTag()), null, item,
+                    started)) {
                 return false;
             }
-            Object options = Class.forName(OPTIONS, false, loader).getConstructor().newInstance();
-            Point at = new Point(Math.round(started.getX() + sDx),
-                    Math.round(started.getY() + sDy));
-            options.getClass().getField("simulatedDndStartPoint").set(options, at);
-            Drawable drawable = (Drawable) icon;
-            int half = Math.max(1, drawable.getIntrinsicWidth()) / 2;
-            // From ZUI's drawer: ZUI opens the home screen for it as for its own (SPRING_LOADED).
-            start.invoke(controller, drawable, source, at.x - half, at.y - half, apps, app, null,
-                    1f, 1f, options);
-            sController = controller;
             // Only ZUI's own icon is dragged now: the system's card is hidden, the drawer too.
             ZuiBarDrop.hideShadow(catcher);
             View drawer = catcher.getRootView();
@@ -129,6 +119,47 @@ final class ZuiHomeDrop {
             sController = null;
             return false;
         }
+    }
+
+    /**
+     * ZUX Home's {@code DragController.startDrag} for this app at the event's point, from
+     * {@code draggable} for {@code dragSource} (null: ZUI's drawer); true when it began.
+     */
+    private static boolean startZuiDrag(View catcher, Object draggable, UserHandle user,
+            Object dragSource, Item item, DragEvent at) throws ReflectiveOperationException {
+        ClassLoader loader = catcher.getContext().getClassLoader();
+        Object launcher = ZuiApps.launcher(loader);
+        if (launcher == null) {
+            L.i("zui home drop: no home screen to hand the drag to");
+            return false;
+        }
+        View homeLayer = (View) Reflect.call(launcher, "getDragLayer");
+        int[] home = new int[2];
+        int[] here = new int[2];
+        homeLayer.getLocationOnScreen(home);
+        catcher.getLocationOnScreen(here);
+        // The drawer's window and the home screen's need not share their origin (15:45): every
+        // event is moved from the catcher's place to the home screen's.
+        sDx = here[0] - home[0];
+        sDy = here[1] - home[1];
+        Object apps = Reflect.call(launcher, "getAppsView");
+        Object app = ZuiApps.appInfo(launcher, new ComponentName(item.pkg, item.cls), user);
+        Object icon = app == null ? null : Reflect.call(app, "newIcon", launcher);
+        Object controller = Reflect.call(launcher, "getDragController");
+        Method start = startDrag(controller);
+        if (!(icon instanceof Drawable) || controller == null || start == null) {
+            L.i("zui home drop: ZUI's app or drag not found for " + item.pkg);
+            return false;
+        }
+        Object options = Class.forName(OPTIONS, false, loader).getConstructor().newInstance();
+        Point point = new Point(Math.round(at.getX() + sDx), Math.round(at.getY() + sDy));
+        options.getClass().getField("simulatedDndStartPoint").set(options, point);
+        Drawable drawable = (Drawable) icon;
+        int half = Math.max(1, drawable.getIntrinsicWidth()) / 2;
+        start.invoke(controller, drawable, draggable, point.x - half, point.y - half,
+                dragSource != null ? dragSource : apps, app, null, 1f, 1f, options);
+        sController = controller;
+        return true;
     }
 
     /** ZUX Home's {@code DragController.startDrag(Drawable, DraggableView, ...)}. */
@@ -224,6 +255,239 @@ final class ZuiHomeDrop {
         if (drawer != null) {
             drawer.animate().cancel();
             drawer.setAlpha(1f);
+        }
+    }
+
+    // --- a pin off the bar ---------------------------------------------------
+
+    /** The pin dragged off the bar toward the home screen, or null. Main thread. */
+    private static Item sPin;
+    /** Our catcher in the home screen's drag layer, for the pin's drag. */
+    private static View sPinCatcher;
+    /** The bar's window, where the pin's drag started: its card is shown or emptied there. */
+    private static View sPinBar;
+    private static View.DragShadowBuilder sPinCard;
+    /** ZUI took the pin's app: it was placed on the home screen. */
+    private static boolean sPinPlaced;
+    /** ZUI's drag of the pin was started at least once. */
+    private static boolean sPinHanded;
+    /** ZUI's drag could not be started for this pin: not tried again until its next drag. */
+    private static boolean sPinRefused;
+
+    /**
+     * A pin about to be dragged off the bar: with the home screen full screen behind the tablet's
+     * bar, a catcher goes into the home screen's drag layer and the drag may go there (true: it is
+     * to start across ZUX Home's windows). Anywhere else the pin moves along the bar only.
+     */
+    static boolean armForPin(View pin, Item item, View.DragShadowBuilder card) {
+        disarmPin();
+        try {
+            int display = TaskbarTray.displayIdOf(pin);
+            if (display != Display.DEFAULT_DISPLAY || item.type != Item.TYPE_APP
+                    || item.pkg == null || !homeBehind(pin.getContext(), display)) {
+                return false;
+            }
+            Object launcher = ZuiApps.launcher(pin.getContext().getClassLoader());
+            Object layer = launcher == null ? null : Reflect.call(launcher, "getDragLayer");
+            if (!(layer instanceof ViewGroup) || ((View) layer).getDisplay() == null
+                    || ((View) layer).getDisplay().getDisplayId() != display) {
+                L.i("zui home drop: no home screen behind the bar for " + item.pkg);
+                return false;
+            }
+            ViewGroup home = (ViewGroup) layer;
+            View catcher = new View(home.getContext());
+            catcher.setOnDragListener(ZuiHomeDrop::onPinDrag);
+            catcher.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+                @Override
+                public void onViewAttachedToWindow(View v) {
+                }
+
+                @Override
+                public void onViewDetachedFromWindow(View v) {
+                    // The home screen gone mid-drag: ZUI's drag with it, the pin stays.
+                    if (sPinCatcher == v) {
+                        pinEnded(null);
+                    }
+                }
+            });
+            home.addView(catcher, fullLayer(home));
+            sPin = item;
+            sPinCatcher = catcher;
+            sPinBar = pin.getRootView();
+            sPinCard = card;
+            return true;
+        } catch (Throwable t) {
+            L.d("zui home drop: the pin stays on the bar (" + t + ")");
+            disarmPin();
+            return false;
+        }
+    }
+
+    /**
+     * All of the drag layer, its insets too ({@code InsettableFrameLayout.LayoutParams
+     * .ignoreInsets}): a drop near the screen's top edge is still the home screen's.
+     */
+    private static ViewGroup.LayoutParams fullLayer(ViewGroup layer) {
+        ViewGroup.LayoutParams full = new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        try {
+            Object lp = layer.getClass()
+                    .getMethod("generateLayoutParams", ViewGroup.LayoutParams.class)
+                    .invoke(layer, full);
+            lp.getClass().getField("ignoreInsets").setBoolean(lp, true);
+            return (ViewGroup.LayoutParams) lp;
+        } catch (Throwable t) {
+            L.d("zui home drop: the catcher keeps the home screen's insets (" + t + ")");
+            return full;
+        }
+    }
+
+    /** The pin's drag did not start after all: the catcher goes. */
+    static void disarmPin() {
+        View catcher = sPinCatcher;
+        sPin = null;
+        sPinCatcher = null;
+        sPinBar = null;
+        sPinCard = null;
+        sPinPlaced = false;
+        sPinHanded = false;
+        sPinRefused = false;
+        if (catcher != null) {
+            remove(catcher);
+        }
+    }
+
+    private static boolean onPinDrag(View catcher, DragEvent event) {
+        Item pin = sPin;
+        if (pin == null || catcher != sPinCatcher) {
+            return false;
+        }
+        switch (event.getAction()) {
+            case DragEvent.ACTION_DRAG_STARTED:
+                return true;
+            case DragEvent.ACTION_DRAG_LOCATION:
+                if (sController == null && !sPinRefused) {
+                    pinToHome(catcher, pin, event);
+                }
+                forward(event);
+                return true;
+            case DragEvent.ACTION_DRAG_EXITED:
+                // Back over the bar: ZUI's drag gives up and the pin's card is back, so the pin
+                // moves along the bar as before.
+                if (sController != null) {
+                    forward(event);
+                    cancel();
+                    sController = null;
+                    card(sPinCard);
+                }
+                return true;
+            case DragEvent.ACTION_DROP:
+                return sController != null && forward(event);
+            case DragEvent.ACTION_DRAG_ENDED:
+                pinEnded(event);
+                return true;
+            default:
+                return true;
+        }
+    }
+
+    /** The finger has left the bar for the home screen: ZUI's own drag of the pin's app. */
+    private static void pinToHome(View catcher, Item pin, DragEvent at) {
+        try {
+            ClassLoader loader = catcher.getContext().getClassLoader();
+            Object draggable = Class.forName(DRAGGABLE, false, loader)
+                    .getMethod("ofType", int.class).invoke(null, DRAGGABLE_ICON);
+            if (startZuiDrag(catcher, draggable, userOf(catcher.getContext(), pin.userSerial),
+                    pinSource(loader), pin, at)) {
+                sPinHanded = true;
+                card(ZuiBarDrop.NO_SHADOW);
+                L.i("zui home drop: the pin " + pin.pkg + " handed to the home screen");
+                return;
+            }
+        } catch (Throwable t) {
+            L.w("zui home drop: the pin " + pin.pkg + " not handed to the home screen (" + t + ")");
+            sController = null;
+        }
+        sPinRefused = true;
+    }
+
+    /** ZUI's {@code DragSource} for the pin: it is told whether ZUI placed the app. */
+    private static Object pinSource(ClassLoader loader) throws ClassNotFoundException {
+        return Proxy.newProxyInstance(loader,
+                new Class<?>[]{Class.forName(DRAG_SOURCE, false, loader)},
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "onDropCompleted":
+                            if (args != null && args.length == 3
+                                    && Boolean.TRUE.equals(args[2])) {
+                                sPinPlaced = true;
+                            }
+                            return null;
+                        case "equals":
+                            return args != null && args.length == 1 && proxy == args[0];
+                        case "hashCode":
+                            return System.identityHashCode(proxy);
+                        case "toString":
+                            return "ZuxDesktopPlus bar pin";
+                        default:
+                            return null;
+                    }
+                });
+    }
+
+    private static UserHandle userOf(Context ctx, long serial) {
+        UserManager users = ctx.getSystemService(UserManager.class);
+        UserHandle user = users == null ? null : users.getUserForSerialNumber(serial);
+        return user != null ? user : Process.myUserHandle();
+    }
+
+    /** The pin's card on screen: shown, or emptied while ZUI's own icon is dragged. */
+    private static void card(View.DragShadowBuilder card) {
+        View bar = sPinBar;
+        if (bar == null || card == null) {
+            return;
+        }
+        try {
+            bar.updateDragShadow(card);
+        } catch (Throwable t) {
+            L.d("zui home drop: the pin's card not changed (" + t + ")");
+        }
+    }
+
+    /**
+     * The pin's drag is over (null: the home screen went first): ZUI's ends with it, and an app
+     * ZUI placed on the home screen leaves the bar. Told by the catcher and by the bar's strip,
+     * whichever is first.
+     */
+    static void pinEnded(DragEvent ended) {
+        Item pin = sPin;
+        View bar = sPinBar;
+        View catcher = sPinCatcher;
+        if (pin == null) {
+            return;
+        }
+        boolean placed = sPinPlaced;
+        boolean handed = sPinHanded;
+        end(ended);
+        sPin = null;
+        sPinCatcher = null;
+        sPinBar = null;
+        sPinCard = null;
+        if (placed && bar != null) {
+            TaskbarPins.unpin(bar.getContext(), pin.key());
+            TaskbarRunning.refreshAll();
+        }
+        L.i("zui home drop: the pin " + pin.pkg + (placed ? " moved to the home screen"
+                : handed ? " not placed by ZUI - it stays on the bar" : " stayed on the bar"));
+        if (catcher != null) {
+            // Not while the drag's end is being handed out.
+            catcher.post(() -> remove(catcher));
+        }
+    }
+
+    private static void remove(View catcher) {
+        if (catcher.getParent() instanceof ViewGroup) {
+            ((ViewGroup) catcher.getParent()).removeView(catcher);
         }
     }
 }

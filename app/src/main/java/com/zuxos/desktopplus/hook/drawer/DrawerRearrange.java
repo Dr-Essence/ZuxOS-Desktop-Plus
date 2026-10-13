@@ -158,11 +158,16 @@ final class DrawerRearrange {
         Session session = sSession;
         sSession = null;
         if (session != null) {
+            boolean kept = session.keeping;
             session.keeping = false;
             Reflect.call(session.controller, "removeDropTarget", session.target);
             if (!session.dropped) {
                 session.reorder.cancel();
             }
+            L.i("drawer rearrange: the drag of " + session.key + " ended - "
+                    + (session.dropped ? session.reorder.outcome()
+                    : kept ? "let go of nowhere in the drawer, or cancelled - no change"
+                    : "on the home screen's side, as ZUI has it"));
         }
     }
 

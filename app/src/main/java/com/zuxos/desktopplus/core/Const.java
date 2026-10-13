@@ -103,8 +103,10 @@ public final class Const {
     public static final String KEY_DRAWER_FOLDER_HOME = "drawer_folder_home";
     /** Dragging in ZUX Home's drawer rearranges it, folders made and filled, as ZUI's home. */
     public static final String KEY_DRAWER_REARRANGE = "drawer_rearrange";
-    /** An app dragged out of the taskbar's drawer with the home screen behind lands there. */
+    /** An app off the taskbar - its drawer, or a pin on the tablet - lands on the home screen. */
     public static final String KEY_HOME_DROP = "home_drop";
+    /** ZUI's loader waits a second at most for an idle home screen before loading the app list. */
+    public static final String KEY_LOADER_NO_WAIT = "loader_no_wait";
     /** Translucent glass behind the launcher's own app drawer. */
     public static final String KEY_DRAWER_GLASS = "native_drawer_glass";
     /** Hold an app in the stock drawer to drag it onto the desktop or the taskbar. */

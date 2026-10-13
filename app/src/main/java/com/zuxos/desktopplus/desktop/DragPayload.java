@@ -13,7 +13,7 @@ public final class DragPayload {
     public static final int SRC_DESKTOP = 0;
     public static final int SRC_DRAWER = 1;
     public static final int SRC_FOLDER = 2;
-    /** A pin being moved along the taskbar. Never leaves the taskbar's window. */
+    /** A pin moved along the taskbar - or, with home behind the tablet's bar, onto the home. */
     public static final int SRC_TASKBAR = 3;
 
     /**

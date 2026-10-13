@@ -116,6 +116,16 @@ public final class ZuiShortcuts {
         return Icon.createWithBitmap(bitmap);
     }
 
+    /** Whether a shortcut of ZUI's popup is one of ours. */
+    public static boolean isOurs(Object shortcut) {
+        try {
+            return sAction != null && sAction.getDeclaringClass().isInstance(shortcut)
+                    && OURS.containsKey((RemoteAction) sAction.get(shortcut));
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     /** One of ours tapped: ZUI's popup closes as for its own shortcuts, then the action runs. */
     private static boolean tapped(Object shortcut) {
         try {

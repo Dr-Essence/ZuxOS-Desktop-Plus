@@ -718,12 +718,21 @@ public final class NativeDrawerHooks {
         synchronized (LISTS) {
             lists = new ArrayList<>(LISTS.keySet());
         }
-        for (Object list : lists) {
-            try {
-                Reflect.call(list, "updateAdapterItems");
-            } catch (Throwable t) {
-                L.d("native drawer: a list not refreshed (" + t + ")");
+        // ZUI's own refresh: onAppsUpdated fills the list again from ZUI's app store and lays it
+        // out (updateAdapterItems, where ours is applied). Laid out alone, the list was the one
+        // our last pass left - without the apps that were in folders, so an app taken out of one
+        // stayed missing until ZUX Home restarted. Our after-hook is held off for it: one pass.
+        sRefreshing.set(Boolean.TRUE);
+        try {
+            for (Object list : lists) {
+                try {
+                    Reflect.call(list, "onAppsUpdated");
+                } catch (Throwable t) {
+                    L.d("native drawer: a list not refreshed (" + t + ")");
+                }
             }
+        } finally {
+            sRefreshing.set(Boolean.FALSE);
         }
     }
 
@@ -905,9 +914,9 @@ public final class NativeDrawerHooks {
                 return false;
             }
             List<TaskbarMenu.Entry> menu = DrawerHold.menuEntries(view, folder);
-            // In ZUX Home's own drawer the menu comes first and the folder drags to the home
-            // screen once the finger moves, as ZUI's drawer apps do.
-            if (ZuiFolderHome.hold(view, folder, menu)) {
+            // In ZUX Home's own drawer ZUI's menu for the folder comes first and the folder
+            // drags to the home screen once the finger moves, as ZUI's drawer apps do.
+            if (ZuiFolderHome.hold(view, folder)) {
                 return true;
             }
             if (!ZuiMenu.show(view, menu)) {

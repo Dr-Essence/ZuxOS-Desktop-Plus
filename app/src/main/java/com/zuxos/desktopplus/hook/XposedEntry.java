@@ -10,6 +10,7 @@ import com.zuxos.desktopplus.hook.drawer.NativeDrawerHooks;
 import com.zuxos.desktopplus.hook.home.ActivityWatcher;
 import com.zuxos.desktopplus.hook.home.HomeSelect;
 import com.zuxos.desktopplus.hook.home.HotseatButton;
+import com.zuxos.desktopplus.hook.home.LoaderWait;
 import com.zuxos.desktopplus.hook.home.PinRequestHooks;
 import com.zuxos.desktopplus.hook.home.SettingsRestart;
 import com.zuxos.desktopplus.hook.home.StockUnlockHooks;
@@ -104,6 +105,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
             }
             HotseatButton.install(lpparam.classLoader);
             HomeSelect.install(lpparam.classLoader);
+            LoaderWait.install(lpparam.classLoader);
         } catch (Throwable t) {
             L.e("handleLoadPackage failed for " + lpparam.packageName, t);
         }

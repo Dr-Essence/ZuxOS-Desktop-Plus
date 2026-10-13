@@ -1886,8 +1886,15 @@ public final class TaskbarRunning {
                 DragPayload payload =
                         new DragPayload(mPin,
                                 DragPayload.SRC_TASKBAR, null);
-                // Local: a pin moves along the bar and nowhere else, so the desktop never sees it.
-                v.startDragAndDrop(payload.toClip(), new View.DragShadowBuilder(v), payload, 0);
+                View.DragShadowBuilder card = new View.DragShadowBuilder(v);
+                // Local - a pin moves along the bar and nowhere else, so the desktop never sees
+                // it - but across ZUX Home's windows where the home screen is behind the tablet's
+                // bar, which can take it (ZuiHomeDrop).
+                boolean home = ZuiHomeDrop.armForPin(v, mPin, card);
+                if (!v.startDragAndDrop(payload.toClip(), card, payload,
+                        home ? DragPayload.FLAGS : 0) && home) {
+                    ZuiHomeDrop.disarmPin();
+                }
             } catch (Throwable t) {
                 L.d("taskbar running: could not pick the pin up (" + t + ")");
             }

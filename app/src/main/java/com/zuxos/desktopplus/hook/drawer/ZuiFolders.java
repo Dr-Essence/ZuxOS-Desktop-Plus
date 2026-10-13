@@ -18,6 +18,7 @@ import com.zuxos.desktopplus.hook.IconPress;
 import com.zuxos.desktopplus.hook.Mirror;
 import com.zuxos.desktopplus.hook.ZuiApps;
 import com.zuxos.desktopplus.hook.ZuiMenu;
+import com.zuxos.desktopplus.logic.DrawerArrange;
 import com.zuxos.desktopplus.model.DrawerStore;
 import com.zuxos.desktopplus.model.Item;
 
@@ -170,6 +171,7 @@ public final class ZuiFolders {
             hooked += hookBack(folder);
             hooked += hookDrawerClose(loader);
             hooked += hookHeldOut(loader);
+            hooked += hookNoEnlarge(loader);
             ZuiFolderWrites.install(loader);
             ZuiFolderAdd.install(loader, folder);
             hooked += ZuiFolderHome.install(loader);
@@ -179,6 +181,47 @@ public final class ZuiFolders {
             L.i("zui folders: our drawer folders as ZUI's own on the tablet x" + hooked);
         } catch (Throwable t) {
             off("not installed (" + t + ")");
+        }
+    }
+
+    /**
+     * ZUI's "Enlarge folder" ({@code SystemShortcut.SWITCH_FOLDER}) is never offered for one of
+     * our folders. ZUI's factory makes it for any folder outside desktop mode, and its click
+     * resizes the folder on the home screen's grid ({@code SwitchFolder.onClick} casts the icon's
+     * layout params to {@code CellLayoutLayoutParams}): for our folders, in a drawer or on the
+     * bar, that stopped ZUX Home (21:55:31, 21:58:23). The factory, asked about one of ours,
+     * answers with no shortcut - ZUI's decision, not its menu undone afterwards. Its other folder
+     * shortcut, Rename, only opens the folder and stays.
+     */
+    private static int hookNoEnlarge(ClassLoader loader) {
+        try {
+            Class<?> shortcuts = Reflect.findClass("com.android.launcher3.popup.SystemShortcut",
+                    loader);
+            Object factory = shortcuts == null ? null
+                    : shortcuts.getField("SWITCH_FOLDER").get(null);
+            if (factory == null) {
+                L.w("zui folders: ZUI's Enlarge folder not found - left as ZUI has it");
+                return 0;
+            }
+            return XposedBridge.hookAllMethods(factory.getClass(), "getShortcut",
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            try {
+                                Object id = param.args.length == 3
+                                        ? Reflect.field(param.args[1], "id") : null;
+                                if (id instanceof Integer && (Integer) id <= ID_BASE
+                                        && folderOfId((Integer) id) != null) {
+                                    param.setResult(null);
+                                }
+                            } catch (Throwable t) {
+                                L.d("zui folders: Enlarge left to ZUI (" + t + ")");
+                            }
+                        }
+                    }).size();
+        } catch (Throwable t) {
+            L.w("zui folders: ZUI's Enlarge folder not reached (" + t + ")");
+            return 0;
         }
     }
 
@@ -1241,7 +1284,7 @@ public final class ZuiFolders {
     }
 
     /** Our folder behind one of ZUI's folder icons of ours, or null. */
-    static Item folderOfIcon(View view) {
+    public static Item folderOfIcon(View view) {
         Object tag = view == null ? null : view.getTag();
         Object id = tag == null ? null : Reflect.field(tag, "id");
         return id instanceof Integer && (Integer) id <= ID_BASE ? folderOfId((Integer) id) : null;
@@ -1252,7 +1295,10 @@ public final class ZuiFolders {
      * null for any other item.
      */
     public static Runnable removeAction(Object item) {
-        return childOf(item) == null ? null : () -> removeFromFolder(item);
+        // The app as the menu is built: ZUX Home's drawer hold notes it under the drawer's own
+        // entry only while the hold is handled, so a lookup at the tap found nothing (21:58).
+        Item child = childOf(item);
+        return child == null ? null : () -> removeFromFolder(child);
     }
 
     /**
@@ -1283,27 +1329,41 @@ public final class ZuiFolders {
         };
     }
 
-    /** Takes an app out of the folder it is in, as {@code DrawerFolderWindow} does. */
-    static void removeFromFolder(Object item) {
-        Item child = childOf(item);
-        Context ctx = AppCtx.get();
-        if (child == null || ctx == null) {
-            return;
+    /**
+     * Takes an app out of the folder it is in, to the place after the folder, by the drawer's
+     * own rule ({@link DrawerArrange#takeOut}: a folder left with one app gives its place to it),
+     * and the drawer shows it at once.
+     */
+    static void removeFromFolder(Item child) {
+        String key = child.key();
+        boolean done = NativeDrawerHooks.rearrange("took " + key + " out of its folder",
+                (order, folders) -> {
+                    Item folder = DrawerArrange.folderOf(folders, key);
+                    int at = folder == null ? -1 : order.indexOf(folder.key());
+                    return folder != null
+                            && DrawerArrange.takeOut(order, folders, key, at + 1);
+                });
+        if (!done) {
+            // No drawer list seen yet since ZUX Home started (the bar's folder, held first): the
+            // folder alone loses the app, and the drawer sorts it in when it next lays out.
+            Context ctx = AppCtx.get();
+            DrawerStore store = ctx == null ? null : DrawerStore.shared(ctx);
+            Item folder = store == null ? null : store.folderContaining(key);
+            if (folder != null) {
+                folder.children.remove(child);
+                if (folder.children.size() <= 1) {
+                    // One app left is not a folder: both go back to the list.
+                    folder.children.clear();
+                    store.folders().remove(folder);
+                }
+                store.save();
+                NativeDrawerHooks.refreshList();
+                L.i("zui folders: took " + key + " out of its folder, before any drawer was seen");
+            } else {
+                L.i("zui folders: " + key + " not taken out - no folder holds it");
+            }
         }
-        DrawerStore store = DrawerStore.shared(ctx);
-        Item folder = store.folderContaining(child.key());
-        if (folder == null) {
-            return;
-        }
-        folder.children.remove(child);
-        if (folder.children.size() <= 1) {
-            // One app left is not a folder: both go back to the list.
-            folder.children.clear();
-            store.folders().remove(folder);
-        }
-        store.save();
         closeOpenFolders();
-        NativeDrawerHooks.refreshList();
     }
 
     /** Renamed in ZUI's folder: our folder takes the name. */

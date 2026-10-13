@@ -522,6 +522,10 @@ public final class Cfg {
         return getBool(Const.KEY_HOME_DROP, true);
     }
 
+    public static boolean loaderNoWait() {
+        return getBool(Const.KEY_LOADER_NO_WAIT, true);
+    }
+
     public static boolean drawerGlass() {
         return getBool(Const.KEY_DRAWER_GLASS, true);
     }

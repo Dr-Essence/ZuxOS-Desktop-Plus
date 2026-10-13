@@ -11,6 +11,7 @@ import com.zuxos.desktopplus.core.motion.Motion;
 import com.zuxos.desktopplus.hook.taskbar.BarEdge;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarTray;
 import com.zuxos.desktopplus.logic.DrawerArrange;
+import com.zuxos.desktopplus.logic.ReorderSlots;
 import com.zuxos.desktopplus.model.Item;
 
 import java.util.ArrayList;
@@ -23,14 +24,15 @@ import java.util.Map;
  * Rearranging ZUI's own app drawer by dragging an app within it, the way ZUI rearranges its home
  * screen.
  *
- * <p>While a held app moves over the drawer, the icons between where it was and where it is now
- * slide over by one place on a spring, opening the gap it will drop into; held near the top or
- * the bottom of the grid, the grid scrolls. Held still over the middle of another app it folds
- * into it: that app swells, and let go there the two make a folder; over one of our folders, the
- * app goes in it. An app dragged out of one of our folders opens a gap of its own and, let go,
- * leaves the folder for it. Let go over the grid and the new order is kept - the same order the
- * module's own drawer uses - and ZUI's list re-sorts from where the icons are drawn, so nothing
- * jumps.
+ * <p>While a held app stays a moment over another entry, the icons between where it was and
+ * there slide over by one place on a spring, opening the gap it will drop into; held near the
+ * top or the bottom of the grid, the grid scrolls. Held still over the middle of another app it
+ * folds into it: that app swells, and let go there the two make a folder; over one of our
+ * folders, the app goes in it. What it is over is what is drawn under the finger, not what was
+ * laid out there ({@link ReorderSlots}): let go in the gap, it moves. An app dragged out of one
+ * of our folders opens a gap of its own and, let go, leaves the folder for it. Let go over the
+ * grid and the new order is kept - the same order the module's own drawer uses - and ZUI's list
+ * re-sorts from where the icons are drawn, so nothing jumps.
  *
  * <p>Only the drawer's views and their geometry are used: the grid's own classes are minified on
  * this firmware, and none of their methods can be counted on by name.
@@ -41,7 +43,12 @@ final class DrawerReorder {
     private static final int EDGE_DP = 56;
     private static final int SCROLL_STEP_DP = 14;
     /** How long a drag rests over the middle of an app before it folds into it, as ZUI's home. */
-    private static final long FOLD_MS = 280L;
+    private static final long FOLD_MS = 350L;
+    /**
+     * How long a drag stays over an entry, off its middle, before the gap moves there - as
+     * Launcher3's reorder alarm: passing over an entry on the way to another leaves it be.
+     */
+    private static final long REORDER_MS = 200L;
     /** The middle of a cell that folds, as a part of its icon's size. */
     private static final float FOLD_SPOT = 0.55f;
     /** How much the app folded into swells. */
@@ -62,6 +69,10 @@ final class DrawerReorder {
     private View mResting;
     private View mFolding;
     private final Runnable mFold = this::fold;
+    /** The slot the gap is about to move to, or -1. */
+    private int mPending = -1;
+    private final Runnable mReorder = this::reorder;
+    private String mOutcome;
 
     private DrawerReorder(ViewGroup root, ViewGroup grid, View sheet, String key, int display) {
         mRoot = root;
@@ -144,8 +155,16 @@ final class DrawerReorder {
         }
         float x = sx - grid.left;
         float y = sy - grid.top;
-        View under = iconAt(x, y);
-        View resting = under != null && canFold(under) && inMiddle(under, x, y) ? under : null;
+        // The slot under the finger is the laid-out cell there; what the finger is over is the
+        // entry the preview draws in that slot (ReorderSlots) - the laid-out one may have been
+        // slid elsewhere. Read by layout alone, the gap's own slot was an app's, and resting in
+        // the gap folded into an app drawn somewhere else (21:58: every drop made a folder).
+        View cell = iconAt(x, y);
+        String slotKey = cell == null ? null : keyOfCell(cell);
+        int slot = slotKey == null ? -1 : mOrder.indexOf(slotKey);
+        int drawn = slot < 0 ? ReorderSlots.GAP : ReorderSlots.drawnAt(mFrom, mTo, slot);
+        View shown = drawn >= 0 ? cellOf(mOrder.get(drawn)) : null;
+        View resting = shown != null && canFold(shown) && inMiddle(cell, x, y) ? shown : null;
         if (resting != mResting) {
             mGrid.removeCallbacks(mFold);
             mResting = resting;
@@ -154,23 +173,32 @@ final class DrawerReorder {
                 mGrid.postDelayed(mFold, FOLD_MS);
             }
         }
-        if (resting != null) {
-            // Resting on an app to fold into it: the gap stays where it was.
-            return;
-        }
-        if (under != null) {
-            String key = keyOfCell(under);
-            int at = key == null ? -1 : mOrder.indexOf(key);
-            if (at >= 0) {
-                mTo = at;
+        // Over an entry and not resting on it to fold: the gap moves there after a moment. Over
+        // the gap itself, or resting on an entry, it stays.
+        int target = drawn >= 0 && resting == null ? slot : -1;
+        if (target != mPending) {
+            mGrid.removeCallbacks(mReorder);
+            mPending = target;
+            if (target >= 0 && target != mTo) {
+                mGrid.postDelayed(mReorder, REORDER_MS);
             }
         }
-        preview();
+    }
+
+    /** The drag has stayed over an entry: the gap opens in its slot. */
+    private void reorder() {
+        if (mPending >= 0 && mPending != mTo) {
+            mTo = mPending;
+            preview();
+        }
+        mPending = -1;
     }
 
     /** Back to how the drawer was, for a drag that left the drawer. */
     void cancel() {
         mGrid.removeCallbacks(mFold);
+        mGrid.removeCallbacks(mReorder);
+        mPending = -1;
         mResting = null;
         unfold();
         mTo = mFrom >= 0 ? mFrom : mOrder.size();
@@ -183,6 +211,11 @@ final class DrawerReorder {
      */
     void drop() {
         drop(null);
+    }
+
+    /** What the drop did, for the log; null before it. */
+    String outcome() {
+        return mOutcome;
     }
 
     /** Where a dropped entry is drawn once the drawer has laid it out. */
@@ -198,17 +231,23 @@ final class DrawerReorder {
     /** The same, and {@code landed} is told where the dropped entry is drawn now. */
     void drop(Landing landed) {
         mGrid.removeCallbacks(mFold);
+        mGrid.removeCallbacks(mReorder);
         String into = mFolding != null ? keyOfCell(mFolding) : null;
         boolean folded = into != null;
         unfold();
         String shown = mKey;
         if (into != null) {
             shown = fold(into);
+            mOutcome = "folded into " + into;
         } else if (mFrom < 0) {
             NativeDrawerHooks.rearrange("took " + mKey + " out of its folder to " + mTo,
                     (order, folders) -> DrawerArrange.takeOut(order, folders, mKey, mTo));
+            mOutcome = "taken out of its folder to " + mTo;
         } else if (mTo != mFrom) {
             NativeDrawerHooks.moveInDrawer(mKey, mTo);
+            mOutcome = "moved from " + mFrom + " to " + mTo;
+        } else {
+            mOutcome = "let go in its own place - no change";
         }
         String key = shown;
         // Once the grid has laid out the new order, the dropped entry is handed to whoever lands
@@ -324,21 +363,14 @@ final class DrawerReorder {
                 continue;
             }
             icon.setAlpha(1f);
-            int place = index;
-            if (mFrom < 0) {
-                // Arriving from a folder: everything from the gap on moves up one.
-                place = index >= mTo ? index + 1 : index;
-            } else if (mFrom < mTo && index > mFrom && index <= mTo) {
-                place = index - 1;
-            } else if (mTo < mFrom && index >= mTo && index < mFrom) {
-                place = index + 1;
-            }
+            int place = ReorderSlots.placeOf(mFrom, mTo, index);
             if (place == index) {
                 send(icon, 0f, 0f);
                 continue;
             }
+            // The slot's laid-out cell, or, past the end or out of sight, the next one along.
             View there = byIndex.get(place);
-            float[] cell = there != null && mFrom >= 0
+            float[] cell = there != null
                     ? new float[]{there.getLeft(), there.getTop()}
                     : grid.next(icon, place < index);
             send(icon, cell[0] - icon.getLeft(), cell[1] - icon.getTop());

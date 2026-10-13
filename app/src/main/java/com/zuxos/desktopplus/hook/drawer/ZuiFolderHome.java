@@ -6,13 +6,9 @@ import android.view.View;
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
-import com.zuxos.desktopplus.hook.IconPress;
-import com.zuxos.desktopplus.hook.ZuiMenu;
-import com.zuxos.desktopplus.hook.taskbar.TaskbarMenu;
 import com.zuxos.desktopplus.model.Item;
 
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,9 +19,10 @@ import de.robv.android.xposed.XposedBridge;
  * One of our folders in ZUX Home's drawer, dragged onto the home screen: it lands there as ZUI's
  * own folder, with its apps, as one dragged from ZUI's drawer would.
  *
- * <p>A hold on the folder is a hold as ZUI's drawer makes one on an app: its menu first, and the
- * drag once the finger moves ({@code DragOptions.preDragCondition}, as ZUI's popups do it) - the
- * menu being ours, "Pin to the taskbar" and "Open folder". The drag is ZUI's
+ * <p>A hold on the folder is a hold as ZUI's drawer makes one: ZUI's own menu for a folder first
+ * ({@code Workspace.beginDragShared} asks the folder icon for it, {@code startLongPressAction}),
+ * with our "Pin to the taskbar" in it ({@code ZuiAppRows}) and without its Enlarge
+ * ({@link ZuiFolders}), and the drag once the finger moves. The drag is ZUI's
  * ({@code Workspace.beginDragShared}) of a new ZUI folder named as ours, from ZUI's drawer, so the
  * home screen opens for it ({@code SPRING_LOADED}) and ZUI's drop makes the folder's icon through
  * its own {@code ItemInflater} and writes it. Once ZUI has given the folder its id, its apps go
@@ -35,7 +32,6 @@ import de.robv.android.xposed.XposedBridge;
 final class ZuiFolderHome {
 
     private static final String OPTIONS = "com.android.launcher3.dragndrop.DragOptions";
-    private static final String PRE_DRAG = OPTIONS + "$PreDragCondition";
     private static final String PREVIEW = "com.android.launcher3.graphics.DragPreviewProvider";
     private static final String DRAG_SOURCE = "com.android.launcher3.DragSource";
     private static final String DRAGGABLE = "com.android.launcher3.dragndrop.DraggableView";
@@ -82,6 +78,16 @@ final class ZuiFolderHome {
                             }
                         }
                     }).size();
+            Class<?> workspace = Reflect.findClass("com.android.launcher3.Workspace", loader);
+            if (workspace != null) {
+                hooked += XposedBridge.hookAllMethods(workspace, "onDragEnd",
+                        new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) {
+                                notPlaced();
+                            }
+                        }).size();
+            }
         } catch (Throwable t) {
             L.w("zui folder home: not installed (" + t + ")");
         }
@@ -89,10 +95,10 @@ final class ZuiFolderHome {
     }
 
     /**
-     * A hold on our folder in ZUX Home's drawer: its menu, and ZUI's drag of it to the home
-     * screen once the finger moves. False where it is not for us, so the menu alone is shown.
+     * A hold on our folder in ZUX Home's drawer: ZUI's menu for it, and ZUI's drag of it to the
+     * home screen once the finger moves. False where it is not for us, so our menu is shown.
      */
-    static boolean hold(View icon, Item folder, List<TaskbarMenu.Entry> menu) {
+    static boolean hold(View icon, Item folder) {
         try {
             Context ctx = icon.getContext();
             if (!Cfg.drawerFolderHome()) {
@@ -125,9 +131,8 @@ final class ZuiFolderHome {
                     .newInstance();
             info.getClass().getField("title").set(info,
                     folder.label != null ? folder.label : "Folder");
+            // No pre-drag of ours: ZUI sets its folder menu as the drag's pre-drag itself.
             Object options = Class.forName(OPTIONS, false, loader).getConstructor().newInstance();
-            options.getClass().getField("preDragCondition").set(options,
-                    menuFirst(icon, menu, loader));
             Object workspace = Reflect.call(launcher, "getWorkspace");
             Method begin = beginDragShared(workspace, loader);
             if (workspace == null || begin == null) {
@@ -177,48 +182,23 @@ final class ZuiFolderHome {
         return null;
     }
 
-    /**
-     * ZUI's pre-drag, as its popups make it: our menu as the hold begins, the drag only once the
-     * finger has moved as far as ZUI's own popups let it
-     * ({@code deep_shortcuts_start_drag_threshold}), and a hold let go without moving leaves the
-     * menu up.
-     */
-    private static Object menuFirst(View icon, List<TaskbarMenu.Entry> menu, ClassLoader loader)
-            throws Exception {
-        Context ctx = icon.getContext();
-        int id = ctx.getResources().getIdentifier("deep_shortcuts_start_drag_threshold", "dimen",
-                ctx.getPackageName());
-        double threshold = id != 0 ? ctx.getResources().getDimensionPixelSize(id)
-                : 16 * ctx.getResources().getDisplayMetrics().density;
-        Class<?> condition = Class.forName(PRE_DRAG, false, loader);
-        return Proxy.newProxyInstance(loader, new Class<?>[]{condition}, (proxy, method, args) -> {
-            switch (method.getName()) {
-                case "shouldStartDrag":
-                    return args != null && args[0] instanceof Double
-                            && (Double) args[0] > threshold;
-                case "onPreDragStart":
-                    ZuiMenu.show(icon, menu);
-                    return null;
-                case "onPreDragEnd":
-                    IconPress.release(icon);
-                    return null;
-                case "getDragOffset":
-                    return new android.graphics.Point(0, 0);
-                case "hashCode":
-                    return System.identityHashCode(proxy);
-                case "equals":
-                    return args != null && proxy == args[0];
-                case "toString":
-                    return "ZuiFolderHome.menuFirst";
-                default:
-                    return null;
-            }
-        });
-    }
-
     /** Our folder whose drag is the one {@code dragged} names, or null for any other drag. */
     static Item folderDragged(Object dragged) {
         return dragged != null && dragged == sDragged ? sFolder : null;
+    }
+
+    /**
+     * The drag is over and ZUI placed no folder for it - let go in the drawer, or cancelled: the
+     * folder waiting for ZUI's writer goes, said once for the log.
+     */
+    private static void notPlaced() {
+        if (sDragged != null) {
+            L.i("zui folder home: " + (sFolder != null ? sFolder.label : "the folder")
+                    + " not placed on the home screen");
+            sDragged = null;
+            sApps = null;
+            sMade = null;
+        }
     }
 
     /** ZUI has given the folder its id: its apps go in through ZUI's own folder. */

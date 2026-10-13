@@ -141,6 +141,10 @@ public class MainActivity extends Activity {
                         "My own order",
                         "Alphabetical (recently used first is not available yet)"},
                 Const.KEY_DRAWER_SORT, Const.SORT_CUSTOM);
+        addSwitch("Load the app list without waiting",
+                "After a boot or a restart ZUX Home fills its drawer within a second, instead of "
+                        + "only once an app has been opened",
+                Const.KEY_LOADER_NO_WAIT, true);
 
         addHeader("Taskbar");
         addSwitch("Status tray in the taskbar",
@@ -185,10 +189,11 @@ public class MainActivity extends Activity {
                         + "there; anywhere else it still opens in a floating window or split "
                         + "screen. Needs System UI ticked in LSPosed",
                 Const.KEY_BAR_DROP, true);
-        addSwitch("Drag from the taskbar drawer to the home screen",
+        addSwitch("Drag from the taskbar to the home screen",
                 "With the home screen behind it, an app dragged out of the taskbar's drawer is "
-                        + "placed on the home screen as from ZUX Home's own drawer. Needs System UI "
-                        + "ticked in LSPosed",
+                        + "placed on the home screen as from ZUX Home's own drawer; a pinned app "
+                        + "dragged off the tablet's taskbar moves there. The drawer needs System "
+                        + "UI ticked in LSPosed",
                 Const.KEY_HOME_DROP, true);
         addSwitch("Drag a drawer folder to the home screen",
                 "In ZUX Home's drawer, hold one of our folders and move your finger: it lands on "
