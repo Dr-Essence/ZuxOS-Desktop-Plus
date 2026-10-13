@@ -16,7 +16,7 @@ import com.zuxos.desktopplus.core.motion.Motion;
  * Android itself uses since 2019 - with no body, so it reads as a logo rather than as one more
  * app on the bar. It blinks every few seconds, opens its eyes wide while the drawer is up and
  * narrows them while recents is, and falls asleep when nothing has been pressed for a while -
- * eyes shut, z's drifting up, antennae sagging a little more each second until they hang limp,
+ * eyes shut, hand-drawn z's drifting up, antennae sagging a little more each second until they hang limp,
  * and a minute on a thought bubble with a dream in it - until the next press.
  *
  * <p>Built from shapes on a 24-unit grid rather than shipped as an image - the module has no
@@ -62,7 +62,6 @@ public final class AndroidRobot extends Drawable {
         mZ.setStyle(Paint.Style.STROKE);
         mZ.setStrokeCap(Paint.Cap.ROUND);
         mZ.setStrokeJoin(Paint.Join.ROUND);
-        mZ.setStrokeWidth(0.9f);
         mBubble.setColor(BUBBLE);
         mBubble.setStyle(Paint.Style.FILL);
         mBubbleEdge.setColor(BUBBLE_EDGE);
@@ -111,11 +110,8 @@ public final class AndroidRobot extends Drawable {
 
         if (mSleep > 0f) {
             long dream = now - mAsleepSince - DREAM_AFTER_MS;
-            // The z's give way to the dream as its bubble comes up.
-            float zs = dream <= 0 ? 1f : 1f - Math.min(1f, dream / (float) POP_MS);
-            if (zs > 0f) {
-                drawZs(canvas, zs);
-            }
+            // The z's go on behind the dream's bubble.
+            drawZs(canvas, now);
             if (dream > 0) {
                 drawDream(canvas, dream);
             }
@@ -269,27 +265,84 @@ public final class AndroidRobot extends Drawable {
         return t > 0 && t < SAGS * SAG_EVERY_MS && t % SAG_EVERY_MS < SAG_MS;
     }
 
+    /** The z's start this long after the eyes have shut. */
+    private static final long Z_AFTER_MS = 1000L;
+    /** How often a z's hand-drawn line is drawn again a little differently - comics' boil. */
+    private static final long BOIL_MS = 125L;
+    /** The ink of a z's line, in grid units on the screen whatever its size. */
+    private static final float Z_INK = 0.8f;
+    /** The pencil gone over it again: a deeper purple, thin and faint. */
+    private static final int Z_PENCIL = 0xFF7C4DFF;
+    /** A hand-drawn Z, three times over, each a little different, for the boil. */
+    private static final Path[] Z_DRAWN = {sketchedZ(1L), sketchedZ(2L), sketchedZ(3L)};
+
     /**
-     * Three z's drifting up and to the right from above the dome, each a third of the way
-     * behind the last: growing as they rise, fading in and then out.
-     *
-     * @param fade 1, down to 0 as the dream's bubble takes their place
+     * A Z as a hand draws it, in one stroke round a unit square: the pen lands a little low, an
+     * arched top, a bowed diagonal, a bottom that dips and then flicks up at its end - each
+     * point nudged a touch, as no two drawings of it are the same.
      */
-    private void drawZs(Canvas canvas, float fade) {
-        long t = android.os.SystemClock.uptimeMillis() - mAsleepSince;
+    private static Path sketchedZ(long seed) {
+        java.util.Random hand = new java.util.Random(seed);
+        float[] p = {-1.14f, -0.78f, -1.0f, -0.97f, -0.96f, -0.95f, 0.0f, -1.2f, 1.05f, -0.98f,
+                0.18f, -0.04f, -1.02f, 0.96f, 0.05f, 0.8f, 1.08f, 1.0f, 1.34f, 0.72f};
+        for (int i = 0; i < p.length; i++) {
+            p[i] += (hand.nextFloat() - 0.5f) * 0.14f;
+        }
+        Path z = new Path();
+        z.moveTo(p[0], p[1]);
+        z.quadTo(p[2], p[3], p[4], p[5]);
+        z.quadTo(p[6], p[7], p[8], p[9]);
+        z.quadTo(p[10], p[11], p[12], p[13]);
+        z.quadTo(p[14], p[15], p[16], p[17]);
+        z.lineTo(p[18], p[19]);
+        return z;
+    }
+
+    /**
+     * Comic z's, hand-drawn: rising from above the dome one after another, a second after the
+     * eyes have shut, swaying and tilting as they float up and to the right, growing as they
+     * go, fading in and then out - inked in purple and gone over again in pencil, the line
+     * boiling as a drawn one does.
+     */
+    private void drawZs(Canvas canvas, long now) {
+        long t = now - mAsleepSince - DOZE_MS - Z_AFTER_MS;
+        if (t <= 0) {
+            return;
+        }
         // The robot's own alpha (the bar fading it) on the z's too.
         int alpha = mLine.getAlpha();
         for (int i = 0; i < 3; i++) {
-            float p = ((t + i * Z_MS / 3f) % Z_MS) / Z_MS;
+            long since = t - i * Z_MS / 3;
+            if (since <= 0) {
+                continue;
+            }
+            float p = (since % Z_MS) / (float) Z_MS;
             float size = (0.9f + 1.3f * p) * mSleep;
-            float x = 17.5f + 4.5f * p;
+            if (size < 0.05f) {
+                continue;
+            }
+            double sway = 2.0 * Math.PI * (p * 1.2 + i / 3.0);
+            float x = 17.5f + 4.5f * p + 0.35f * (float) Math.sin(sway);
             float y = 9.5f - 9f * p;
+            float tilt = -10f + 7f * (float) Math.sin(sway + 0.8);
             // In over the first fifth, out over the last two.
             float in = p < 0.2f ? p / 0.2f : p > 0.6f ? (1f - p) / 0.4f : 1f;
-            mZ.setAlpha(Math.round(alpha * in * fade * mSleep));
-            canvas.drawLine(x - size, y - size, x + size, y - size, mZ);
-            canvas.drawLine(x + size, y - size, x - size, y + size, mZ);
-            canvas.drawLine(x - size, y + size, x + size, y + size, mZ);
+            int ink = Math.round(alpha * in * mSleep);
+            int drawn = (int) ((now / BOIL_MS + i) % Z_DRAWN.length);
+            int saved = canvas.save();
+            canvas.translate(x, y);
+            canvas.rotate(tilt);
+            canvas.scale(size, size);
+            mZ.setColor(Z_PURPLE);
+            mZ.setAlpha(ink);
+            mZ.setStrokeWidth(Z_INK / size);
+            canvas.drawPath(Z_DRAWN[drawn], mZ);
+            canvas.translate(0.09f, -0.07f);
+            mZ.setColor(Z_PENCIL);
+            mZ.setAlpha(ink * 2 / 5);
+            mZ.setStrokeWidth(Z_INK * 0.4f / size);
+            canvas.drawPath(Z_DRAWN[(drawn + 1) % Z_DRAWN.length], mZ);
+            canvas.restoreToCount(saved);
         }
     }
 
