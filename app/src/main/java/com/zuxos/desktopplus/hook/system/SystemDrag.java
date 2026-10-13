@@ -1,10 +1,15 @@
 package com.zuxos.desktopplus.hook.system;
 
+import android.content.ClipDescription;
+import android.os.IBinder;
+
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.desktop.DragPayload;
+import com.zuxos.desktopplus.logic.DragCodec;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Map;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -27,6 +32,12 @@ public final class SystemDrag {
     private static Field sUid;
     private static Method sOwningUid;
     private static int sErrors;
+    /** For the drop trace: the drag's clip, the window map, and who was told. */
+    private static Field sDescription;
+    private static Field sService;
+    private static Field sInputToWindow;
+    private static Method sNotified;
+    private static int sDropErrors;
 
     private SystemDrag() {
     }
@@ -53,11 +64,73 @@ public final class SystemDrag {
                     hooked++;
                 }
             }
+            hooked += hookDropTrace(state, window);
             L.i("system drag: watching x" + hooked);
         } catch (Throwable t) {
             L.i("system drag: not available on this build (" + t + ")");
         }
     }
+
+    /**
+     * Read only: for every drop of an app's drag or one of ours, the window Android hands it to
+     * and whether that window was told of the drag. A window that was not is handed nothing and
+     * the drag ends untaken ({@code DragState.reportDropWindowLockInner}: "Drop outside a valid
+     * window") - which the launcher's own log cannot see.
+     */
+    private static int hookDropTrace(Class<?> state, Class<?> window) {
+        try {
+            sDescription = state.getDeclaredField("mDataDescription");
+            sDescription.setAccessible(true);
+            sService = state.getDeclaredField("mService");
+            sService.setAccessible(true);
+            sInputToWindow = sService.getType().getDeclaredField("mInputToWindowMap");
+            sInputToWindow.setAccessible(true);
+            sNotified = state.getDeclaredMethod("isWindowNotified", window);
+            sNotified.setAccessible(true);
+            Method inner = state.getDeclaredMethod("reportDropWindowLockInner", IBinder.class,
+                    float.class, float.class);
+            XposedBridge.hookMethod(inner, DROP);
+            return 1;
+        } catch (Throwable t) {
+            L.i("system drag: drops not traced on this build (" + t + ")");
+            return 0;
+        }
+    }
+
+    private static final XC_MethodHook DROP = new XC_MethodHook() {
+        @Override
+        protected void beforeHookedMethod(MethodHookParam param) {
+            if (sDropErrors > 20) {
+                return;
+            }
+            try {
+                Object description = sDescription.get(param.thisObject);
+                if (!(description instanceof ClipDescription)) {
+                    return;
+                }
+                ClipDescription clip = (ClipDescription) description;
+                boolean ours = clip.hasMimeType(DragCodec.MIME);
+                if (!ours && !clip.hasMimeType(ClipDescription.MIMETYPE_APPLICATION_ACTIVITY)) {
+                    return;
+                }
+                // Read under the window manager's lock, which the caller holds.
+                Object windows = sInputToWindow.get(sService.get(param.thisObject));
+                Object target = windows instanceof Map ? ((Map<?, ?>) windows).get(param.args[0])
+                        : null;
+                boolean told = target != null
+                        && Boolean.TRUE.equals(sNotified.invoke(param.thisObject, target));
+                // The point is the window's own (the unhandled drop adds the window's corner).
+                L.i("system drag: " + (ours ? "our" : "an app's") + " drag (uid "
+                        + sUid.getInt(param.thisObject) + ") let go over " + target + " at "
+                        + Math.round((Float) param.args[1]) + ","
+                        + Math.round((Float) param.args[2]) + " of it"
+                        + (target == null ? "" : told ? ", told of the drag"
+                        : ", NOT told of the drag: Android hands it nothing"));
+            } catch (Throwable t) {
+                sDropErrors++;
+            }
+        }
+    };
 
     private static final XC_MethodHook TARGET = new XC_MethodHook() {
         @Override

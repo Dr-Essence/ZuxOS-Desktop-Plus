@@ -326,7 +326,13 @@ vendor power HAL's, not in these jars.
   clip has to recognise its end by its own state. While the taskbar's drawer is open the bar
   still takes touches over its row (ZUI's region, and ours added by `TaskbarFollow`); a drop of
   ZUI's drawer drag there lands in the bar's window, which Android never told of the drag, and
-  is lost. Every drop the owner made over our icons was lost this way.
+  is lost. Proven: the bar's window (type 2024, layer 25) lies over the drawer's (2038, layer 11,
+  `WindowManagerPolicy.getWindowLayerFromTypeLw`); our touch region runs after ZUI's
+  (`TaskbarFollow` re-registers last) and adds our row, start button and tray, our row as high
+  as the bar (2902-3040 in portrait, probe 20:21); every missed drop in the videos 20:16-20:20
+  was let go over the bar; neither the drawer's window nor the shell logged one of them. Not
+  yet seen: the window that got each drop - traced from 0.0.253 (`SystemDrag`, "let go over
+  ... told of the drag").
 - **Selecting on the home screen (read 2026-10-12).** ZUI's edit mode (`LauncherState.EDIT_MODE`,
   `PMRLauncher.getEditModePanel()` = `ZuiEditModePanel`) selects: a tap there goes to
   `ZuiEditModeCustom.onItemClick` -> `switchSelectedState(view)` (home-screen apps and shortcuts,
