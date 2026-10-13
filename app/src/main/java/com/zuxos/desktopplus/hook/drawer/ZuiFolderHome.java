@@ -44,6 +44,10 @@ final class ZuiFolderHome {
     private static List<Object> sApps;
     /** ZUI's icon for it, made by ZUI's drop. */
     private static View sMade;
+    /** The drawer's icon held for the drag under way, shown again at its end. Main thread. */
+    private static java.lang.ref.WeakReference<View> sHeld;
+    private static boolean sSaidShown;
+    private static boolean sSaidTaskbar;
 
     private ZuiFolderHome() {
     }
@@ -85,6 +89,7 @@ final class ZuiFolderHome {
                             @Override
                             protected void afterHookedMethod(MethodHookParam param) {
                                 notPlaced();
+                                showHeld();
                             }
                         }).size();
             }
@@ -107,6 +112,12 @@ final class ZuiFolderHome {
             // The launcher whose drawer holds the icon - ZUX Home's, not the taskbar's.
             Object launcher = ZuiFolders.lookup(ctx);
             if (!ZuiFolders.isLauncher(launcher)) {
+                if (!sSaidTaskbar) {
+                    sSaidTaskbar = true;
+                    L.i("zui folder home: " + folder.label + " held in the taskbar's drawer "
+                            + "(" + (launcher != null ? launcher.getClass().getSimpleName()
+                            : "no context") + ") - our menu");
+                }
                 return false;
             }
             ClassLoader loader = ctx.getClassLoader();
@@ -147,6 +158,7 @@ final class ZuiFolderHome {
                     ? icon : null;
             Object preview = Class.forName(PREVIEW, false, loader).getConstructor(View.class)
                     .newInstance(icon);
+            sHeld = new java.lang.ref.WeakReference<>(icon);
             begin.invoke(workspace, icon, draggable, Reflect.call(launcher, "getAppsView"), info,
                     preview, options);
             L.i("zui folder home: " + folder.label + " held, " + apps.size()
@@ -198,6 +210,27 @@ final class ZuiFolderHome {
             sDragged = null;
             sApps = null;
             sMade = null;
+        }
+    }
+
+    /**
+     * The drag is over: the drawer's folder icon it was held from shows again. ZUI hides the icon
+     * a drag starts from ({@code PopupContainerWithArrow}'s pre-drag, {@code onPreDragEnd}) and
+     * shows it again only through its own home screen's drop or its cancel; a drop in the drawer,
+     * or on to the home screen from the drawer, took neither, so the folder stayed a blank cell
+     * until ZUX Home restarted (probe 23:45: our folder icons "hidden" in shown cells).
+     */
+    private static void showHeld() {
+        View icon = sHeld != null ? sHeld.get() : null;
+        sHeld = null;
+        if (icon == null || icon.getVisibility() == View.VISIBLE) {
+            return;
+        }
+        icon.setVisibility(View.VISIBLE);
+        if (!sSaidShown) {
+            sSaidShown = true;
+            L.i("zui folder home: a held folder shown again after its drag - ZUI hides it for "
+                    + "the drag");
         }
     }
 

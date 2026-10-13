@@ -1,12 +1,18 @@
 package com.zuxos.desktopplus.hook.drawer;
 
+import android.app.Activity;
 import android.graphics.Rect;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.view.FrameMetrics;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
+import com.zuxos.desktopplus.core.Threads;
 import com.zuxos.desktopplus.core.Ui;
 import com.zuxos.desktopplus.core.motion.Motion;
 import com.zuxos.desktopplus.model.Item;
@@ -146,6 +152,7 @@ final class DrawerRearrange {
                             method.getReturnType()));
             Reflect.call(controller, "addDropTarget", session.target);
             sSession = session;
+            session.frames = FrameTrace.start(launcher);
             L.i("drawer rearrange: the drawer keeps the drag of " + key);
         } catch (Throwable t) {
             sSession = null;
@@ -168,6 +175,9 @@ final class DrawerRearrange {
                     + (session.dropped ? session.reorder.outcome()
                     : kept ? "let go of nowhere in the drawer, or cancelled - no change"
                     : "on the home screen's side, as ZUI has it"));
+            if (session.frames != null) {
+                L.i("drawer rearrange: trace: " + session.frames.stop());
+            }
         }
     }
 
@@ -183,6 +193,8 @@ final class DrawerRearrange {
         /** The drawer keeps it; false once it has gone on to the home screen. */
         boolean keeping = true;
         boolean dropped;
+        /** The drag's frames, for the log; null where they cannot be read. */
+        FrameTrace frames;
 
         Session(Object launcher, View apps, ViewGroup grid, Object controller,
                 DrawerReorder reorder, String key) {
@@ -386,6 +398,99 @@ final class DrawerRearrange {
                 } catch (Throwable t) {
                     return;
                 }
+            }
+        }
+    }
+
+    /**
+     * Read-only trace of the frames of ZUX Home's window while the drawer keeps a drag: how many
+     * frames the screen went without a new one (gaps between frames' vsyncs), and where the
+     * slowest frame's time went. The owner's recordings show frames up to 35 ms apart during
+     * drawer drags on the 144 Hz screen (23:42); this says which part of drawing takes them.
+     * Listened to only while the drag lasts, on a thread of its own.
+     */
+    private static final class FrameTrace implements Window.OnFrameMetricsAvailableListener {
+
+        /** A frame of the 144 Hz screen, and a half more: a gap past this skipped a frame. */
+        private static final long GAP_NS = 10_400_000L;
+        private static Handler sHandler;
+
+        private final Window mWindow;
+        private int mFrames;
+        private int mGaps;
+        private long mLastVsync;
+        private long mLongestGap;
+        private long mSlowest;
+        private String mSlowestParts = "";
+
+        private FrameTrace(Window window) {
+            mWindow = window;
+        }
+
+        static FrameTrace start(Object launcher) {
+            try {
+                if (!(launcher instanceof Activity)) {
+                    return null;
+                }
+                Window window = ((Activity) launcher).getWindow();
+                if (sHandler == null) {
+                    HandlerThread thread = Threads.guarded(
+                            new HandlerThread("zux-desktop-plus-frames"));
+                    thread.setDaemon(true);
+                    thread.start();
+                    sHandler = new Handler(thread.getLooper());
+                }
+                FrameTrace trace = new FrameTrace(window);
+                window.addOnFrameMetricsAvailableListener(trace, sHandler);
+                return trace;
+            } catch (Throwable t) {
+                L.d("drawer rearrange: frames not traced (" + t + ")");
+                return null;
+            }
+        }
+
+        @Override
+        public void onFrameMetricsAvailable(Window window, FrameMetrics metrics, int dropped) {
+            long vsync = metrics.getMetric(FrameMetrics.VSYNC_TIMESTAMP);
+            long total = metrics.getMetric(FrameMetrics.TOTAL_DURATION);
+            synchronized (this) {
+                mFrames++;
+                long gap = mLastVsync > 0 ? vsync - mLastVsync : 0;
+                mLastVsync = vsync;
+                if (gap > GAP_NS) {
+                    mGaps++;
+                    mLongestGap = Math.max(mLongestGap, gap);
+                }
+                if (total > mSlowest) {
+                    mSlowest = total;
+                    mSlowestParts = "input " + ms(metrics.getMetric(
+                            FrameMetrics.INPUT_HANDLING_DURATION))
+                            + ", animation " + ms(metrics.getMetric(
+                            FrameMetrics.ANIMATION_DURATION))
+                            + ", layout " + ms(metrics.getMetric(
+                            FrameMetrics.LAYOUT_MEASURE_DURATION))
+                            + ", draw " + ms(metrics.getMetric(FrameMetrics.DRAW_DURATION))
+                            + ", sync " + ms(metrics.getMetric(FrameMetrics.SYNC_DURATION))
+                            + ", gpu " + ms(metrics.getMetric(FrameMetrics.GPU_DURATION));
+                }
+            }
+        }
+
+        private static String ms(long ns) {
+            return (ns / 100_000L) / 10f + " ms";
+        }
+
+        /** Stops listening; what the drag's frames were. */
+        String stop() {
+            try {
+                mWindow.removeOnFrameMetricsAvailableListener(this);
+            } catch (Throwable t) {
+                L.d("drawer rearrange: frame trace not removed (" + t + ")");
+            }
+            synchronized (this) {
+                return mFrames + " frames, " + mGaps + " gaps of a skipped frame or more, "
+                        + "longest " + ms(mLongestGap) + "; slowest frame " + ms(mSlowest)
+                        + " (" + mSlowestParts + ")";
             }
         }
     }

@@ -514,6 +514,11 @@ vendor power HAL's, not in these jars.
   called from the main thread. With ZUX Home in front its main thread did not go idle for 14-23
   s after a boot (logs 18:59, 21:31, 21:58), and the drawer stayed empty until an app covered
   it.
+- The icon a drag starts from is hidden by ZUI for the drag: `PopupContainerWithArrow`'s
+  pre-drag (`onPreDragEnd` with the drag started) calls `mOriginalIcon.setVisibility(INVISIBLE)`
+  (`mNotHideOriginalIcon` is never set). ZUI shows it again through its own drop targets (its
+  home screen's) and `DragController.cancelDrag` (for a `FolderIcon` only); a drop handled
+  elsewhere has to show it itself (read 2026-10-13).
 - ZUI's own way in for a drag from outside its views: `DraggableView.ofType(int)` (a static
   interface method; `DRAGGABLE_ICON` 0) as the drag's `originalView`, as
   `PendingItemDragHelper` does; the `DragSource` is told the outcome in
