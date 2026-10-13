@@ -174,7 +174,8 @@ final class ZuiHomeDrop {
             return Boolean.TRUE.equals(Reflect.call(controller, "onDragEvent", moved));
         } finally {
             if (moved != event) {
-                moved.recycle();
+                // DragEvent.recycle is not in the public SDK.
+                Reflect.call(moved, "recycle");
             }
         }
     }
