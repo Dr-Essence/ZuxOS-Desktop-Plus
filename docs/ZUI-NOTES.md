@@ -291,6 +291,14 @@ vendor power HAL's, not in these jars.
   `W`) answers false to a drop. ZUX Home's drawer hold (`ItemLongClickListener`, the all-apps
   instance) returns false even after it started its drag with `beginDragShared`; whether
   `DragController.isDragging()` is true says whether it took the hold.
+- **Who owns the drag card after a drop (read 2026-10-13, `DragState`, `TaskbarDragController`).**
+  ZUI's drawer drag uses flags 2816, among them `DRAG_FLAG_REQUEST_SURFACE_FOR_RETURN_ANIMATION`:
+  Android skips its own return animation and hands the drag surface to the source in
+  `ACTION_DRAG_ENDED` only when the drop was not taken (ZUI then animates it back,
+  `TaskbarDragController.I`). A drop taken by a window that does not intercept global drags gets
+  no surface either, so the card stays where it was let go until Android's timeout. The shell, an
+  interceptor, normally takes the drop and the surface with it. ZUI redraws its card for 300 ms
+  from the drag's start (`k0`, `updateDragShadow` each frame).
 - **Selecting on the home screen (read 2026-10-12).** ZUI's edit mode (`LauncherState.EDIT_MODE`,
   `PMRLauncher.getEditModePanel()` = `ZuiEditModePanel`) selects: a tap there goes to
   `ZuiEditModeCustom.onItemClick` -> `switchSelectedState(view)` (home-screen apps and shortcuts,

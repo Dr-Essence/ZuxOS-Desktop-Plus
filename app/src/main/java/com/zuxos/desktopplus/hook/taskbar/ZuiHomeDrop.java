@@ -2,7 +2,6 @@ package com.zuxos.desktopplus.hook.taskbar;
 
 import android.content.ComponentName;
 import android.content.Context;
-import android.graphics.Canvas;
 import android.graphics.Point;
 import android.graphics.drawable.Drawable;
 import android.view.DragEvent;
@@ -117,18 +116,7 @@ final class ZuiHomeDrop {
                     1f, 1f, options);
             sController = controller;
             // Only ZUI's own icon is dragged now: the system's card is hidden, the drawer too.
-            catcher.updateDragShadow(new View.DragShadowBuilder() {
-                @Override
-                public void onProvideShadowMetrics(Point size, Point touch) {
-                    size.set(1, 1);
-                    touch.set(0, 0);
-                }
-
-                @Override
-                public void onDrawShadow(Canvas canvas) {
-                    // Nothing: ZUI's own drag view is the one seen.
-                }
-            });
+            ZuiBarDrop.hideShadow(catcher);
             View drawer = catcher.getRootView();
             drawer.animate().alpha(0f).setDuration(Motion.SHORT).setInterpolator(Motion.EXIT)
                     .start();

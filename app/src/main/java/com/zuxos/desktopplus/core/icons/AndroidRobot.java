@@ -223,9 +223,8 @@ public final class AndroidRobot extends Drawable {
     private static final float SAG_KEEP = 0.8f;
     /** ...until, after this many, they can sag no more. */
     private static final int SAGS = 12;
-    /** One sag: a drop with a small bob at its end, as a limp thing settles. */
-    private static final long SAG_MS = 650L;
-    private static final android.animation.TimeInterpolator SAG = Motion.spring(0.55f);
+    /** One sag: a slow sink that eases in and settles softly, filling most of its second. */
+    private static final long SAG_MS = 900L;
     private final Path mAntenna = new Path();
 
     /** 0 awake, 1 fast asleep. */
@@ -305,7 +304,9 @@ public final class AndroidRobot extends Drawable {
         float from = sagged(step);
         float to = sagged(step + 1);
         float f = Math.min(1f, (t - step * SAG_EVERY_MS) / (float) SAG_MS);
-        return from + (to - from) * SAG.getInterpolation(f);
+        // Smootherstep: no jolt at either end, so every frame of the sink is seen.
+        float eased = f * f * f * (f * (f * 6f - 15f) + 10f);
+        return from + (to - from) * eased;
     }
 
     /** How limp after {@code steps} sags: most of the way early, the last sags only small. */

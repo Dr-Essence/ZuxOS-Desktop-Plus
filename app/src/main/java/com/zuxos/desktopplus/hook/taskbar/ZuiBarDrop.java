@@ -4,6 +4,8 @@ import android.content.ClipData;
 import android.content.ClipDescription;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Canvas;
+import android.graphics.Point;
 import android.graphics.RectF;
 import android.view.DragEvent;
 import android.view.View;
@@ -95,6 +97,7 @@ final class ZuiBarDrop {
                     }).size();
             hooked += hookBarYields(loader);
             hooked += hookDrawerTakes(loader);
+            hooked += hookShadowKeptHidden();
             Health.hooked("taskbar: apps dragged onto the bar are pinned", hooked, Cfg::barDrop);
             L.i("zui bar drop: ZUI's drawer drags can be let go on the bar x" + hooked);
         } catch (Throwable t) {
@@ -252,6 +255,7 @@ final class ZuiBarDrop {
                 }
                 if (ZuiHomeDrop.active() && ZuiHomeDrop.forward(event)) {
                     sPlaced = true;
+                    hideShadow(catcher);
                     return true;
                 }
                 L.i("zui bar drop: let go in the drawer's window at " + Math.round(x) + ","
@@ -379,9 +383,63 @@ final class ZuiBarDrop {
         }
     }
 
-    /** ZUI's drag was let go on the bar and its app pinned. */
+    /** ZUI's drag was let go on the bar and its app pinned: its card goes with the drop. */
     static void pinned() {
         sPinned = true;
+        View catcher = sCatcher;
+        if (catcher != null) {
+            hideShadow(catcher);
+        }
+    }
+
+    /** A shadow of nothing: the system's card for ZUI's drag, emptied. */
+    private static final View.DragShadowBuilder NO_SHADOW = new View.DragShadowBuilder() {
+        @Override
+        public void onProvideShadowMetrics(Point size, Point touch) {
+            size.set(1, 1);
+            touch.set(0, 0);
+        }
+
+        @Override
+        public void onDrawShadow(Canvas canvas) {
+            // Nothing.
+        }
+    };
+    /** ZUI's card is hidden for the rest of the drag under way. */
+    private static boolean sShadowHidden;
+
+    /**
+     * Empties ZUI's drag card now, and keeps it empty for the rest of the drag: once the drop is
+     * ours - on the bar, or on the home screen, whose own icon is dragged instead - nothing else
+     * will ever take the card away. ZUI asks for the drag's surface back for its return animation
+     * ({@code DRAG_FLAG_REQUEST_SURFACE_FOR_RETURN_ANIMATION} in its flags, 2816); Android then
+     * hands it back only for a drop nobody took, and otherwise leaves it on screen until a
+     * timeout, five seconds, where the finger let go (owner, 16:30). Empty, it is not seen.
+     */
+    static void hideShadow(View inDrawer) {
+        sShadowHidden = true;
+        try {
+            inDrawer.updateDragShadow(NO_SHADOW);
+        } catch (Throwable t) {
+            L.d("zui bar drop: the card not emptied (" + t + ")");
+        }
+    }
+
+    /**
+     * ZUI animates its card from the icon to the card for 300 ms from the drag's start
+     * ({@code TaskbarDragController.k0}, {@code updateDragShadow} on every frame), which drew it
+     * again over an emptied one. While ours is hidden, every new shadow is the empty one.
+     */
+    private static int hookShadowKeptHidden() {
+        return XposedBridge.hookAllMethods(View.class, "updateDragShadow", new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                if (sShadowHidden && sItem != null && param.args.length == 1
+                        && param.args[0] != NO_SHADOW) {
+                    param.args[0] = NO_SHADOW;
+                }
+            }
+        }).size();
     }
 
     /** ZUI's drag is over: where it went, for the log. */
@@ -394,6 +452,7 @@ final class ZuiBarDrop {
             sSource = null;
             sHome = false;
             sBar = null;
+            sShadowHidden = false;
             sPlaced = false;
         }
     }
