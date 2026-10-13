@@ -249,6 +249,14 @@ final class DrawerReorder {
         String into = mFolding != null ? keyOfCell(mFolding) : null;
         boolean folded = into != null;
         unfold();
+        // Where the gap is laid out, before the list changes: the dropped entry is kept there.
+        View gapCell = into == null && mTo < mOrder.size() ? cellOf(mOrder.get(mTo)) : null;
+        int gapTop = gapCell != null ? gapCell.getTop() : Integer.MIN_VALUE;
+        List<String> after = new ArrayList<>(mOrder);
+        if (mFrom >= 0) {
+            after.remove(mFrom);
+        }
+        after.add(Math.min(Math.max(mTo, 0), after.size()), mKey);
         String shown = mKey;
         if (into != null) {
             shown = fold(into);
@@ -274,6 +282,9 @@ final class DrawerReorder {
             @Override
             public boolean onPreDraw() {
                 mGrid.getViewTreeObserver().removeOnPreDrawListener(this);
+                if (gapTop != Integer.MIN_VALUE) {
+                    keepInPlace(key, gapTop, after);
+                }
                 View there = landed != null ? cellOf(key) : null;
                 if (folded) {
                     settle(mGrid, null);
@@ -287,6 +298,44 @@ final class DrawerReorder {
             }
         });
         mGrid.invalidate();
+    }
+
+    /**
+     * The list scrolled so the dropped entry is drawn where the gap was. ZUI's list keeps its
+     * first row on screen when an entry is put in before it: dropped at the very start, the
+     * whole drawer moved down a row and the app landed out of sight above (owner, 23:15). When
+     * the entry is not on screen, its row is worked out from one that is.
+     */
+    private void keepInPlace(String key, int gapTop, List<String> after) {
+        View there = cellOf(key);
+        int dy;
+        if (there != null) {
+            dy = there.getTop() - gapTop;
+        } else {
+            List<View> icons = visibleIcons();
+            if (icons.size() < 2) {
+                return;
+            }
+            View first = icons.get(0);
+            int columns = 0;
+            int rowHeight = 0;
+            for (View icon : icons) {
+                if (icon.getTop() == first.getTop()) {
+                    columns++;
+                } else if (rowHeight == 0) {
+                    rowHeight = icon.getTop() - first.getTop();
+                }
+            }
+            int at = after.indexOf(keyOfCell(first));
+            int to = after.indexOf(key);
+            if (columns == 0 || rowHeight <= 0 || at < 0 || to < 0) {
+                return;
+            }
+            dy = first.getTop() + (to / columns - at / columns) * rowHeight - gapTop;
+        }
+        if (dy != 0) {
+            mGrid.scrollBy(0, dy);
+        }
     }
 
     /** The dragged app folded into the entry {@code into}; the key of what it is now in. */
@@ -339,6 +388,7 @@ final class DrawerReorder {
             return;
         }
         mFolding = cell;
+        touched(cell);
         cell.animate().scaleX(FOLD_SCALE).scaleY(FOLD_SCALE).setDuration(Motion.SPRING_MS)
                 .setInterpolator(Motion.SPRING).start();
     }
@@ -372,6 +422,7 @@ final class DrawerReorder {
             View icon = entry.getValue();
             if (index == mFrom) {
                 // Its place is the gap now; the drag shadow is the app.
+                touched(icon);
                 icon.setAlpha(0f);
                 send(icon, 0f, 0f);
                 continue;
@@ -397,6 +448,7 @@ final class DrawerReorder {
             return;
         }
         mSent.put(icon, new float[]{dx, dy});
+        touched(icon);
         icon.animate().translationX(dx).translationY(dy).setDuration(Motion.SPRING_MS)
                 .setInterpolator(Motion.SPRING_FIRM).start();
     }
@@ -413,6 +465,7 @@ final class DrawerReorder {
                         .setInterpolator(Motion.SPRING_FIRM).start();
             }
             if (child == landing) {
+                touched(child);
                 child.setAlpha(0f);
                 continue;
             }
@@ -437,9 +490,41 @@ final class DrawerReorder {
             child.setTranslationY(0f);
             child.setScaleX(1f);
             child.setScaleY(1f);
+            if (child == landing) {
+                touched(child);
+            }
             child.setAlpha(child == landing ? 0f : 1f);
         }
     }
+
+    /**
+     * A drawer cell whose look the rearranging changes - hidden, slid or swelled - is put back
+     * to rest the moment the drawer's list takes it off screen. The list keeps such cells to
+     * show other entries later; one taken while hidden or slid came back as a blank cell, or as
+     * an entry drawn a place along, until ZUX Home restarted (owner, 23:15 and 23:24).
+     */
+    static void touched(View cell) {
+        cell.removeOnAttachStateChangeListener(RESET);
+        cell.addOnAttachStateChangeListener(RESET);
+    }
+
+    private static final View.OnAttachStateChangeListener RESET =
+            new View.OnAttachStateChangeListener() {
+                @Override
+                public void onViewAttachedToWindow(View v) {
+                }
+
+                @Override
+                public void onViewDetachedFromWindow(View v) {
+                    v.removeOnAttachStateChangeListener(this);
+                    v.animate().cancel();
+                    v.setTranslationX(0f);
+                    v.setTranslationY(0f);
+                    v.setScaleX(1f);
+                    v.setScaleY(1f);
+                    v.setAlpha(1f);
+                }
+            };
 
     /** The grid's cell drawing the entry {@code key}, or null when it is out of sight. */
     private View cellOf(String key) {

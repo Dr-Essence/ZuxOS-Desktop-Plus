@@ -63,15 +63,30 @@ public final class ZuiFolders {
     private static final String LAUNCHER = "com.android.launcher3.Launcher";
     private static final String POPUP = "com.android.launcher3.popup.PopupContainerWithArrow";
 
-    /** One of our folders as ZUI's, in one of ZUI's contexts. */
+    /**
+     * One of our folders as ZUI's, in one of ZUI's contexts, and what it was built with: its name
+     * and apps ({@link #contentOf}). Made again only when those change - not on every save of the
+     * drawer, which re-inflated every folder of the drawer on each drop of a rearrange (frames
+     * dropped to 72 a second on a 144 Hz screen, 22:53) and drew each new one a frame at ZUI's
+     * home size before it was aligned (the top row's folders flashing, 22:53, 4.26 s).
+     */
     private static final class Built {
         final View icon;
-        int version;
+        String content;
 
-        Built(View icon, int version) {
+        Built(View icon, String content) {
             this.icon = icon;
-            this.version = version;
+            this.content = content;
         }
+    }
+
+    /** A folder's name and apps, in order: what its ZUI icon shows. */
+    private static String contentOf(Item folder) {
+        StringBuilder out = new StringBuilder(folder.label != null ? folder.label : "");
+        for (Item child : folder.children) {
+            out.append('|').append(child.key());
+        }
+        return out.toString();
     }
 
     /** Per ZUI context (ZUX Home's, the taskbar drawer's): its folders by our folder id. */
@@ -172,6 +187,7 @@ public final class ZuiFolders {
             hooked += hookDrawerClose(loader);
             hooked += hookHeldOut(loader);
             hooked += hookNoEnlarge(loader);
+            hooked += hookDragPicture(loader);
             ZuiFolderWrites.install(loader);
             ZuiFolderAdd.install(loader, folder);
             hooked += ZuiFolderHome.install(loader);
@@ -223,6 +239,59 @@ public final class ZuiFolders {
             L.w("zui folders: ZUI's Enlarge folder not reached (" + t + ")");
             return 0;
         }
+    }
+
+    /** The scale of the folder icon being drawn for a drag, while it is drawn at 1. Main thread. */
+    private static float[] sDragScale;
+
+    /**
+     * The picture ZUI drags of one of our drawer folders is drawn at its natural size, with its
+     * round corners. ZUI draws the dragged view into a picture the size of its unscaled preview
+     * but at the view's own scale ({@code DragPreviewProvider.createDrawable}: made for an icon
+     * shrunk by a press); ours are scaled up to the drawer's icon size ({@link #align}), so the
+     * folder overflowed the picture and its corners were cut square (owner, video 22:53). For
+     * the drawing only, the icon is at scale 1; ZUI then reads the scale from the view
+     * ({@code getScaleAndPosition}) and the dragged picture is as large as the folder shown.
+     */
+    private static int hookDragPicture(ClassLoader loader) {
+        Class<?> provider = Reflect.findClass("com.android.launcher3.graphics.DragPreviewProvider",
+                loader);
+        if (provider == null) {
+            L.w("zui folders: ZUI's drag picture not found - our folders drag as ZUI draws them");
+            return 0;
+        }
+        return XposedBridge.hookAllMethods(provider, "createDrawable", new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                try {
+                    Object view = Reflect.field(param.thisObject, "mView");
+                    if (view instanceof View && folderOfIcon((View) view) != null
+                            && ((View) view).getScaleX() != 1f) {
+                        View icon = (View) view;
+                        sDragScale = new float[]{icon.getScaleX(), icon.getScaleY()};
+                        icon.setScaleX(1f);
+                        icon.setScaleY(1f);
+                    }
+                } catch (Throwable t) {
+                    L.d("zui folders: drag picture left to ZUI (" + t + ")");
+                }
+            }
+
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                try {
+                    float[] scale = sDragScale;
+                    sDragScale = null;
+                    Object view = Reflect.field(param.thisObject, "mView");
+                    if (scale != null && view instanceof View) {
+                        ((View) view).setScaleX(scale[0]);
+                        ((View) view).setScaleY(scale[1]);
+                    }
+                } catch (Throwable t) {
+                    L.d("zui folders: folder scale not put back (" + t + ")");
+                }
+            }
+        }).size();
     }
 
     /**
@@ -774,35 +843,50 @@ public final class ZuiFolders {
      * ({@link #fitName}).
      */
     private static void align(View icon) {
-        icon.post(() -> {
-            try {
-                ViewGroup list = icon.getParent() != null
-                        && icon.getParent().getParent() instanceof ViewGroup
-                        ? (ViewGroup) icon.getParent().getParent() : null;
-                Look drawer = drawerIconIn(list);
-                android.graphics.Rect preview = new android.graphics.Rect();
-                icon.getClass().getMethod("getPreviewBounds", android.graphics.Rect.class)
-                        .invoke(icon, preview);
-                if (drawer == null || preview.width() <= 0) {
-                    return;
+        if (icon.isLaidOut()) {
+            alignNow(icon, true);
+        }
+    }
+
+    /** Aligns a folder icon of the drawer each time it is laid out, in the same frame. */
+    private static final View.OnLayoutChangeListener ALIGN =
+            (v, l, t, r, b, ol, ot, or, ob) -> alignNow(v, true);
+
+    /**
+     * {@code retry}: when the list has no app icon laid out yet to measure - a first row of
+     * folders, laid out before any app - once more after this frame.
+     */
+    private static void alignNow(View icon, boolean retry) {
+        try {
+            ViewGroup list = icon.getParent() != null
+                    && icon.getParent().getParent() instanceof ViewGroup
+                    ? (ViewGroup) icon.getParent().getParent() : null;
+            Look drawer = drawerIconIn(list);
+            android.graphics.Rect preview = new android.graphics.Rect();
+            icon.getClass().getMethod("getPreviewBounds", android.graphics.Rect.class)
+                    .invoke(icon, preview);
+            if (drawer == null || preview.width() <= 0) {
+                if (retry) {
+                    icon.post(() -> alignNow(icon, false));
                 }
-                float scale = drawer.size / (float) preview.width();
-                icon.setPivotX(preview.exactCenterX());
-                icon.setPivotY(preview.top);
-                icon.setScaleX(scale);
-                icon.setScaleY(scale);
-                icon.setTranslationY(drawer.top - preview.top - icon.getTop());
-                fitName(icon, drawer, scale);
-                if (!sSaidAlign) {
-                    sSaidAlign = true;
-                    L.i("zui folders: preview " + preview.width() + "px at " + preview.top
-                            + " to the drawer's " + drawer.size + "px at " + drawer.top
-                            + " (x" + scale + ")");
-                }
-            } catch (Throwable t) {
-                L.d("zui folders: not aligned (" + t + ")");
+                return;
             }
-        });
+            float scale = drawer.size / (float) preview.width();
+            icon.setPivotX(preview.exactCenterX());
+            icon.setPivotY(preview.top);
+            icon.setScaleX(scale);
+            icon.setScaleY(scale);
+            icon.setTranslationY(drawer.top - preview.top - icon.getTop());
+            fitName(icon, drawer, scale);
+            if (!sSaidAlign) {
+                sSaidAlign = true;
+                L.i("zui folders: preview " + preview.width() + "px at " + preview.top
+                        + " to the drawer's " + drawer.size + "px at " + drawer.top
+                        + " (x" + scale + ")");
+            }
+        } catch (Throwable t) {
+            L.d("zui folders: not aligned (" + t + ")");
+        }
     }
 
     private static boolean sSaidAlign;
@@ -832,9 +916,18 @@ public final class ZuiFolders {
             frame.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
             name.setLayoutParams(frame);
         }
-        name.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, drawer.textPx / scale);
-        name.setMaxLines(drawer.lines);
-        name.setEllipsize(drawer.ellipsize);
+        // Each only when it differs: every one of them asks for a layout, and this runs on each
+        // of the icon's layouts.
+        float textPx = drawer.textPx / scale;
+        if (Math.abs(name.getTextSize() - textPx) > 0.01f) {
+            name.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, textPx);
+        }
+        if (name.getMaxLines() != drawer.lines) {
+            name.setMaxLines(drawer.lines);
+        }
+        if (name.getEllipsize() != drawer.ellipsize) {
+            name.setEllipsize(drawer.ellipsize);
+        }
     }
 
     /** ZUI's own app icons in a drawer list: icon size and top, and how their names are set. */
@@ -886,15 +979,14 @@ public final class ZuiFolders {
 
     /** ZUI's folder icon for one of our folders in this context, built once per change. */
     private static View iconFor(Context activity, ViewGroup cell, Item folder) throws Exception {
-        Context app = AppCtx.get() != null ? AppCtx.get() : activity;
-        int version = DrawerStore.shared(app).version();
+        String content = contentOf(folder);
         Map<String, Built> mine = BUILT.get(activity);
         if (mine == null) {
             mine = new HashMap<>();
             BUILT.put(activity, mine);
         }
         Built built = mine.get(folder.id);
-        if (built != null && (built.version == version || isOpen(built))) {
+        if (built != null && (built.content.equals(content) || isOpen(built))) {
             return built.icon;
         }
         Object info = folderInfo(activity, folder);
@@ -913,7 +1005,9 @@ public final class ZuiFolders {
         }
         // Held, our hold hook gives it ZUI's folder menu; ZUI's own hold needs it long-clickable.
         icon.setOnLongClickListener(v -> true);
-        mine.put(folder.id, new Built(icon, version));
+        // Aligned as it is laid out, before it is ever drawn at ZUI's home size.
+        icon.addOnLayoutChangeListener(ALIGN);
+        mine.put(folder.id, new Built(icon, content));
         return icon;
     }
 
@@ -944,8 +1038,7 @@ public final class ZuiFolders {
                 }
                 return null;
             }
-            Context app = AppCtx.get() != null ? AppCtx.get() : bar;
-            int version = DrawerStore.shared(app).version();
+            String content = contentOf(folder);
             Map<String, Built> mine = BUILT.get(bar);
             if (mine == null) {
                 mine = new HashMap<>();
@@ -953,7 +1046,7 @@ public final class ZuiFolders {
             }
             Built built = mine.get(folder.id);
             View icon;
-            if (built != null && (built.version == version || isOpen(built))) {
+            if (built != null && (built.content.equals(content) || isOpen(built))) {
                 icon = built.icon;
             } else {
                 Object info = folderInfo(bar, folder);
@@ -964,7 +1057,7 @@ public final class ZuiFolders {
                         bar.getPackageName());
                 icon = (View) sInflate.invoke(null, layout, bar, null, info);
                 icon.getClass().getMethod("setTextVisible", boolean.class).invoke(icon, false);
-                mine.put(folder.id, new Built(icon, version));
+                mine.put(folder.id, new Built(icon, content));
             }
             if (icon.getParent() instanceof ViewGroup) {
                 ((ViewGroup) icon.getParent()).removeView(icon);
@@ -1410,13 +1503,12 @@ public final class ZuiFolders {
 
     /** Saves a change made in ZUI's folder itself, which already shows it: no rebuild for it. */
     static void saveKeepingIcons(Context ctx, Item folder) {
-        DrawerStore store = DrawerStore.shared(ctx);
-        store.save();
-        int version = store.version();
+        DrawerStore.shared(ctx).save();
+        String content = contentOf(folder);
         for (Map<String, Built> mine : BUILT.values()) {
             Built built = mine.get(folder.id);
             if (built != null) {
-                built.version = version;
+                built.content = content;
             }
         }
     }

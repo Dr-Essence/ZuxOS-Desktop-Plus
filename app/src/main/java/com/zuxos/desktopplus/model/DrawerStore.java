@@ -47,13 +47,6 @@ public final class DrawerStore {
         return sShared;
     }
 
-    private volatile int mVersion;
-
-    /** Goes up on every save, so whatever is derived from the state knows to look again. */
-    public int version() {
-        return mVersion;
-    }
-
     public List<String> order() {
         return mOrder;
     }
@@ -130,7 +123,6 @@ public final class DrawerStore {
     }
 
     public synchronized void save() {
-        mVersion++;
         try {
             JSONObject root = new JSONObject();
             root.put("version", 1);

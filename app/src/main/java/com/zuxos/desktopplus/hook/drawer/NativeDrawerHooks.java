@@ -68,7 +68,6 @@ public final class NativeDrawerHooks {
 
     private static boolean sInstalled;
 
-    private static int sStoreVersion = -1;
     private static AppsRepo sRepo;
 
     private static Field sAppsField;
@@ -79,6 +78,8 @@ public final class NativeDrawerHooks {
     private static final Map<Class<?>, Field> sComponentFields = new HashMap<>();
     private static final Set<Class<?>> sWithoutComponent = new HashSet<>();
     private static final Map<String, Object> sFolderEntries = new HashMap<>();
+    /** What each folder's entry was made with ({@link #contentOf}). */
+    private static final Map<String, String> sFolderContent = new HashMap<>();
     private static final ThreadLocal<Boolean> sRefreshing = new ThreadLocal<>();
     private static String sLastNote;
 
@@ -545,7 +546,9 @@ public final class NativeDrawerHooks {
     private static Object folderEntry(Context ctx, Item folder, Object sample, int iconPx) {
         String label = folder.label != null ? folder.label : "Folder";
         Object cached = sFolderEntries.get(folder.id);
-        if (cached != null && label.equals(titleOf(cached))) {
+        String content = contentOf(folder);
+        if (cached != null && label.equals(titleOf(cached))
+                && content.equals(sFolderContent.get(folder.id))) {
             return cached;
         }
         try {
@@ -576,6 +579,7 @@ public final class NativeDrawerHooks {
             }
             applyFolderIcon(ctx, info, folder, iconPx > 0 ? iconPx : Ui.dp(ctx, 48));
             sFolderEntries.put(folder.id, info);
+            sFolderContent.put(folder.id, content);
             return info;
         } catch (Throwable t) {
             L.e("native drawer: could not build a folder entry", t);
@@ -1057,19 +1061,25 @@ public final class NativeDrawerHooks {
             sRepo.forgetIcons();
         }
         sFolderEntries.clear();
+        sFolderContent.clear();
     }
 
-    /** Re-read the drawer state whenever our own drawer has written to it. */
-    private static synchronized DrawerStore store(Context ctx) {
-        DrawerStore store = DrawerStore.shared(ctx);
-        int version = store.version();
-        if (version != sStoreVersion) {
-            // Saved since - by our drawer, a folder window or these hooks: the entries made from
-            // it are made again.
-            sStoreVersion = version;
-            sFolderEntries.clear();
+    /**
+     * The drawer state. A folder's entry is made again only when its name or apps change
+     * ({@link #contentOf}), not on every save: each save of a rearrange drew every folder's
+     * icon again on the main thread.
+     */
+    private static DrawerStore store(Context ctx) {
+        return DrawerStore.shared(ctx);
+    }
+
+    /** A folder's name and apps, in order: what its entry's icon shows. */
+    private static String contentOf(Item folder) {
+        StringBuilder out = new StringBuilder(folder.label != null ? folder.label : "");
+        for (Item child : folder.children) {
+            out.append('|').append(child.key());
         }
-        return store;
+        return out.toString();
     }
 
     /** The app repository, built once. Shared with the taskbar, which opens folders too. */
