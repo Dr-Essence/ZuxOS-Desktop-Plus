@@ -323,11 +323,21 @@ final class DrawerRearrange {
                 return;
             }
             boolean[] done = new boolean[1];
+            long start = android.os.SystemClock.uptimeMillis();
+            String expected = cell == null ? null : DrawerReorder.keyOfCell(cell);
             Runnable finish = () -> {
                 if (done[0]) {
                     return;
                 }
                 done[0] = true;
+                // Read-only trace for the flashing on a drop (owner, 22:53): whether the cell
+                // the icon lands on still shows what it showed when the flight began.
+                String now = cell == null ? null : DrawerReorder.keyOfCell(cell);
+                L.i("drawer rearrange: trace: the icon landed after "
+                        + (android.os.SystemClock.uptimeMillis() - start) + " ms"
+                        + (cell == null ? ", on no cell" : expected != null && expected.equals(now)
+                        ? ", its cell unchanged" : ", its cell re-bound from " + expected + " to "
+                        + now) + (into ? " (into a folder)" : ""));
                 Reflect.call(dragged, "remove");
                 if (cell != null && !into) {
                     cell.setAlpha(1f);
