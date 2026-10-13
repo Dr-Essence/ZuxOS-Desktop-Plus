@@ -66,7 +66,7 @@ public final class AndroidRobot extends Drawable {
         mBubble.setStyle(Paint.Style.FILL);
         mBubbleEdge.setColor(BUBBLE_EDGE);
         mBubbleEdge.setStyle(Paint.Style.STROKE);
-        mBubbleEdge.setStrokeWidth(0.3f);
+        mBubbleEdge.setStrokeWidth(0.6f);
         mDream.setStyle(Paint.Style.FILL);
         mDreamLine.setStyle(Paint.Style.STROKE);
         mDreamLine.setStrokeCap(Paint.Cap.ROUND);
@@ -267,42 +267,50 @@ public final class AndroidRobot extends Drawable {
 
     /** The z's start this long after the eyes have shut. */
     private static final long Z_AFTER_MS = 1000L;
-    /** How often a z's hand-drawn line is drawn again a little differently - comics' boil. */
-    private static final long BOIL_MS = 125L;
-    /** The ink of a z's line, in grid units on the screen whatever its size. */
+    /** The purple of a z's line, in grid units on the screen whatever its size. */
     private static final float Z_INK = 0.8f;
-    /** The pencil gone over it again: a deeper purple, thin and faint. */
-    private static final int Z_PENCIL = 0xFF7C4DFF;
-    /** A hand-drawn Z, three times over, each a little different, for the boil. */
-    private static final Path[] Z_DRAWN = {sketchedZ(1L), sketchedZ(2L), sketchedZ(3L)};
+    /** The black outline round it, this much wider than the purple. */
+    private static final float Z_OUTLINE = 0.5f;
+    /** Pencil black, for the outline and the pencil gone over it again. */
+    private static final int Z_BLACK = 0xFF1E1B24;
+    /** Each z on screen, written out by hand once, when it starts its way up. */
+    private final Path[] mZWritten = {new Path(), new Path(), new Path()};
+    /** The same z gone over again in pencil, a touch off the first line, as a hand does. */
+    private final Path[] mZRetraced = {new Path(), new Path(), new Path()};
+    /** Which of its trips up each z was written for; a new trip, a new z. */
+    private final long[] mZTrip = {-1L, -1L, -1L};
 
     /**
-     * A Z as a hand draws it, in one stroke round a unit square: the pen lands a little low, an
-     * arched top, a bowed diagonal, a bottom that dips and then flicks up at its end - each
-     * point nudged a touch, as no two drawings of it are the same.
+     * A z as a hand writes it, into {@code z}, in one stroke round a unit square: the pen lands
+     * a little low, an arched top, a bowed diagonal, a bottom that dips and then flicks up at
+     * its end. No two are the same: each is a little wider or narrower, leans its own way, and
+     * every point of it wanders a touch.
      */
-    private static Path sketchedZ(long seed) {
+    private static void writeZ(Path z, long seed) {
         java.util.Random hand = new java.util.Random(seed);
         float[] p = {-1.14f, -0.78f, -1.0f, -0.97f, -0.96f, -0.95f, 0.0f, -1.2f, 1.05f, -0.98f,
                 0.18f, -0.04f, -1.02f, 0.96f, 0.05f, 0.8f, 1.08f, 1.0f, 1.34f, 0.72f};
-        for (int i = 0; i < p.length; i++) {
-            p[i] += (hand.nextFloat() - 0.5f) * 0.14f;
+        float wide = 0.86f + 0.28f * hand.nextFloat();
+        float lean = -0.12f + 0.32f * hand.nextFloat();
+        for (int i = 0; i < p.length; i += 2) {
+            float y = p[i + 1] + (hand.nextFloat() - 0.5f) * 0.22f;
+            p[i] = (p[i] + (hand.nextFloat() - 0.5f) * 0.22f) * wide - y * lean;
+            p[i + 1] = y;
         }
-        Path z = new Path();
+        z.reset();
         z.moveTo(p[0], p[1]);
         z.quadTo(p[2], p[3], p[4], p[5]);
         z.quadTo(p[6], p[7], p[8], p[9]);
         z.quadTo(p[10], p[11], p[12], p[13]);
         z.quadTo(p[14], p[15], p[16], p[17]);
         z.lineTo(p[18], p[19]);
-        return z;
     }
 
     /**
-     * Comic z's, hand-drawn: rising from above the dome one after another, a second after the
-     * eyes have shut, swaying and tilting as they float up and to the right, growing as they
-     * go, fading in and then out - inked in purple and gone over again in pencil, the line
-     * boiling as a drawn one does.
+     * Comic z's, written by hand in pencil: rising from above the dome one after another, a
+     * second after the eyes have shut, swaying and tilting smoothly as they float up and to the
+     * right, growing as they go, fading in and then out. Each is written anew for each trip -
+     * purple, outlined in black, gone over once more in pencil - so no two look alike.
      */
     private void drawZs(Canvas canvas, long now) {
         long t = now - mAsleepSince - DOZE_MS - Z_AFTER_MS;
@@ -316,6 +324,13 @@ public final class AndroidRobot extends Drawable {
             if (since <= 0) {
                 continue;
             }
+            long trip = since / Z_MS;
+            if (trip != mZTrip[i]) {
+                mZTrip[i] = trip;
+                long seed = mAsleepSince * 31L + trip * 3L + i;
+                writeZ(mZWritten[i], seed);
+                writeZ(mZRetraced[i], seed + 7919L);
+            }
             float p = (since % Z_MS) / (float) Z_MS;
             float size = (0.9f + 1.3f * p) * mSleep;
             if (size < 0.05f) {
@@ -328,20 +343,24 @@ public final class AndroidRobot extends Drawable {
             // In over the first fifth, out over the last two.
             float in = p < 0.2f ? p / 0.2f : p > 0.6f ? (1f - p) / 0.4f : 1f;
             int ink = Math.round(alpha * in * mSleep);
-            int drawn = (int) ((now / BOIL_MS + i) % Z_DRAWN.length);
             int saved = canvas.save();
             canvas.translate(x, y);
             canvas.rotate(tilt);
             canvas.scale(size, size);
+            // The outline: the same line, black and wider, under the purple.
+            mZ.setColor(Z_BLACK);
+            mZ.setAlpha(ink);
+            mZ.setStrokeWidth((Z_INK + Z_OUTLINE) / size);
+            canvas.drawPath(mZWritten[i], mZ);
             mZ.setColor(Z_PURPLE);
             mZ.setAlpha(ink);
             mZ.setStrokeWidth(Z_INK / size);
-            canvas.drawPath(Z_DRAWN[drawn], mZ);
-            canvas.translate(0.09f, -0.07f);
-            mZ.setColor(Z_PENCIL);
+            canvas.drawPath(mZWritten[i], mZ);
+            // The pencil gone over it once more: thin, faint, a little off.
+            mZ.setColor(Z_BLACK);
             mZ.setAlpha(ink * 2 / 5);
-            mZ.setStrokeWidth(Z_INK * 0.4f / size);
-            canvas.drawPath(Z_DRAWN[(drawn + 1) % Z_DRAWN.length], mZ);
+            mZ.setStrokeWidth(0.16f / size);
+            canvas.drawPath(mZRetraced[i], mZ);
             canvas.restoreToCount(saved);
         }
     }
@@ -363,14 +382,24 @@ public final class AndroidRobot extends Drawable {
     private static final float SHEEP_SIZE = 1.35f;
     /** The twinkles' slow pulse. */
     private static final long TWINKLE_MS = 1700L;
-    /** The bubble: as white as a thought, edged in the z's purple. */
-    private static final int BUBBLE = 0xF5FFFFFF;
-    private static final int BUBBLE_EDGE = 0x66B388FF;
+    /** The bubble: as white as a thought, edged in a pale purple. */
+    private static final int BUBBLE = 0xFFFFFFFF;
+    private static final int BUBBLE_EDGE = 0xFFDCCBFF;
+    /** The bubble drifts up and down on its own slow breath... */
+    private static final long FLOAT_MS = 3200L;
+    /** ...swells a little and back... */
+    private static final long BREATHE_MS = 2600L;
+    /** ...and its puffs billow, each in its own time. */
+    private static final long BILLOW_MS = 2100L;
     /** The sheep: fleece a pale lavender, so it shows on the white; face and legs dark. */
     private static final int FLEECE = 0xFFE4D8FF;
     private static final int FACE = 0xFF4A4458;
-    /** The cloud the dream is in, on the grid: puffs on a rounded base, above the head. */
-    private static final Path CLOUD = cloud();
+    /** The cloud's puffs on the grid, x, y and radius, on a rounded base above the head. */
+    private static final float[][] PUFFS = {{8.0f, 2.4f, 1.9f}, {11.4f, 1.8f, 2.3f},
+            {14.8f, 2.5f, 1.8f}, {6.6f, 4.4f, 1.6f}, {16.4f, 4.4f, 1.6f}};
+    private static final RectF CLOUD_BASE = new RectF(5.6f, 2.0f, 17.4f, 6.2f);
+    /** The cloud as it is this frame: its base and its puffs, as they billow. */
+    private final Path mCloud = new Path();
     /** Where the cloud grows from: its lower right, where the small puffs lead up to it. */
     private static final float CLOUD_PIVOT_X = 17.0f;
     private static final float CLOUD_PIVOT_Y = 5.6f;
@@ -379,24 +408,32 @@ public final class AndroidRobot extends Drawable {
     private final Paint mDream = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mDreamLine = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-    private static Path cloud() {
-        Path cloud = new Path();
-        cloud.addRoundRect(new RectF(5.6f, 2.0f, 17.4f, 6.2f), 2.1f, 2.1f, Path.Direction.CW);
-        Path puff = new Path();
-        float[][] puffs = {{8.0f, 2.4f, 1.9f}, {11.4f, 1.8f, 2.3f}, {14.8f, 2.5f, 1.8f},
-                {6.6f, 4.4f, 1.6f}, {16.4f, 4.4f, 1.6f}};
-        for (float[] p : puffs) {
-            puff.reset();
-            puff.addCircle(p[0], p[1], p[2], Path.Direction.CW);
-            cloud.op(puff, Path.Op.UNION);
+    /**
+     * The cloud {@code ms} into the dream: each puff a touch bigger and smaller in its own time.
+     * Its shapes overlap rather than merge - filled, they are one cloud, and clipped to, the
+     * dream stays inside it.
+     */
+    private void billow(long ms) {
+        mCloud.reset();
+        mCloud.addRoundRect(CLOUD_BASE, 2.1f, 2.1f, Path.Direction.CW);
+        for (int i = 0; i < PUFFS.length; i++) {
+            float[] p = PUFFS[i];
+            double phase = 2.0 * Math.PI * ms / BILLOW_MS + i * 1.7;
+            mCloud.addCircle(p[0], p[1], p[2] * (1f + 0.05f * (float) Math.sin(phase)),
+                    Path.Direction.CW);
         }
-        return cloud;
+    }
+
+    private static float wave(long ms, long period, double phase) {
+        return (float) Math.sin(2.0 * Math.PI * ms / period + phase);
     }
 
     /**
      * The thought bubble and its dream, {@code ms} into it: a small puff, a bigger one and then
      * the cloud pop up from the head on a spring, one after the other; the dream fades in inside
-     * it - an electric sheep hopping a fence, again and again, under two slow twinkles.
+     * it - an electric sheep hopping a fence, again and again, under two slow twinkles. All the
+     * while the bubble is alive: it drifts up and down, breathes, its puffs billow, and the
+     * small puffs bob, each out of step with the others.
      */
     private void drawDream(Canvas canvas, long ms) {
         int alpha = mLine.getAlpha();
@@ -405,19 +442,25 @@ public final class AndroidRobot extends Drawable {
         float big = pop(ms, 2 * POP_GAP_MS) * mSleep;
         mBubble.setAlpha(Math.round((BUBBLE >>> 24) * alpha / 255f));
         mBubbleEdge.setAlpha(Math.round((BUBBLE_EDGE >>> 24) * alpha / 255f));
-        drawPuff(canvas, 17.4f, 8.4f, 0.42f * small);
-        drawPuff(canvas, 18.9f, 7.0f, 0.72f * mid);
+        drawPuff(canvas, 17.4f, 8.4f + 0.12f * wave(ms, FLOAT_MS, 2.0), 0.42f * small);
+        drawPuff(canvas, 18.9f, 7.0f + 0.18f * wave(ms, FLOAT_MS, 1.0), 0.72f * mid);
         if (big <= 0f) {
             return;
         }
         int saved = canvas.save();
         canvas.scale(big, big, CLOUD_PIVOT_X, CLOUD_PIVOT_Y);
-        canvas.drawPath(CLOUD, mBubble);
-        canvas.drawPath(CLOUD, mBubbleEdge);
+        canvas.translate(0f, 0.28f * wave(ms, FLOAT_MS, 0.0));
+        float breath = 1f + 0.03f * wave(ms, BREATHE_MS, 1.3);
+        canvas.scale(breath, breath, 11.5f, 3.4f);
+        billow(ms);
+        // The edge: every shape's outline, twice as wide, under the fill, which covers all of
+        // it but the cloud's outer edge.
+        canvas.drawPath(mCloud, mBubbleEdge);
+        canvas.drawPath(mCloud, mBubble);
         long scene = ms - 2 * POP_GAP_MS - POP_MS / 2;
         float in = scene <= 0 ? 0f : Math.min(1f, scene / (float) DREAM_IN_MS);
         if (in > 0f) {
-            canvas.clipPath(CLOUD);
+            canvas.clipPath(mCloud);
             drawScene(canvas, scene, Math.round(alpha * in * mSleep));
         }
         canvas.restoreToCount(saved);
@@ -431,8 +474,8 @@ public final class AndroidRobot extends Drawable {
 
     private void drawPuff(Canvas canvas, float x, float y, float r) {
         if (r > 0f) {
-            canvas.drawCircle(x, y, r, mBubble);
             canvas.drawCircle(x, y, r, mBubbleEdge);
+            canvas.drawCircle(x, y, r, mBubble);
         }
     }
 
