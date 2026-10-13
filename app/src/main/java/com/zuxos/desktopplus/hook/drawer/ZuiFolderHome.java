@@ -46,6 +46,7 @@ final class ZuiFolderHome {
 
     /** The folder on its way to the home screen, and its apps, until ZUI has placed it. */
     private static Object sDragged;
+    private static Item sFolder;
     private static List<Object> sApps;
     /** ZUI's icon for it, made by ZUI's drop. */
     private static View sMade;
@@ -125,6 +126,7 @@ final class ZuiFolderHome {
                 return false;
             }
             sDragged = info;
+            sFolder = folder;
             sApps = apps;
             sMade = null;
             Object draggable = Class.forName(DRAGGABLE, false, loader).isInstance(icon)
@@ -203,6 +205,11 @@ final class ZuiFolderHome {
                     return null;
             }
         });
+    }
+
+    /** Our folder whose drag is the one {@code dragged} names, or null for any other drag. */
+    static Item folderDragged(Object dragged) {
+        return dragged != null && dragged == sDragged ? sFolder : null;
     }
 
     /** ZUI has given the folder its id: its apps go in through ZUI's own folder. */

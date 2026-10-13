@@ -173,6 +173,7 @@ public final class ZuiFolders {
             ZuiFolderWrites.install(loader);
             ZuiFolderAdd.install(loader, folder);
             hooked += ZuiFolderHome.install(loader);
+            hooked += DrawerRearrange.install(loader);
             ZuiFolderBlur.install(folder);
             Health.hooked("drawer: our folders as ZUI's", hooked);
             L.i("zui folders: our drawer folders as ZUI's own on the tablet x" + hooked);

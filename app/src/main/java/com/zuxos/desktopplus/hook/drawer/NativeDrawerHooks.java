@@ -28,6 +28,7 @@ import com.zuxos.desktopplus.hook.ZuiMenu;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarApps;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarBridge;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarMenu;
+import com.zuxos.desktopplus.logic.DrawerArrange;
 import com.zuxos.desktopplus.model.AppsRepo;
 import com.zuxos.desktopplus.model.DrawerStore;
 import com.zuxos.desktopplus.model.Item;
@@ -238,6 +239,9 @@ public final class NativeDrawerHooks {
                 return false;
             }
             sLastList = new java.lang.ref.WeakReference<>(appsList);
+            synchronized (LISTS) {
+                LISTS.put(appsList, Boolean.TRUE);
+            }
             DrawerStore store = store(ctx);
             Set<String> filed = store.keysInFolders();
             Set<String> hidden = store.hidden();
@@ -427,6 +431,8 @@ public final class NativeDrawerHooks {
 
     /** The drawer's app list as last seen, so a rearrangement can have it re-sorted. */
     private static java.lang.ref.WeakReference<Object> sLastList;
+    /** Every drawer list ours is applied to - ZUX Home's own and the taskbar's - to refresh. */
+    private static final Map<Object, Boolean> LISTS = new java.util.WeakHashMap<>();
 
     /** What an icon in the stock drawer stands for, as a key of the drawer's order; or null. */
     static String keyOfIcon(View icon) {
@@ -464,27 +470,65 @@ public final class NativeDrawerHooks {
      * @return false when the drawer's list is not at hand and nothing was changed
      */
     static boolean moveInDrawer(String key, int index) {
+        return rearrange("moved " + key + " to " + index,
+                (order, folders) -> DrawerArrange.move(order, key, index));
+    }
+
+    /**
+     * Rearranges the stock drawer: {@code change} gets what the drawer shows, by key and in
+     * order, and our folders, and changes them in place ({@link DrawerArrange}); the result is
+     * kept - the same order the module's own drawer uses - and shown in every drawer.
+     *
+     * @return false when the drawer's list is not at hand or nothing changed
+     */
+    static boolean rearrange(String what,
+            java.util.function.BiPredicate<List<String>, List<Item>> change) {
         Context ctx = AppCtx.get();
-        Object list = sLastList != null ? sLastList.get() : null;
         List<String> keys = shownOrder();
-        int from = keys.indexOf(key);
-        if (ctx == null || list == null || from < 0 || index < 0 || index >= keys.size()) {
+        if (ctx == null || keys.isEmpty()) {
             return false;
         }
-        keys.remove(from);
-        keys.add(index, key);
         DrawerStore store = store(ctx);
+        if (!change.test(keys, store.folders())) {
+            return false;
+        }
         store.order().clear();
         store.order().addAll(keys);
         store.save();
-        try {
-            // Re-sorted through the same path that applies the order on every refresh.
-            Reflect.call(list, "updateAdapterItems");
-        } catch (Throwable t) {
-            L.d("native drawer: could not re-sort after a move (" + t + ")");
-        }
-        L.i("native drawer: moved " + key + " to " + index + " of " + keys.size());
+        refreshList();
+        L.i("native drawer: " + what);
         return true;
+    }
+
+    /** The key of one of ZUI's drawer entries, an app or a folder of ours; null for neither. */
+    static String keyOfEntry(Object entry) {
+        Context ctx = AppCtx.get();
+        String key = ctx == null || entry == null ? "" : entryKey(ctx, entry);
+        return key.isEmpty() ? null : key;
+    }
+
+    /** The name the drawer shows for an app key, or the name it has in one of our folders. */
+    static String labelOf(String key) {
+        Context ctx = AppCtx.get();
+        Object list = sLastList != null ? sLastList.get() : null;
+        List<Object> apps = list == null ? null : appsListOf(list);
+        if (ctx == null) {
+            return null;
+        }
+        for (Object app : apps != null ? apps : Collections.emptyList()) {
+            if (key.equals(entryKey(ctx, app))) {
+                return titleOf(app);
+            }
+        }
+        Item folder = DrawerArrange.folderOf(store(ctx).folders(), key);
+        if (folder != null) {
+            for (Item child : folder.children) {
+                if (child.key().equals(key)) {
+                    return child.label;
+                }
+            }
+        }
+        return null;
     }
 
     private static String entryKey(Context ctx, Object entry) {
@@ -670,9 +714,16 @@ public final class NativeDrawerHooks {
 
     /** Has ZUI's drawer list built again from our model, as after any change to it. */
     static void refreshList() {
-        Object list = sLastList != null ? sLastList.get() : null;
-        if (list != null) {
-            Reflect.call(list, "updateAdapterItems");
+        List<Object> lists;
+        synchronized (LISTS) {
+            lists = new ArrayList<>(LISTS.keySet());
+        }
+        for (Object list : lists) {
+            try {
+                Reflect.call(list, "updateAdapterItems");
+            } catch (Throwable t) {
+                L.d("native drawer: a list not refreshed (" + t + ")");
+            }
         }
     }
 

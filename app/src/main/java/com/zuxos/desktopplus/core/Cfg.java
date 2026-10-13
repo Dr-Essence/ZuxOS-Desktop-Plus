@@ -514,6 +514,10 @@ public final class Cfg {
         return getBool(Const.KEY_DRAWER_FOLDER_HOME, true);
     }
 
+    public static boolean drawerRearrange() {
+        return getBool(Const.KEY_DRAWER_REARRANGE, true);
+    }
+
     public static boolean homeDrop() {
         return getBool(Const.KEY_HOME_DROP, true);
     }

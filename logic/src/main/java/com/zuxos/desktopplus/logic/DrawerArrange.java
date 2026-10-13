@@ -1,0 +1,180 @@
+package com.zuxos.desktopplus.logic;
+
+import com.zuxos.desktopplus.model.Item;
+
+import java.util.List;
+
+/**
+ * Rearranging a drawer's entries the way ZUI rearranges its home screen: moved to a new place,
+ * dropped onto another app to make a folder, dropped onto a folder to go in it, or taken out of
+ * a folder to a place of its own.
+ *
+ * <p>Works on the drawer's saved order (entry keys, {@link Item#key()}, folders as
+ * {@code folder:<id>}) and its folders, both changed in place. An app is in the drawer once:
+ * either in the order or in one folder. A folder left with one app is no folder: the app takes
+ * its place in the order.
+ */
+public final class DrawerArrange {
+
+    private DrawerArrange() {
+    }
+
+    /**
+     * Moves {@code key} to {@code index} of {@code order}, the index counted in the order as it
+     * stands before the move. Nothing happens for a key not in the order.
+     */
+    public static boolean move(List<String> order, String key, int index) {
+        int from = order.indexOf(key);
+        if (from < 0) {
+            return false;
+        }
+        order.remove(from);
+        order.add(clamp(index, order.size()), key);
+        return true;
+    }
+
+    /**
+     * Folds {@code dragged} and {@code target} into a new folder named {@code label}, in the
+     * place the target had. The dragged app leaves the order, or the folder it was in. Null when
+     * the two cannot make a folder: either is a folder, or they are the same app.
+     */
+    public static Item merge(List<String> order, List<Item> folders, Item dragged, Item target,
+            String label) {
+        if (dragged == null || target == null || dragged.type == Item.TYPE_FOLDER
+                || target.type == Item.TYPE_FOLDER || dragged.key().equals(target.key())) {
+            return null;
+        }
+        leave(order, folders, dragged.key());
+        int at = order.indexOf(target.key());
+        leave(order, folders, target.key());
+        Item folder = Item.folder(label);
+        folder.children.add(copyOf(target));
+        folder.children.add(copyOf(dragged));
+        folders.add(folder);
+        order.add(at < 0 ? order.size() : clamp(at, order.size()), folder.key());
+        return folder;
+    }
+
+    /**
+     * Puts {@code item} into {@code folder}, at its end. The item leaves the order, or the other
+     * folder it was in. False when it is a folder, or already in this one.
+     */
+    public static boolean fileInto(List<String> order, List<Item> folders, Item folder,
+            Item item) {
+        if (folder == null || item == null || item.type == Item.TYPE_FOLDER
+                || folder.type != Item.TYPE_FOLDER || indexIn(folder, item.key()) >= 0) {
+            return false;
+        }
+        leave(order, folders, item.key());
+        folder.children.add(copyOf(item));
+        return true;
+    }
+
+    /**
+     * Takes the app {@code key} out of whichever folder holds it to {@code index} of the order,
+     * counted as the order stands before it arrives. False when no folder holds it.
+     */
+    public static boolean takeOut(List<String> order, List<Item> folders, String key, int index) {
+        Item folder = folderOf(folders, key);
+        if (folder == null) {
+            return false;
+        }
+        // A folder left with one app gives its place to that app: the order's length, and so the
+        // drop place, stays as it was.
+        leave(order, folders, key);
+        order.add(clamp(index, order.size()), key);
+        return true;
+    }
+
+    /** The folder holding the app {@code key}, or null. */
+    public static Item folderOf(List<Item> folders, String key) {
+        for (Item folder : folders) {
+            if (indexIn(folder, key) >= 0) {
+                return folder;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * {@code key} out of the order and out of any folder; a folder left with one app is replaced
+     * in the order by that app.
+     */
+    private static void leave(List<String> order, List<Item> folders, String key) {
+        order.remove(key);
+        Item folder = folderOf(folders, key);
+        if (folder == null) {
+            return;
+        }
+        folder.children.remove(indexIn(folder, key));
+        if (folder.children.size() <= 1) {
+            int at = order.indexOf(folder.key());
+            folders.remove(folder);
+            if (at >= 0) {
+                order.remove(at);
+            }
+            if (folder.children.size() == 1) {
+                String last = folder.children.get(0).key();
+                if (!order.contains(last)) {
+                    order.add(at >= 0 ? at : order.size(), last);
+                }
+            }
+        }
+    }
+
+    private static int indexIn(Item folder, String key) {
+        for (int i = 0; i < folder.children.size(); i++) {
+            if (folder.children.get(i).key().equals(key)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static int clamp(int index, int size) {
+        return Math.max(0, Math.min(index, size));
+    }
+
+    /** A copy of an entry, so the folder holds its own and the order keeps nothing shared. */
+    public static Item copyOf(Item src) {
+        Item copy;
+        switch (src.type) {
+            case Item.TYPE_SHORTCUT:
+                copy = src.intentUri != null
+                        ? Item.intentShortcut(src.intentUri, src.label)
+                        : Item.shortcut(src.pkg, src.shortcutId, src.userSerial, src.label);
+                break;
+            case Item.TYPE_FOLDER:
+                copy = Item.folder(src.label);
+                copy.children.addAll(src.children);
+                break;
+            default:
+                copy = Item.app(src.pkg, src.cls, src.userSerial, src.label);
+                break;
+        }
+        return copy;
+    }
+
+    /**
+     * The app an entry key names ({@code pkg/cls#serial}), labelled {@code label}; null for a
+     * key of anything else.
+     */
+    public static Item appOf(String key, String label) {
+        if (key == null || key.startsWith("folder:") || key.startsWith("intent:")
+                || key.startsWith("widget:") || key.contains("//")) {
+            return null;
+        }
+        int slash = key.indexOf('/');
+        int hash = key.lastIndexOf('#');
+        if (slash <= 0 || hash <= slash + 1) {
+            return null;
+        }
+        long serial;
+        try {
+            serial = Long.parseLong(key.substring(hash + 1));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        return Item.app(key.substring(0, slash), key.substring(slash + 1, hash), serial, label);
+    }
+}

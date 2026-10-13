@@ -291,6 +291,14 @@ vendor power HAL's, not in these jars.
   `W`) answers false to a drop. ZUX Home's drawer hold (`ItemLongClickListener`, the all-apps
   instance) returns false even after it started its drag with `beginDragShared`; whether
   `DragController.isDragging()` is true says whether it took the hold.
+- **A drag out of ZUX Home's drawer (read 2026-10-13).** `ItemLongClickListener` (all apps) ->
+  `Workspace.beginDragShared(view, appsView, options)`: ZUI's popup is the pre-drag; once the
+  finger moves past `deep_shortcuts_start_drag_threshold`, `Workspace.onDragStart` -> `L0` closes
+  the popup and goes to `SPRING_LOADED` for an all-apps source - that one step takes the drawer
+  away. Nothing in the drawer is a `DropTarget`; `DragController` asks the newest target first.
+  ZUI's list has no item animator (`setItemAnimator(null)`) and no order of its own. A drop target
+  that animates keeps `deferDragViewCleanupPostAnimation` and ends the drag itself
+  (`DragView.remove`, `callOnDragEnd`; ZUI's own is the obfuscated `DragController.g`).
 - **Who owns the drag card after a drop (read 2026-10-13, `DragState`, `TaskbarDragController`).**
   ZUI's drawer drag uses flags 2816, among them `DRAG_FLAG_REQUEST_SURFACE_FOR_RETURN_ANIMATION`:
   Android skips its own return animation and hands the drag surface to the source in

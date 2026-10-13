@@ -23,6 +23,7 @@ import com.zuxos.desktopplus.desktop.DragPayload;
 import com.zuxos.desktopplus.desktop.GlassPanel;
 import com.zuxos.desktopplus.desktop.ItemView;
 import com.zuxos.desktopplus.hook.taskbar.BarEdge;
+import com.zuxos.desktopplus.logic.DrawerArrange;
 import com.zuxos.desktopplus.model.AppsRepo;
 import com.zuxos.desktopplus.model.DrawerStore;
 import com.zuxos.desktopplus.model.Item;
@@ -601,8 +602,8 @@ public class DrawerPanel extends FrameLayout implements View.OnDragListener {
 
     public Item createFolder(Item first, Item second) {
         Item folder = Item.folder("Folder");
-        folder.children.add(copyOf(first));
-        folder.children.add(copyOf(second));
+        folder.children.add(DrawerArrange.copyOf(first));
+        folder.children.add(DrawerArrange.copyOf(second));
         mStore.folders().add(folder);
         // Keep the folder where the first app was so it does not jump to the end. Its place in
         // the saved order, not on screen: the two differ by every hidden or filtered-out app.
@@ -624,28 +625,9 @@ public class DrawerPanel extends FrameLayout implements View.OnDragListener {
             // Already in a folder - this one or another: an app is in the drawer once.
             return;
         }
-        folder.children.add(copyOf(item));
+        folder.children.add(DrawerArrange.copyOf(item));
         mStore.order().remove(item.key());
         mListener.onDrawerChanged();
         rebuild();
-    }
-
-    private static Item copyOf(Item src) {
-        Item copy;
-        switch (src.type) {
-            case Item.TYPE_SHORTCUT:
-                copy = src.intentUri != null
-                        ? Item.intentShortcut(src.intentUri, src.label)
-                        : Item.shortcut(src.pkg, src.shortcutId, src.userSerial, src.label);
-                break;
-            case Item.TYPE_FOLDER:
-                copy = Item.folder(src.label);
-                copy.children.addAll(src.children);
-                break;
-            default:
-                copy = Item.app(src.pkg, src.cls, src.userSerial, src.label);
-                break;
-        }
-        return copy;
     }
 }
