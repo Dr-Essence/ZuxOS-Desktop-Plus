@@ -8,6 +8,7 @@ import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.model.Item;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +53,67 @@ final class ZuiFolderHome {
     private ZuiFolderHome() {
     }
 
+    /** ZUI's drag of a held drawer folder is being made. Main thread. */
+    private static boolean sHolding;
+    private static boolean sSaidPickup;
+
+    /**
+     * The pickup a held drawer folder gets, as a home-screen folder does. ZUI's drag picture
+     * grows from the size it is picked up at to a little larger ({@code DragView}: its start
+     * scale to {@code (width + extra) / width}, 150 ms). Our drawer folders are drawn larger than
+     * their picture (scaled to the drawer's icons, {@code ZuiFolders.align}), so the picture
+     * started at that larger scale and "grew" to about the same - no pickup at all (owner). Its
+     * end is taken relative to where it starts, so the same 6 % pickup plays.
+     */
+    private static int hookPickup(ClassLoader loader) {
+        Class<?> view = Reflect.findClass("com.android.launcher3.dragndrop.DragView", loader);
+        if (view == null) {
+            return 0;
+        }
+        return XposedBridge.hookAllConstructors(view, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                if (!sHolding) {
+                    return;
+                }
+                try {
+                    float start = ((View) param.thisObject).getScaleX();
+                    if (start <= 1.01f) {
+                        return;
+                    }
+                    float endX = scaleField(param.thisObject, "g", start);
+                    float endY = scaleField(param.thisObject, "D", start);
+                    if (!sSaidPickup) {
+                        sSaidPickup = true;
+                        L.i("zui folder home: a held folder picked up from x" + start + " to x"
+                                + endX + "/" + endY + ", as on the home screen");
+                    }
+                } catch (Throwable t) {
+                    L.d("zui folder home: pickup left as ZUI has it (" + t + ")");
+                }
+            }
+        }).size();
+    }
+
+    /** A float field of ZUI's drag picture multiplied by {@code by}; its new value. */
+    private static float scaleField(Object target, String name, float by) throws Exception {
+        for (Class<?> c = target.getClass(); c != null; c = c.getSuperclass()) {
+            try {
+                Field f = c.getDeclaredField(name);
+                if (f.getType() != float.class) {
+                    continue;
+                }
+                f.setAccessible(true);
+                float value = f.getFloat(target) * by;
+                f.setFloat(target, value);
+                return value;
+            } catch (NoSuchFieldException e) {
+                // Up the hierarchy.
+            }
+        }
+        throw new NoSuchFieldException(name);
+    }
+
     static int install(ClassLoader loader) {
         int hooked = 0;
         try {
@@ -82,6 +144,7 @@ final class ZuiFolderHome {
                             }
                         }
                     }).size();
+            hooked += hookPickup(loader);
             Class<?> workspace = Reflect.findClass("com.android.launcher3.Workspace", loader);
             if (workspace != null) {
                 hooked += XposedBridge.hookAllMethods(workspace, "onDragEnd",
@@ -156,8 +219,13 @@ final class ZuiFolderHome {
             Object preview = Class.forName(PREVIEW, false, loader).getConstructor(View.class)
                     .newInstance(icon);
             sHeld = new java.lang.ref.WeakReference<>(icon);
-            begin.invoke(workspace, icon, draggable, Reflect.call(launcher, "getAppsView"), info,
-                    preview, options);
+            sHolding = true;
+            try {
+                begin.invoke(workspace, icon, draggable, Reflect.call(launcher, "getAppsView"),
+                        info, preview, options);
+            } finally {
+                sHolding = false;
+            }
             L.i("zui folder home: " + folder.label + " held, " + apps.size()
                     + " apps, for the home screen");
             return true;

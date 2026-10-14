@@ -16,6 +16,7 @@ import com.zuxos.desktopplus.core.icons.Glyphs;
 import com.zuxos.desktopplus.hook.IconInfo;
 import com.zuxos.desktopplus.hook.ZuiLook;
 import com.zuxos.desktopplus.hook.ZuiShortcuts;
+import com.zuxos.desktopplus.hook.drawer.DrawerSelect;
 import com.zuxos.desktopplus.hook.drawer.ZuiFolders;
 import com.zuxos.desktopplus.hook.home.HomeSelect;
 import com.zuxos.desktopplus.logic.PinList;
@@ -212,6 +213,11 @@ final class ZuiAppRows {
             if (HomeSelect.selectable(target, info)) {
                 // First of ours, as One UI has it: several apps chosen to move together.
                 Row select = new Row("Select", "", () -> HomeSelect.select(target, icon));
+                all.add(ZuiShortcuts.make(ctx, select.title, iconFor(ctx, select, colour),
+                        select.action, target, info, icon));
+            } else if (DrawerSelect.selectable(icon)) {
+                // The same in either drawer, which ZUI's edit mode does not reach.
+                Row select = new Row("Select", "", () -> DrawerSelect.start(icon));
                 all.add(ZuiShortcuts.make(ctx, select.title, iconFor(ctx, select, colour),
                         select.action, target, info, icon));
             }

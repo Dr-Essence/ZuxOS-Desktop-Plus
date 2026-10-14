@@ -146,6 +146,11 @@ public final class NativeDrawerHooks {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
                             if (param.thisObject instanceof View
+                                    && DrawerSelect.tapped((View) param.thisObject)) {
+                                // Chosen or let go while choosing: no launch.
+                                param.setResult(Boolean.TRUE);
+                                IconPress.release((View) param.thisObject);
+                            } else if (param.thisObject instanceof View
                                     && openFolderFor((View) param.thisObject)) {
                                 param.setResult(Boolean.TRUE);
                                 // ZUI's click handler is skipped: its press let go here.
@@ -160,7 +165,8 @@ public final class NativeDrawerHooks {
 
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            if (param.thisObject instanceof View) {
+                            if (param.thisObject instanceof View
+                                    && !DrawerSelect.consumed((View) param.thisObject)) {
                                 closeAfterLaunch((View) param.thisObject);
                             }
                         }

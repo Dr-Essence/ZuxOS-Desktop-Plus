@@ -433,6 +433,39 @@ final class TaskbarStart {
         }
     }
 
+    /** Our start button showing on this display, or null. */
+    private static StartButton shownOn(int display) {
+        for (StartButton button : new java.util.ArrayList<>(BUTTONS.keySet())) {
+            if (button != null && button.isShown() && button.getWidth() > 0
+                    && TaskbarTray.displayIdOf(button) == display) {
+                return button;
+            }
+        }
+        return null;
+    }
+
+    /** Whether a point of the screen is over our start button on this display. */
+    static boolean overStart(int display, float sx, float sy) {
+        StartButton button = shownOn(display);
+        if (button == null) {
+            return false;
+        }
+        int[] at = new int[2];
+        button.getLocationOnScreen(at);
+        return sx >= at[0] && sx <= at[0] + button.getWidth() && sy >= at[1]
+                && sy <= at[1] + button.getHeight() + 1;
+    }
+
+    /** ZUI's drawer opened on this display, as a press of our start button opens it. */
+    static boolean openDrawer(int display) {
+        StartButton button = shownOn(display);
+        if (button == null || drawerOpen(display)) {
+            return false;
+        }
+        button.press();
+        return true;
+    }
+
     static StartButton buttonIn(ViewGroup dragLayer) {
         View found = dragLayer == null ? null : dragLayer.findViewWithTag(TAG_START);
         return found instanceof StartButton ? (StartButton) found : null;
@@ -865,7 +898,7 @@ final class TaskbarStart {
             }
         }
 
-        private void press() {
+        void press() {
             int display = TaskbarTray.displayIdOf(this);
             if (SAID_PRESS.add(TaskbarScope.label(this))) {
                 // Once per bar - the tablet has two on one screen: proof the press reached it.

@@ -192,6 +192,7 @@ public final class ZuiFolders {
             ZuiFolderAdd.install(loader, folder);
             hooked += ZuiFolderHome.install(loader);
             hooked += DrawerRearrange.install(loader);
+            DrawerSelect.install(loader);
             ZuiFolderBlur.install(folder);
             Health.hooked("drawer: our folders as ZUI's", hooked);
             L.i("zui folders: our drawer folders as ZUI's own on the tablet x" + hooked);
@@ -1487,6 +1488,13 @@ public final class ZuiFolders {
         if (folder == null || ctx == null) {
             return;
         }
+        // The folder's whole contents where they can be had: ZUI saves only the apps whose
+        // place changed (Folder.updateItemLocationsInDatabaseBatch), and read alone those left
+        // every other app to go after them - a move inside a folder sent the rest to its end.
+        List<?> all = contentsOf(id);
+        if (all != null) {
+            items = all;
+        }
         java.util.TreeMap<Integer, Item> byRank = new java.util.TreeMap<>();
         for (Object item : items) {
             Item child = childOf(item);
@@ -1509,9 +1517,84 @@ public final class ZuiFolders {
         }
     }
 
-    /** Saves a change made in ZUI's folder itself, which already shows it: no rebuild for it. */
-    static void saveKeepingIcons(Context ctx, Item folder) {
-        DrawerStore.shared(ctx).save();
+    /** What ZUI's open folder of ours holds, every app, or null where it cannot be read. */
+    private static List<?> contentsOf(int id) {
+        for (Map<String, Built> mine : BUILT.values()) {
+            for (Built built : mine.values()) {
+                Object info = built.icon.getTag();
+                Object builtId = info == null ? null : Reflect.field(info, "id");
+                if (builtId instanceof Integer && (Integer) builtId == id) {
+                    Object contents = Reflect.call(info, "getContents");
+                    if (contents instanceof List) {
+                        return new java.util.ArrayList<>((List<?>) contents);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /** The app filed into one of our folders by the last drop into ZUI's folder, for the log. */
+    static String sLastFiled;
+
+    /**
+     * ZUI's folder of ours took a dragged app ({@code Folder.onDrop}, sprung open under it in the
+     * drawer): the app goes into our folder at the place it was let go, out of the drawer's
+     * order, and ZUI's folder, which already shows it, is kept as it is. True when it went in.
+     */
+    static boolean filedByDrop(int id, Object item) {
+        try {
+            Item folder = folderOfId(id);
+            Context ctx = AppCtx.get();
+            if (folder == null || ctx == null || item == null || childOf(item) != null) {
+                return false;
+            }
+            Object target = Reflect.call(item, "getTargetComponent");
+            Object user = Reflect.field(item, "user");
+            if (!(target instanceof ComponentName)) {
+                return false;
+            }
+            ComponentName component = (ComponentName) target;
+            Object title = Reflect.field(item, "title");
+            Item app = Item.app(component.getPackageName(), component.getClassName(),
+                    IconInfo.serialOf(ctx, user instanceof android.os.UserHandle
+                            ? (android.os.UserHandle) user : null),
+                    title != null ? title.toString() : component.getPackageName());
+            Object rankValue = Reflect.field(item, "rank");
+            int rank = rankValue instanceof Integer ? (Integer) rankValue
+                    : folder.children.size();
+            String folderId = folder.id;
+            boolean[] filed = new boolean[1];
+            NativeDrawerHooks.rearrange("put " + app.key() + " into a folder at " + rank,
+                    (order, folders) -> {
+                        for (Item f : folders) {
+                            if (f.id.equals(folderId)) {
+                                filed[0] = DrawerArrange.fileIntoAt(order, folders, f, app, rank);
+                                if (filed[0]) {
+                                    keepBuilt(f);
+                                    for (Item child : f.children) {
+                                        if (child.key().equals(app.key())) {
+                                            noteChild(item, child);
+                                        }
+                                    }
+                                }
+                                return filed[0];
+                            }
+                        }
+                        return false;
+                    });
+            if (filed[0]) {
+                sLastFiled = app.key();
+            }
+            return filed[0];
+        } catch (Throwable t) {
+            L.w("zui folders: a dropped app not filed (" + t + ")");
+            return false;
+        }
+    }
+
+    /** Our folder's ZUI icons are kept as they are for its new contents: ZUI shows them already. */
+    private static void keepBuilt(Item folder) {
         String content = contentOf(folder);
         for (Map<String, Built> mine : BUILT.values()) {
             Built built = mine.get(folder.id);
@@ -1519,6 +1602,12 @@ public final class ZuiFolders {
                 built.content = content;
             }
         }
+    }
+
+    /** Saves a change made in ZUI's folder itself, which already shows it: no rebuild for it. */
+    static void saveKeepingIcons(Context ctx, Item folder) {
+        DrawerStore.shared(ctx).save();
+        keepBuilt(folder);
     }
 
     static void closeOpenFolders() {

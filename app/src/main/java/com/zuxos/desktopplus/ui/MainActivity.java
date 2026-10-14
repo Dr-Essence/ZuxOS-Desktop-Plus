@@ -113,11 +113,15 @@ public class MainActivity extends Activity {
         addSlider("Icon size", "dp", Const.KEY_ICON_SIZE, 52, 32, 96);
 
         addHeader("Tablet home screen");
-        addSpinner("Home screen grid", homeGrids(), Const.KEY_HOME_GRID, 0);
-        addSummary("More columns and rows on ZUX Home's own home screen; ZUI moves your icons "
-                + "into the new grid. 10 × 7 and 12 × 8 let an icon land close to wherever you "
-                + "let it go. Going back to a smaller grid, ZUI moves what no longer fits onto "
-                + "more pages (9 at most). The launcher restarts to apply it.");
+        addSummary("Home screen grid: in ZUX Home's own settings (hold the home screen, Home "
+                + "settings), where 6 × 5, 8 × 5, 8 × 6, 10 × 7 and 12 × 8 join ZUI's own grids. "
+                + "10 × 7 and 12 × 8 let an icon land close to wherever you let it go. Going back "
+                + "to a smaller grid, ZUI moves what no longer fits onto more pages (9 at most).");
+        addSwitch("Fit icons to fine grids",
+                "On the finer grids, icons, names and dots shrink to fit their cells, widgets "
+                        + "keep their size on screen and icons keep their places. The launcher "
+                        + "restarts to apply it",
+                Const.KEY_GRID_FIT, true);
         addSwitch("Home screen uses the dock's space",
                 "The band ZUX Home keeps for its dock above the taskbar becomes home screen, and "
                         + "the dock is hidden. The launcher restarts to apply it",
@@ -215,10 +219,23 @@ public class MainActivity extends Activity {
                         + "screen; rest it on an app to make a folder, on a folder to put it in, "
                         + "and drag past the top of the apps to place it on the home screen",
                 Const.KEY_DRAWER_REARRANGE, true);
+        addSwitch("Rearrange in the taskbar's drawer",
+                "On the tablet, an app dragged inside the taskbar's drawer only moves there; the "
+                        + "floating window starts once it leaves the drawer. Cancel at the top "
+                        + "stops it, and resting on the start button opens the drawer again",
+                Const.KEY_TASKBAR_DRAWER_REARRANGE, true);
+        addSwitch("Drawer folders open under a dragged app",
+                "Rest a dragged app on a drawer folder and it opens, as ZUI's home folders do, "
+                        + "so the app can be placed anywhere inside",
+                Const.KEY_DRAWER_FOLDER_SPRING, true);
         addSwitch("Select apps on the home screen",
                 "Select in a home-screen app's menu opens ZUI's edit mode with that app selected: "
                         + "tap others to add them, then drag them together. Selected apps shake",
                 Const.KEY_HOME_SELECT, true);
+        addSwitch("Select in the drawers",
+                "Select in a drawer app's menu marks it: tap others to add them, then drag them "
+                        + "together into a new place, a folder or the taskbar",
+                Const.KEY_DRAWER_SELECT, true);
         addSwitch("Navigation keys at the bar's right edge",
                 "On the tablet the back, home and recents keys sit flush with the bar's right "
                         + "edge; ZUI's room there comes back while it has a button to show in it",
@@ -422,16 +439,6 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams lp = rowParams();
         lp.bottomMargin = Ui.dp(this, 8);
         mRoot.addView(tv, lp);
-    }
-
-    /** The names of the home grids offered ({@link Const#HOME_GRIDS}). */
-    private static String[] homeGrids() {
-        String[] names = new String[Const.HOME_GRIDS.length];
-        names[0] = "ZUI's own";
-        for (int i = 1; i < names.length; i++) {
-            names[i] = Const.HOME_GRIDS[i][0] + " × " + Const.HOME_GRIDS[i][1];
-        }
-        return names;
     }
 
     private void addSpinner(String title, String[] options, String key, int def) {

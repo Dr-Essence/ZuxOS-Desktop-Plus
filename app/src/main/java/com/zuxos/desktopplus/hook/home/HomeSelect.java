@@ -143,9 +143,12 @@ public final class HomeSelect {
             return false;
         }
         Object container = Reflect.field(info, "container");
+        // In one of the home screen's folders too (a folder's id, above 0), which ZUI's edit mode
+        // selects in the open folder; never in the drawers' folders of ours (ids far below 0).
         return info.getClass().getSimpleName().equals("WorkspaceItemInfo")
                 && container instanceof Integer
-                && ((Integer) container == DESKTOP || (Integer) container == HOTSEAT);
+                && ((Integer) container == DESKTOP || (Integer) container == HOTSEAT
+                || (Integer) container > 0);
     }
 
     /** ZUI's edit mode, with this icon selected in it. */

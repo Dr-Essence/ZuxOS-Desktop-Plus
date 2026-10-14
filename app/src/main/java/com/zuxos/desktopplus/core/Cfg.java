@@ -526,6 +526,22 @@ public final class Cfg {
         return getInt(Const.KEY_HOME_GRID, 0);
     }
 
+    public static boolean taskbarDrawerRearrange() {
+        return getBool(Const.KEY_TASKBAR_DRAWER_REARRANGE, true);
+    }
+
+    public static boolean drawerFolderSpring() {
+        return getBool(Const.KEY_DRAWER_FOLDER_SPRING, true);
+    }
+
+    public static boolean drawerSelect() {
+        return getBool(Const.KEY_DRAWER_SELECT, true);
+    }
+
+    public static boolean gridFit() {
+        return getBool(Const.KEY_GRID_FIT, true);
+    }
+
     public static boolean homeBand() {
         return getBool(Const.KEY_HOME_BAND, true);
     }

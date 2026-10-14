@@ -103,6 +103,11 @@ final class ZuiFolderWrites {
         }
         if (name.equals("updateItemInDatabase") && isOurs(id)) {
             ZuiFolders.renamed(id, (CharSequence) sTitle.get(first));
+        } else if (target && !isOurs(id) && (name.equals("addOrMoveItemInDatabase")
+                || name.equals("addItemToDatabase"))
+                && ZuiFolders.filedByDrop((Integer) args[1], first)) {
+            // An app from the drawer let go in our folder, sprung open under it.
+            say(name + " of a dropped app");
         } else {
             say(name);
         }

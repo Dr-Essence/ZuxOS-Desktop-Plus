@@ -98,7 +98,7 @@ public final class SettingsRestart {
         return "enabled=" + Cfg.enabled() + " theme=" + Cfg.theme() + " edge=" + Cfg.taskbarEdge()
                 + " drawer=" + Cfg.nativeDrawer() + " tray=" + Cfg.taskbarTray()
                 + " popups=" + Cfg.notifyPopups() + " unlock=" + Cfg.unlockStock()
-                + " monitors=" + Cfg.monitorLayouts() + " grid=" + Cfg.homeGrid()
+                + " monitors=" + Cfg.monitorLayouts() + " fit=" + Cfg.gridFit()
                 + " band=" + Cfg.homeBand();
     }
 }

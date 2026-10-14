@@ -22,7 +22,7 @@ mode along the way.
 | Launcher | `com.zui.launcher`, desktop activity `SecondaryDisplayLauncher` |
 | Needs | Root, LSPosed, and the module scoped to the home app |
 
-**Status (2026-10-14, build 0.0.268)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
+**Status (2026-10-14, build 0.0.269)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
 
 The work now is making every feature run through ZUI's own code - its folders, menus, drag, animations and grids - so it looks and moves like ZUI itself.
 
@@ -32,20 +32,25 @@ The work now is making every feature run through ZUI's own code - its folders, m
   - taskbar drawer -> taskbar (pinned) and -> home screen (placed by ZUI);
   - an app out of a taskbar folder -> taskbar (moved out of the folder);
   - rearranging ZUX Home's drawer: apps and folders move, fold into folders and come out of them;
-  - a drawer folder -> home screen, as a ZUI folder with its apps.
+  - a drawer folder -> home screen, as a ZUI folder with its apps;
+  - drops land through ZUI's own drop animation;
+  - a folder pinned to the taskbar -> home screen.
 - **Drawers:** ZUI's own folders in both of the tablet's drawers, with ZUI's look and motion, Add apps, Remove from folder and Uninstall.
 - **Menus:** ZUI's own popups, shortcut icons in ZUI's icon shape.
 - **Select on the home screen:** ZUI's edit mode, several apps moved together.
 - **Tablet bar:** open apps stop at the navigation keys, which sit flush with the right edge; pinned folders are ZUI's own.
 - **Monitor:** after a replug, its touchscreen and pen stay on the monitor.
+- **Home screen uses the dock's space:** the strip ZUX Home keeps for its dock above the taskbar is home screen.
 
-**New in 0.0.261, awaiting the owner's test:**
+**New in 0.0.269, awaiting the owner's test:**
 
-- **Drawer drags without stutter:** each frame used to ask the system for the user's id dozens of times; now it is asked once.
-- **Drops land through ZUI's own drop animation:** the icon glides and shrinks into its place.
-- **A folder pinned to the taskbar can be dragged to the home screen.**
-- **Home screen grid** (Settings -> Tablet home screen): ZUI's own, 6 x 5, 8 x 5, 8 x 6, 10 x 7 or 12 x 8, through ZUI's own grid code, which moves your icons. The finest grids let an icon land close to where it is let go.
-- **Home screen uses the dock's space** (on by default): the strip ZUX Home keeps for its dock above the taskbar becomes home screen.
+- **Both drawers get every drag:** the taskbar's drawer rearranges like ZUX Home's; out of it, ZUI's floating window starts and the drawer closes; over the bar it is just the icon, pinned when let go; Cancel at the top stops it; resting on the start button opens the drawer again.
+- **ZUX Home's drawer -> taskbar:** pinned where you let go.
+- **Drawer folders open under a dragged app**, as ZUI's home folders do, so it can be placed anywhere inside (ZUX Home's drawer).
+- **Select in both drawers:** ZUI's marks, then drag the chosen apps together into a new place, a folder or the taskbar. Apps inside home-screen folders can be selected too.
+- **Holding a drawer folder** plays ZUI's pickup animation, as on the home screen.
+- **Home screen grids in ZUI's own settings** (Home settings -> grid): 6 x 5, 8 x 5, 8 x 6, 10 x 7 and 12 x 8 beside ZUI's own. On the fine grids icons, names and dots shrink to fit their cells and widgets keep their size on screen.
+- **Drawer drags:** our own work per finger move cut further; the log now shows how much of each frame is ours.
 
 Also built and awaiting the owner's test: apps on the monitor never killed, no status bar on the monitor's desktop, the Retro theme, maximise and full screen, notification pop-ups on the monitor, editing the quick panel's tiles, one layout per monitor, the start animation.
 

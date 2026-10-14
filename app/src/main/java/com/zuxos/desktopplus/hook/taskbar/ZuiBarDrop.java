@@ -67,6 +67,14 @@ final class ZuiBarDrop {
     private static boolean sHome;
     /** The bar's place on the screen for the drag under way. */
     private static RectF sBar;
+    /** ZUI's Cancel target for this drag, over an app; null where none is shown. */
+    private static View sBin;
+    /** The drawer opened again for this drag from the start button, and rearranging under it. */
+    private static boolean sReopened;
+    private static Runnable sReopen;
+    /** What else became of the drag, for the log. */
+    private static boolean sCancelled;
+    private static boolean sRearranged;
 
     private ZuiBarDrop() {
     }
@@ -238,6 +246,42 @@ final class ZuiBarDrop {
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT));
         sCatcher = catcher;
+        if (!sHome && Cfg.taskbarDrawerRearrange()) {
+            // Over an app: ZUI's Cancel, as on its home screen.
+            sBin = CancelBin.show((android.view.ViewGroup) root);
+        }
+    }
+
+    /**
+     * A drag held on the start button opens the drawer again, and over it the drag rearranges
+     * it; true while it is over the reopened drawer.
+     */
+    private static boolean reopened(View catcher, Item item, float x, float y) {
+        if (sHome || !Cfg.taskbarDrawerRearrange()) {
+            return false;
+        }
+        if (sReopened) {
+            return com.zuxos.desktopplus.hook.drawer.DrawerReopen.over(catcher.getRootView(),
+                    item.key(), x, y);
+        }
+        boolean onStart = TaskbarStart.overStart(sDisplay, x, y);
+        if (onStart && sReopen == null) {
+            int display = sDisplay;
+            sReopen = () -> {
+                sReopen = null;
+                if (sCatcher == catcher && TaskbarStart.openDrawer(display)) {
+                    sReopened = true;
+                    // The window takes the drag now, over all of it.
+                    catcher.getRootView().requestLayout();
+                    L.i("zui bar drop: the drawer opened again for the drag of " + item.pkg);
+                }
+            };
+            catcher.postDelayed(sReopen, 500L);
+        } else if (!onStart && sReopen != null) {
+            catcher.removeCallbacks(sReopen);
+            sReopen = null;
+        }
+        return false;
     }
 
     /** How many times the window's size the catcher spans, centred on it. */
@@ -265,6 +309,13 @@ final class ZuiBarDrop {
                 }
                 return true;
             case DragEvent.ACTION_DRAG_LOCATION:
+                if (reopened(catcher, item, x, y)) {
+                    TaskbarDrop.hintAt(sDisplay, -1f);
+                    return true;
+                }
+                if (sBin != null) {
+                    CancelBin.colour(sBin, CancelBin.contains(sBin, x, y));
+                }
                 TaskbarDrop.hintAt(sDisplay, over ? x : -1f);
                 ZuiHomeDrop.forward(event);
                 return true;
@@ -273,6 +324,17 @@ final class ZuiBarDrop {
                 return true;
             case DragEvent.ACTION_DROP:
                 TaskbarDrop.hintAt(sDisplay, -1f);
+                if (sReopened && com.zuxos.desktopplus.hook.drawer.DrawerReopen.drop()) {
+                    sRearranged = true;
+                    hideShadow(catcher);
+                    return true;
+                }
+                if (CancelBin.contains(sBin, x, y)) {
+                    // Taken, so nothing opens: the drag is cancelled.
+                    sCancelled = true;
+                    hideShadow(catcher);
+                    return true;
+                }
                 if (over) {
                     ZuiHomeDrop.cancel();
                     if (TaskbarDrop.pinAt(sDisplay, item, x)) {
@@ -372,7 +434,7 @@ final class ZuiBarDrop {
                                 return;
                             }
                             Object info = param.args[0];
-                            if (sHome) {
+                            if (sHome || sReopened) {
                                 Reflect.call(info, "setTouchableInsets", TOUCHABLE_INSETS_FRAME);
                                 return;
                             }
@@ -387,6 +449,16 @@ final class ZuiBarDrop {
                                     Math.round(bar.left) - at[0], Math.round(bar.top) - at[1],
                                     Math.round(bar.right) - at[0],
                                     Math.round(bar.bottom) - at[1]));
+                            View bin = sBin;
+                            if (bin != null && bin.isAttachedToWindow()) {
+                                // ZUI's Cancel takes the drag over it, not the shell.
+                                int[] b = new int[2];
+                                bin.getLocationOnScreen(b);
+                                ((android.graphics.Region) region).union(
+                                        new android.graphics.Rect(b[0] - at[0], b[1] - at[1],
+                                                b[0] - at[0] + bin.getWidth(),
+                                                b[1] - at[1] + bin.getHeight()));
+                            }
                             Reflect.call(info, "setTouchableInsets", TOUCHABLE_INSETS_REGION);
                         } catch (Throwable t) {
                             L.d("zui bar drop: the drawer's window kept ZUI's touch region ("
@@ -404,6 +476,14 @@ final class ZuiBarDrop {
     private static void removeCatcher() {
         View catcher = sCatcher;
         sCatcher = null;
+        if (catcher != null && sReopen != null) {
+            catcher.removeCallbacks(sReopen);
+        }
+        sReopen = null;
+        sReopened = false;
+        com.zuxos.desktopplus.hook.drawer.DrawerReopen.reset();
+        CancelBin.hide(sBin);
+        sBin = null;
         if (catcher != null && catcher.getParent() instanceof android.view.ViewGroup) {
             ((android.view.ViewGroup) catcher.getParent()).removeView(catcher);
         }
@@ -500,7 +580,11 @@ final class ZuiBarDrop {
         if (sItem != null) {
             L.i("zui bar drop: ZUI's drag of " + sItem.pkg + " ended - " + (sPinned
                     ? "pinned to the bar" : sPlaced ? "placed on the home screen"
+                    : sCancelled ? "cancelled on ZUI's Cancel"
+                    : sRearranged ? "put in a new place in the reopened drawer"
                     : taken ? "taken by the shell" : "taken by nothing"));
+            sCancelled = false;
+            sRearranged = false;
             sItem = null;
             sSource = null;
             sSourceRoot = null;

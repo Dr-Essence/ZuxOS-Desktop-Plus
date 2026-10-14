@@ -3,6 +3,7 @@ package com.zuxos.desktopplus.hook.taskbar;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.graphics.drawable.Drawable;
 import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.View;
@@ -30,7 +31,7 @@ import com.zuxos.desktopplus.model.Item;
  * press goes through it to the icons underneath; the only time you know it is there is when
  * something is being dragged over it.
  */
-final class TaskbarDrop {
+public final class TaskbarDrop {
 
     private TaskbarDrop() {
     }
@@ -59,7 +60,7 @@ final class TaskbarDrop {
      * Where the bar on this display catches drops, on screen - the strip, over the bar's row -
      * or null while it is not showing.
      */
-    static RectF barOnScreen(int display) {
+    public static RectF barOnScreen(int display) {
         DropStrip strip = stripOn(display);
         if (strip == null) {
             return null;
@@ -73,15 +74,23 @@ final class TaskbarDrop {
      * A drag over the bar from another window, at {@code screenX} - the line where it would land
      * - or gone from it, with a negative x.
      */
-    static void hintAt(int display, float screenX) {
+    public static void hintAt(int display, float screenX) {
+        hintAt(display, screenX, null);
+    }
+
+    /**
+     * The same, with the dragged {@code icon} drawn at the line: a drag of ZUX Home's own, whose
+     * picture is drawn in ZUX Home's window, under the bar's.
+     */
+    public static void hintAt(int display, float screenX, Drawable icon) {
         DropStrip strip = stripOn(display);
         if (strip != null) {
-            strip.hint(screenX < 0 ? -1f : screenX - strip.screenLeft());
+            strip.hint(screenX < 0 ? -1f : screenX - strip.screenLeft(), icon);
         }
     }
 
     /** An app let go over the bar from another window, at {@code screenX}: pinned there. */
-    static boolean pinAt(int display, Item item, float screenX) {
+    public static boolean pinAt(int display, Item item, float screenX) {
         DropStrip strip = stripOn(display);
         return strip != null && strip.pin(item, screenX - strip.screenLeft());
     }
@@ -138,6 +147,8 @@ final class TaskbarDrop {
         private final View mReference;
         private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private float mWhere = -1f;
+        /** The dragged icon, drawn at the line for a drag from another window; or null. */
+        private Drawable mIcon;
 
         DropStrip(ViewGroup dragLayer, View reference) {
             super(dragLayer.getContext());
@@ -187,6 +198,7 @@ final class TaskbarDrop {
                         return true;
                     }
                     mWhere = event.getX();
+                    mIcon = null;
                     invalidate();
                     return true;
                 }
@@ -219,6 +231,7 @@ final class TaskbarDrop {
             switch (event.getAction()) {
                 case DragEvent.ACTION_DRAG_LOCATION:
                     mWhere = event.getX();
+                    mIcon = null;
                     invalidate();
                     return true;
                 case DragEvent.ACTION_DRAG_EXITED:
@@ -243,8 +256,9 @@ final class TaskbarDrop {
             }
         }
 
-        void hint(float x) {
+        void hint(float x, Drawable icon) {
             mWhere = x;
+            mIcon = x < 0 ? null : icon;
             invalidate();
         }
 
@@ -331,6 +345,15 @@ final class TaskbarDrop {
             RectF line = new RectF(mWhere - width / 2f, inset,
                     mWhere + width / 2f, getHeight() - inset);
             canvas.drawRoundRect(line, width / 2f, width / 2f, mPaint);
+            if (mIcon != null) {
+                // Beside the line, where the app will sit.
+                int size = Math.round(getHeight() - inset * 2);
+                int left = Math.round(mWhere + width + inset / 2f);
+                int top = Math.round(inset);
+                mIcon.setBounds(left, top, left + size, top + size);
+                mIcon.setAlpha(230);
+                mIcon.draw(canvas);
+            }
         }
     }
 }

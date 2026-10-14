@@ -98,6 +98,46 @@ public class DrawerArrangeTest {
     }
 
     @Test
+    public void carryAfterBringsTheSelectionToTheDraggedApp() {
+        Item a = app("a");
+        Item b = app("b");
+        Item c = app("c");
+        Item d = app("d");
+        Item e = app("e");
+        List<String> order = order(a, b, c, d, e);
+
+        // d dragged, a and e chosen with it.
+        assertTrue(DrawerArrange.carryAfter(order, d.key(), order(a, d, e)));
+        assertEquals(order(b, c, d, a, e), order);
+
+        assertFalse(DrawerArrange.carryAfter(order, d.key(), order(d, app("x"))));
+        assertFalse(DrawerArrange.carryAfter(order, app("y").key(), order(a)));
+    }
+
+    @Test
+    public void fileIntoAtPlacesTheAppWhereItWasLetGo() {
+        Item a = app("a");
+        Item b = app("b");
+        Item c = app("c");
+        Item d = app("d");
+        Item folder = Item.folder("F");
+        folder.children.addAll(Arrays.asList(a, b, c));
+        List<String> order = order(folder, d);
+        List<Item> folders = new ArrayList<>(Arrays.asList(folder));
+
+        // From the drawer, between a and b.
+        assertTrue(DrawerArrange.fileIntoAt(order, folders, folder, d, 1));
+        assertEquals(order(folder), order);
+        assertEquals(order(a, d, b, c), order(folder.children.toArray(new Item[0])));
+
+        // Already in it: moved to the end, past the last place.
+        assertTrue(DrawerArrange.fileIntoAt(order, folders, folder, a, 9));
+        assertEquals(order(d, b, c, a), order(folder.children.toArray(new Item[0])));
+
+        assertFalse(DrawerArrange.fileIntoAt(order, folders, folder, Item.folder("G"), 0));
+    }
+
+    @Test
     public void aFolderLeftWithOneAppGivesItsPlaceToIt() {
         Item a = app("a");
         Item b = app("b");

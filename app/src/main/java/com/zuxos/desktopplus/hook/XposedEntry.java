@@ -8,6 +8,8 @@ import com.zuxos.desktopplus.hook.drawer.DrawerFromTop;
 import com.zuxos.desktopplus.hook.drawer.DrawerRetro;
 import com.zuxos.desktopplus.hook.drawer.NativeDrawerHooks;
 import com.zuxos.desktopplus.hook.home.ActivityWatcher;
+import com.zuxos.desktopplus.hook.home.GridFit;
+import com.zuxos.desktopplus.hook.home.GridMigration;
 import com.zuxos.desktopplus.hook.home.HomeBand;
 import com.zuxos.desktopplus.hook.home.HomeGrids;
 import com.zuxos.desktopplus.hook.home.HomeSelect;
@@ -109,6 +111,8 @@ public class XposedEntry implements IXposedHookLoadPackage {
             HomeSelect.install(lpparam.classLoader);
             LoaderWait.install(lpparam.classLoader);
             HomeGrids.install(lpparam.classLoader);
+            GridFit.install(lpparam.classLoader);
+            GridMigration.install(lpparam.classLoader);
             HomeBand.install(lpparam.classLoader);
         } catch (Throwable t) {
             L.e("handleLoadPackage failed for " + lpparam.packageName, t);

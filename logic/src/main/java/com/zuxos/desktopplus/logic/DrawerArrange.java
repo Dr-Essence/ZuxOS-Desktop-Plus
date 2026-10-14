@@ -71,6 +71,52 @@ public final class DrawerArrange {
     }
 
     /**
+     * The entries {@code others}, in their order, moved to just after {@code lead}: chosen
+     * together and dragged by one of them. Keys not in the order, and {@code lead} itself, are
+     * left out. False when nothing moves.
+     */
+    public static boolean carryAfter(List<String> order, String lead, List<String> others) {
+        if (!order.contains(lead)) {
+            return false;
+        }
+        List<String> moving = new java.util.ArrayList<>();
+        for (String key : others) {
+            if (!key.equals(lead) && order.contains(key) && !moving.contains(key)) {
+                moving.add(key);
+            }
+        }
+        if (moving.isEmpty()) {
+            return false;
+        }
+        order.removeAll(moving);
+        order.addAll(order.indexOf(lead) + 1, moving);
+        return true;
+    }
+
+    /**
+     * Files {@code item} into {@code folder} at {@code rank} of its apps (clamped), leaving the
+     * order or any other folder it was in; an app already in the folder moves to {@code rank}.
+     * False when it cannot go in.
+     */
+    public static boolean fileIntoAt(List<String> order, List<Item> folders, Item folder,
+            Item item, int rank) {
+        if (folder == null || item == null || item.type == Item.TYPE_FOLDER
+                || folder.type != Item.TYPE_FOLDER) {
+            return false;
+        }
+        int at = indexIn(folder, item.key());
+        Item child;
+        if (at >= 0) {
+            child = folder.children.remove(at);
+        } else {
+            leave(order, folders, item.key());
+            child = copyOf(item);
+        }
+        folder.children.add(clamp(rank, folder.children.size()), child);
+        return true;
+    }
+
+    /**
      * Takes the app {@code key} out of whichever folder holds it to {@code index} of the order,
      * counted as the order stands before it arrives. False when no folder holds it.
      */

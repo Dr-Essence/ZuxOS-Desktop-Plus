@@ -551,8 +551,25 @@ vendor power HAL's, not in these jars.
   `onConfigChanged`, kept in `SettingsValue` "current_layout_config_key".
 - A partner app may set the grid: `InvariantDeviceProfile.v(Context, DisplayMetrics)` reads
   `Partner` "grid_num_rows"/"grid_num_columns" into the public `numRows`/`numColumns` before
-  any `DeviceProfile` is made. `HomeGrids` sets them after it. `CellLayout.onMeasure` sizes its
-  cells from its own size (`calculateCellWidth/Height`).
+  any `DeviceProfile` is made (`HomeGrids` used it until 0.0.268). `CellLayout.onMeasure` sizes
+  its cells from its own size (`calculateCellWidth/Height`).
+- The picker's list is `IDP.parseAllDefinedGridOptions(Context, Info)`. A name is resolved by
+  the static `IDP.F(Context, String name, Info, boolean, boolean)`, which returns the display
+  options (`IDP$a`, its `GridOption` in field `f2381a`); `G`/`H` write
+  `SettingsValue.setCurrentLayoutConfigKey` when the name it resolved differs from the one asked.
+  `GridOption`'s `name`, `numRows`, `numColumns`, `canBeShown` are final but set by reflection.
+  Since 0.0.269 `HomeGrids` appends copies of "6x4" resized to 8x5, 8x6, 10x7, 12x8, shows
+  "6x5", and resolves those names in `F` to "6x4" with its options resized.
+- Icon size on these grids: `DeviceProfile.I(Context)` sets `iconSizePx`/`iconTextSizePx` and
+  calls `updateIconSize(float, Context)`; for a grid that is neither scalable nor responsive (all
+  of ZUI's here) that only works the cell height out from the icon and never shrinks it
+  (:1680-1694). `getCellSize()` gives the real cell; `Utilities.calculateTextHeight(float)` the
+  name's height. The dots are made right after `I`, in the constructor:
+  `DotRenderer(Context, iconSize, Path, pathSize, circleHeight, textSize, boolean)`, the
+  workspace's and the drawer's through a cache keyed by icon size (`DeviceProfile.g`).
+- Migration: `GridSizeMigrationTask$MultiStepMigrationTask.migrate(Point from, Point to)` holds
+  an `SQLiteDatabase` field; the home screen's rows are table `favorites`, container -100,
+  widgets itemType 4 and 5 with `spanX`/`spanY`.
 - At load `GridSizeMigrationTask.migrateGridIfNeeded` compares `numColumns x numRows` (and the
   hotseat count) with the size it saved and moves the items (`MultiStepMigrationTask`, one row
   or column a step). Items that no longer fit go to new pages up to `getMaxPageCount()` (9);
@@ -564,6 +581,40 @@ vendor power HAL's, not in these jars.
   `Utilities.isUnlimitedWorkMode` (tablet desktop mode) `N` takes another path. No setting gives
   the band up. A drop goes to the dock only when `ZuiHotseat.getCustomBoundsView()` is not null
   (`Workspace.D1`, its only caller); ZUI's desktop mode has the dock stand aside for touches.
+
+## Drags in the drawers, the taskbar's drag controller and edit mode (read 2026-10-14)
+
+- **A folder opening under a drag:** `Folder.beginExternalDrag()` opens the folder with an empty
+  place and adds the folder as a drop target on the Launcher's `DragController`; it reorders under
+  the finger (`realTimeReorder`) and `Folder.onDrop` saves through
+  `ModelWriter.addOrMoveItemInDatabase(item, folderId, ...)`, then goes to `NORMAL`. ZUI's home
+  calls it from `FolderIcon`'s open alarm (800 ms). `TaskbarDragController.addDropTarget` ignores
+  any `Folder`, so in the taskbar's drawer a folder never opens under a drag.
+- **The taskbar's drag controller** (`com.android.launcher3.taskbar.TaskbarDragController`):
+  `callOnDragStart()` keeps the drag in the drawer, on its own controller, when
+  `mDisallowGlobalDrag` (dex field `o`, `setDisallowGlobalDrag`) is set or the bar is in desktop
+  mode; otherwise it sets `startSystemDrag` and calls `o0(View)`, the system drag from the
+  current `dragView` (floating window and split screen; the drawer closes). With the flag set,
+  `endDrag` animates the picture back to its icon (300 ms) unless the drop succeeded (field `m`,
+  from the source's `onDropCompleted`); `exitDrag` leaves the picture. `startDragOnLongClick`
+  reads the flag too. Its fields: `mActivity` (the `TaskbarOverlayContext` for the drawer),
+  `mDragObject` (`originalView`, `dragInfo`, `dragView`, `x`, `y`, `startSystemDrag`,
+  `deferDragViewCleanupPostAnimation`, `dragComplete`). The drawer's sheet is
+  `getVisibleContainerView()` of its `AllAppsContainerView`. The overlay's drag layer has no
+  `animateViewIntoPosition`.
+- **ZUI's Cancel target** (`DropTargetBar2`, `DeleteDropTarget2`, made only with ZUX Home's
+  `Launcher`): drawables `ic_remove_target` and `ic_drop_target_bg`, colours
+  `delete_target_background`/`_hover`, dimens `dynamic_grid_drop_target_size_2`,
+  `..._margin_top`, `..._textsize`; it fades in 175 ms (`DropTargetBar.animateToVisibility`).
+- **Edit mode's marks** (`ZuiEditModePanel`, up to `MAX_SELECTED_COUNT` 24): drawables
+  `edit_mode_selected`/`edit_mode_unselected`, drawn at `iconBounds.right + offset - width`,
+  `iconBounds.top - offset` (dimen `edit_mode_checkbox_offset`, `drawSelectedFlag`). Its Done:
+  drawable `edit_view_drag_hint_bg`, colour `edit_mode_drag_hint_text_color`, dimens
+  `edit_mode_complete_text_size`, `edit_mode_drag_hint_height`, `edit_mode_drag_hint_padding_h`,
+  string `gesture_tutorial_action_button_label`.
+- **The pickup:** `DragView` animates from the scale it is made at (`setScaleX`) to fields `g`
+  (x) and `D` (y), `(width + extra) / width`, over 150 ms. Its start is the scale the held view
+  is drawn at, so a view drawn scaled up (our drawer folders) starts near its end.
 
 ## Two USB-C ports: which one charges (`services.jar` 16)
 

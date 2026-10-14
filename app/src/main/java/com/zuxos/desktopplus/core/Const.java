@@ -105,13 +105,19 @@ public final class Const {
     public static final String KEY_DRAWER_REARRANGE = "drawer_rearrange";
     /** An app off the taskbar - its drawer, or a pin on the tablet - lands on the home screen. */
     public static final String KEY_HOME_DROP = "home_drop";
-    /** ZUX Home's home grid: 0 ZUI's own, else one of {@code HomeGrids}' sizes. Start-only. */
-    public static final String KEY_HOME_GRID = "home_grid";
     /**
-     * The home grids offered, as columns x rows; index 0 is ZUI's own. 7x5 is left out: ZUI
-     * treats exactly 7x5 as its work-mode grid.
+     * The home grid chosen in the module's own setting in 0.0.261, before the sizes moved into
+     * ZUI's own grid choice ({@code HomeGrids}): read once, to hand it over.
      */
-    public static final int[][] HOME_GRIDS = {null, {6, 5}, {8, 5}, {8, 6}, {10, 7}, {12, 8}};
+    public static final String KEY_HOME_GRID = "home_grid";
+    /** The taskbar's drawer rearranges under a drag, as ZUX Home's does. */
+    public static final String KEY_TASKBAR_DRAWER_REARRANGE = "taskbar_drawer_rearrange";
+    /** One of our folders in a drawer opens under a dragged app resting on it, as on ZUI's home. */
+    public static final String KEY_DRAWER_FOLDER_SPRING = "drawer_folder_spring";
+    /** Several apps of a drawer chosen to move together, from Select in an app's menu. */
+    public static final String KEY_DRAWER_SELECT = "drawer_select";
+    /** Icons fit their cells on fine home grids, and widgets keep their size. Start-only. */
+    public static final String KEY_GRID_FIT = "grid_fit";
     /** The band ZUX Home keeps for its dock above the tablet's bar is home screen. Start-only. */
     public static final String KEY_HOME_BAND = "home_band";
     /** ZUI's loader waits a second at most for an idle home screen before loading the app list. */

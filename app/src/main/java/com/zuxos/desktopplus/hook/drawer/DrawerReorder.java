@@ -53,6 +53,13 @@ final class DrawerReorder {
     private static final float FOLD_SPOT = 0.55f;
     /** How much the app folded into swells. */
     private static final float FOLD_SCALE = 1.18f;
+    /** How long a drag rests on one of our folders before it opens for it, as ZUI's home. */
+    private static final long SPRING_MS = 800L;
+
+    /** Opens one of our folders under a resting drag, ZUI's way; false where it cannot. */
+    interface Spring {
+        boolean open(View cell);
+    }
 
     private final ViewGroup mRoot;
     private final ViewGroup mGrid;
@@ -73,6 +80,13 @@ final class DrawerReorder {
     private int mPending = -1;
     private final Runnable mReorder = this::reorder;
     private String mOutcome;
+    /** Opens a folder the drag rests on; null where folders do not open under a drag. */
+    private Spring mSpring;
+    private final Runnable mSpringOpen = this::springOpen;
+    /** The folder cell opened, not opened again until the drag has left it. */
+    private View mSprung;
+    /** Apps chosen with the dragged one ({@link DrawerSelect}), going where it goes. */
+    private List<String> mCarried = new ArrayList<>();
     /** Put back by {@link #cancel}: the dragged entry showing in its place. */
     private boolean mAtRest;
 
@@ -166,18 +180,29 @@ final class DrawerReorder {
         // entry the preview draws in that slot (ReorderSlots) - the laid-out one may have been
         // slid elsewhere. Read by layout alone, the gap's own slot was an app's, and resting in
         // the gap folded into an app drawn somewhere else (21:58: every drop made a folder).
-        View cell = iconAt(x, y);
+        List<View> icons = visibleIcons();
+        View cell = iconAt(icons, x, y);
         String slotKey = cell == null ? null : keyOfCell(cell);
         int slot = slotKey == null ? -1 : mOrder.indexOf(slotKey);
         int drawn = slot < 0 ? ReorderSlots.GAP : ReorderSlots.drawnAt(mFrom, mTo, slot);
-        View shown = drawn >= 0 ? cellOf(mOrder.get(drawn)) : null;
+        View shown = drawn >= 0 ? cellOf(icons, mOrder.get(drawn)) : null;
         View resting = shown != null && canFold(shown) && inMiddle(cell, x, y) ? shown : null;
+        if (mSprung != null && mSprung != resting) {
+            // Left the folder that opened: it may open again.
+            mSprung = null;
+        }
         if (resting != mResting) {
             mGrid.removeCallbacks(mFold);
+            mGrid.removeCallbacks(mSpringOpen);
             mResting = resting;
             unfold();
             if (resting != null) {
                 mGrid.postDelayed(mFold, FOLD_MS);
+                String restingKey = keyOfCell(resting);
+                if (mSpring != null && resting != mSprung && restingKey != null
+                        && restingKey.startsWith("folder:")) {
+                    mGrid.postDelayed(mSpringOpen, SPRING_MS);
+                }
             }
         }
         // Over an entry and not resting on it to fold: the gap moves there after a moment. Over
@@ -189,6 +214,34 @@ final class DrawerReorder {
             if (target >= 0 && target != mTo) {
                 mGrid.postDelayed(mReorder, REORDER_MS);
             }
+        }
+    }
+
+    /** The apps chosen with the dragged one, to go where it goes. */
+    void carry(List<String> others) {
+        mCarried = new ArrayList<>(others);
+    }
+
+    /** Folders the drag rests on open for it, through {@code spring}. */
+    void springFolders(Spring spring) {
+        mSpring = spring;
+    }
+
+    /**
+     * The drag has rested on one of our folders: it opens, ZUI's folder takes the drag from
+     * here, and the drawer goes back to how it was behind it.
+     */
+    private void springOpen() {
+        View cell = mResting;
+        if (cell == null || mSpring == null || cell == mSprung) {
+            return;
+        }
+        mGrid.removeCallbacks(mFold);
+        mGrid.removeCallbacks(mReorder);
+        unfold();
+        if (mSpring.open(cell)) {
+            mSprung = cell;
+            mResting = null;
         }
     }
 
@@ -210,6 +263,7 @@ final class DrawerReorder {
     void cancel() {
         mGrid.removeCallbacks(mFold);
         mGrid.removeCallbacks(mReorder);
+        mGrid.removeCallbacks(mSpringOpen);
         mPending = -1;
         mResting = null;
         unfold();
@@ -246,6 +300,7 @@ final class DrawerReorder {
     void drop(Landing landed) {
         mGrid.removeCallbacks(mFold);
         mGrid.removeCallbacks(mReorder);
+        mGrid.removeCallbacks(mSpringOpen);
         String into = mFolding != null ? keyOfCell(mFolding) : null;
         boolean folded = into != null;
         unfold();
@@ -265,6 +320,15 @@ final class DrawerReorder {
             NativeDrawerHooks.rearrange("took " + mKey + " out of its folder to " + mTo,
                     (order, folders) -> DrawerArrange.takeOut(order, folders, mKey, mTo));
             mOutcome = "taken out of its folder to " + mTo;
+        } else if (!mCarried.isEmpty()) {
+            List<String> carried = mCarried;
+            NativeDrawerHooks.rearrange("moved " + mKey + " and " + carried.size()
+                    + " chosen with it to " + mTo, (order, folders) -> {
+                        boolean moved = DrawerArrange.move(order, mKey, mTo);
+                        return DrawerArrange.carryAfter(order, mKey, carried) || moved;
+                    });
+            mOutcome = "moved from " + mFrom + " to " + mTo + " with " + carried.size()
+                    + " chosen";
         } else if (mTo != mFrom) {
             NativeDrawerHooks.moveInDrawer(mKey, mTo);
             mOutcome = "moved from " + mFrom + " to " + mTo;
@@ -272,6 +336,8 @@ final class DrawerReorder {
             mOutcome = "let go in its own place - no change";
         }
         String key = shown;
+        // The chosen apps moved with it change places all along the grid: they spring there.
+        boolean settles = folded || !mCarried.isEmpty();
         // Once the grid has laid out the new order, the dropped entry is handed to whoever lands
         // on it. A move or a take-out leaves every entry where the preview drew it: ZUI's list
         // re-binds its cells where they stand (DiffUtil without moves, no item animator), so
@@ -286,7 +352,7 @@ final class DrawerReorder {
                     keepInPlace(key, gapTop, after);
                 }
                 View there = landed != null ? cellOf(key) : null;
-                if (folded) {
+                if (settles) {
                     settle(mGrid, null);
                 } else {
                     snap(mGrid, there);
@@ -341,13 +407,26 @@ final class DrawerReorder {
     /** The dragged app folded into the entry {@code into}; the key of what it is now in. */
     private String fold(String into) {
         Item dragged = DrawerArrange.appOf(mKey, NativeDrawerHooks.labelOf(mKey));
+        List<Item> carried = new ArrayList<>();
+        for (String other : mCarried) {
+            Item app = DrawerArrange.appOf(other, NativeDrawerHooks.labelOf(other));
+            if (app != null && !other.equals(into)) {
+                carried.add(app);
+            }
+        }
         if (into.startsWith("folder:")) {
             String id = into.substring("folder:".length());
-            NativeDrawerHooks.rearrange("put " + mKey + " into a folder",
+            NativeDrawerHooks.rearrange("put " + mKey + (carried.isEmpty() ? ""
+                    : " and " + carried.size() + " chosen with it") + " into a folder",
                     (order, folders) -> {
                         for (Item folder : folders) {
                             if (folder.id.equals(id)) {
-                                return DrawerArrange.fileInto(order, folders, folder, dragged);
+                                boolean in = DrawerArrange.fileInto(order, folders, folder,
+                                        dragged);
+                                for (Item app : carried) {
+                                    in |= DrawerArrange.fileInto(order, folders, folder, app);
+                                }
+                                return in;
                             }
                         }
                         return false;
@@ -360,6 +439,11 @@ final class DrawerReorder {
                 (order, folders) -> {
                     Item folder = DrawerArrange.merge(order, folders, dragged, target, "Folder");
                     made[0] = folder == null ? null : folder.key();
+                    if (folder != null) {
+                        for (Item app : carried) {
+                            DrawerArrange.fileInto(order, folders, folder, app);
+                        }
+                    }
                     return folder != null;
                 });
         return made[0] != null ? made[0] : mKey;
@@ -528,24 +612,59 @@ final class DrawerReorder {
 
     /** The grid's cell drawing the entry {@code key}, or null when it is out of sight. */
     private View cellOf(String key) {
+        List<View> children = new ArrayList<>();
         for (int i = 0; i < mGrid.getChildCount(); i++) {
-            View child = mGrid.getChildAt(i);
-            if (key.equals(keyOfCell(child))) {
-                return child;
+            children.add(mGrid.getChildAt(i));
+        }
+        return cellOf(children, key);
+    }
+
+    private static View cellOf(List<View> cells, String key) {
+        for (View cell : cells) {
+            if (key.equals(keyOfCell(cell))) {
+                return cell;
             }
         }
         return null;
     }
 
-    /** The key a grid cell draws: an app's, or one of our folders' ({@link ZuiFolders}). */
+    /**
+     * The key a grid cell draws: an app's, or one of our folders' ({@link ZuiFolders}). Kept per
+     * entry the cell is bound to, as every cell is asked on every finger move; a cell bound to
+     * another entry carries another one, so its key is worked out again.
+     */
     static String keyOfCell(View cell) {
+        if (cell == null) {
+            return null;
+        }
+        Object basis = cell.getTag();
+        View child = cell instanceof ViewGroup && ((ViewGroup) cell).getChildCount() > 0
+                ? ((ViewGroup) cell).getChildAt(0) : null;
+        if (basis == null && child != null) {
+            basis = child.getTag();
+        }
+        if (basis == null) {
+            return null;
+        }
+        String known = KEYS.get(basis);
+        if (known != null) {
+            return known;
+        }
         String key = NativeDrawerHooks.keyOfIcon(cell);
-        if (key == null && cell instanceof ViewGroup && ((ViewGroup) cell).getChildCount() > 0) {
-            Item folder = ZuiFolders.folderOfIcon(((ViewGroup) cell).getChildAt(0));
+        if (key == null && child != null) {
+            Item folder = ZuiFolders.folderOfIcon(child);
             key = folder != null ? folder.key() : null;
+        }
+        // Only a key found is kept: one not known yet (a folder still being registered) is
+        // asked again next time.
+        if (key != null) {
+            KEYS.put(basis, key);
         }
         return key;
     }
+
+    /** Keys by the entry a cell is bound to. Main thread. */
+    private static final Map<Object, String> KEYS = new java.util.WeakHashMap<>();
 
     /** The grid's entries on screen, apps and folders, in reading order. */
     private List<View> visibleIcons() {
@@ -564,8 +683,8 @@ final class DrawerReorder {
     }
 
     /** The icon whose laid-out cell holds this point of the grid, or null. */
-    private View iconAt(float x, float y) {
-        for (View icon : visibleIcons()) {
+    private static View iconAt(List<View> icons, float x, float y) {
+        for (View icon : icons) {
             if (x >= icon.getLeft() && x < icon.getRight()
                     && y >= icon.getTop() && y < icon.getBottom()) {
                 return icon;
