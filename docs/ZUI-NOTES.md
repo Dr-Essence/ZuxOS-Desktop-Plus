@@ -616,6 +616,57 @@ vendor power HAL's, not in these jars.
   (x) and `D` (y), `(width + extra) / width`, over 150 ms. Its start is the scale the held view
   is drawn at, so a view drawn scaled up (our drawer folders) starts near its end.
 
+## More of ZUX Home's drag, folders and menus (read 2026-10-15)
+
+- **A folder as a drop target:** `Folder.c0` (its open) adds itself to its controller's targets
+  only when it has no parent; `isDropEnabled` is false while it animates (`mState == 1`). The
+  taskbar's `TaskbarDragController.addDropTarget` refuses any `Folder`. `DragController.e` asks
+  its targets newest first (list field of `DragController`, the one holding the targets).
+- **A drag from inside a folder:** on the home screen `Folder.startDrag` sets `p` (the rank) and
+  `t` (the view) and hands the drag to its delegate (`Workspace.beginDragShared`, the folder as
+  the drag's source); `Folder.onDragStart` takes the app out of its pages only when the drag's
+  source is the folder. Outside ZUX Home the delegate (`LauncherDelegate$b.b`) does nothing.
+  `Folder.onDropCompleted` puts the app back when the drop failed.
+- **The held icon:** `PopupContainerWithArrow`'s pre-drag hides it when the drag starts
+  (`onPreDragEnd` → `INVISIBLE`); the taskbar's `TaskbarDragController.d0` brings back only its
+  alpha. `n0` starts an app's taskbar drag: `DragPreviewProvider`, `getScaleAndPosition`,
+  `startDrag(Drawable, View, DraggableView, x, y, DragSource, ItemInfo, Rect, startScale,
+  dropScale, DragOptions)` with the icon's pressed scale as the start; its source sets field `m`
+  (a drop that took it), and without it `endDrag` animates the picture back (300 ms).
+- **Press:** app icons press through `FastBitmapDrawable` (0.8 in 200 ms accelerating, back in
+  200 ms decelerating; `BubbleTextView.O`). `FolderIcon` has no press; its `dispatchDraw` draws
+  the background, apps and dot before its name.
+- **Multi-drag** (`MultiDragSupport`): each chosen icon gets a `DragView`; they gather under the
+  finger in 150 ms (`initSelectedViewAndDragView`) and fly onto their target on drop (`x`:
+  scale to the target's visual bounds, translate, linear, 300 ms).
+- **Floating window and split screen in taskbar menus:** `TaskbarPopupController.s()` adds
+  `FLOAT_OPEN` (`ZuiSystemShortcuts.FloatOpen`, only where `isPackageSupportZuiFreeform`) and the
+  split options of `TaskbarUIController.d(controllers)` (`TaskbarSplitShortcut`, one per side).
+  `SystemShortcut` keeps its label in `mLabelResId` and its icon in `j`.
+- **No "remove folder" in ZUI:** a folder goes when one app is left
+  (`FolderIcon.replaceFolderWithFinalItem`). Apps leave a folder by `Folder.removeFolderContent`;
+  free cells from `CellLayout.findCellForSpan(int[], 1, 1)`; `ModelWriter.moveItemInDatabase`,
+  `Launcher.createShortcut`, `Workspace.addInScreen` (a default method of
+  `WorkspaceLayoutManager`).
+- **The home screen's bands (tablet, portrait):** the page dots' band is added to the workspace's
+  bottom padding in `DeviceProfile.N` (`workspacePageIndicatorHeight - r`,
+  `workspace_page_indicator_height` 60 dp); each page's top band is `cellLayoutPaddingPx.top`
+  (60 dp, `Utilities.getCellLayoutPaddingVertical`). The dots are alpha 0 at rest.
+- **The taskbar's drag picture:** for drags from the bar's own window, ZUI turns it into the
+  floating window card when it leaves the bar and back into the icon over it
+  (`TaskbarDragController.W`, `p0`/`m0`, `updateDragShadow`); for the drawer's window it starts as
+  the card (`b.onDrawShadow`). SystemUI's drop window (`DragAndDropController.onDrag`) hides its
+  zones on leaving unless `mIsZuiSplit`, and shows them on entering (`DragLayout.show`).
+
+## ZUI's sidebar and its AI service (read 2026-10-15, from the owner's ANR traces)
+
+- `com.zui.freeform.sidebar` listens to every drag (`FloatingOnDragListener.onDrag`) and on its
+  main thread asks ZUI's AI service which apps take the drag: `TransferService.updateAIList` →
+  `TransferUtils.getAIIntentList` → `AIServiceProxy`/`AIServiceHelper.getInteractTypeForSE`, which
+  waits on a `CountDownLatch` with no time limit. Without `com.zui.ai.aiservice` (removed on the
+  owner's tablet) no answer comes: every drag freezes the sidebar for 5 s and Android reports it
+  not responding. The sidebar runs as uid 1000.
+
 ## Two USB-C ports: which one charges (`services.jar` 16)
 
 - The kernel picks the port that powers the tablet; Android does not. With both ports in use it

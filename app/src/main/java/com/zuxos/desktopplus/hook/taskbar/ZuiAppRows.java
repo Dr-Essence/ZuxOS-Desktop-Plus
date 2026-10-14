@@ -18,6 +18,7 @@ import com.zuxos.desktopplus.hook.ZuiLook;
 import com.zuxos.desktopplus.hook.ZuiShortcuts;
 import com.zuxos.desktopplus.hook.drawer.DrawerSelect;
 import com.zuxos.desktopplus.hook.drawer.ZuiFolders;
+import com.zuxos.desktopplus.hook.home.HomeFolderRemove;
 import com.zuxos.desktopplus.hook.home.HomeSelect;
 import com.zuxos.desktopplus.logic.PinList;
 import com.zuxos.desktopplus.model.Item;
@@ -193,6 +194,10 @@ final class ZuiAppRows {
                         ((View) param.thisObject).getContext());
                 return;
             }
+            if (folder == null && HomeFolderRemove.offered(icon, info)) {
+                param.args[3] = withRemoveFolder(zui, info, icon);
+                return;
+            }
             String pkg = IconInfo.packageOf(info);
             ComponentName component = componentOf(info);
             if (pkg == null || component == null) {
@@ -235,6 +240,23 @@ final class ZuiAppRows {
         } catch (Throwable t) {
             L.d("zui app rows: none added (" + t + ")");
         }
+    }
+
+    /** ZUI's menu for a folder of its home screen, with Remove folder after its own. */
+    private static List<Object> withRemoveFolder(List<Object> zui, Object info, View icon)
+            throws Exception {
+        Context ctx = icon.getContext();
+        Object target = sLookup.invoke(null, ctx);
+        if (target == null) {
+            return zui;
+        }
+        int colour = ZuiLook.shortcutIcon(ctx);
+        Row row = new Row("Remove folder", "ic_remove_zui",
+                () -> HomeFolderRemove.remove(target, icon));
+        List<Object> all = new ArrayList<>(zui);
+        all.add(ZuiShortcuts.make(ctx, row.title, iconFor(ctx, row, colour), row.action, target,
+                info, icon));
+        return all;
     }
 
     /**

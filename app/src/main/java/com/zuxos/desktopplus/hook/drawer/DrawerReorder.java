@@ -222,6 +222,13 @@ final class DrawerReorder {
         mCarried = new ArrayList<>(others);
     }
 
+    /** Chosen apps whose pictures go with the drag ({@link CarriedFlight}): their cells hidden. */
+    private final java.util.Set<String> mAway = new java.util.HashSet<>();
+
+    void away(java.util.Collection<String> keys) {
+        mAway.addAll(keys);
+    }
+
     /** Folders the drag rests on open for it, through {@code spring}. */
     void springFolders(Spring spring) {
         mSpring = spring;
@@ -511,7 +518,7 @@ final class DrawerReorder {
                 send(icon, 0f, 0f);
                 continue;
             }
-            icon.setAlpha(1f);
+            icon.setAlpha(mAway.contains(keyOfCell(icon)) ? 0f : 1f);
             int place = ReorderSlots.placeOf(mFrom, mTo, index);
             if (place == index) {
                 send(icon, 0f, 0f);
@@ -611,7 +618,7 @@ final class DrawerReorder {
             };
 
     /** The grid's cell drawing the entry {@code key}, or null when it is out of sight. */
-    private View cellOf(String key) {
+    View cellOf(String key) {
         List<View> children = new ArrayList<>();
         for (int i = 0; i < mGrid.getChildCount(); i++) {
             children.add(mGrid.getChildAt(i));

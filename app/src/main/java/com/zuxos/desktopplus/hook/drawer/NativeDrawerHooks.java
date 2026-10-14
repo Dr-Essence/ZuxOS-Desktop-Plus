@@ -931,8 +931,13 @@ public final class NativeDrawerHooks {
             if (!ZuiMenu.show(view, menu)) {
                 return false;
             }
-            // As ZUI does after a popup on a hold without a drag (skipHotseatDrag).
-            IconPress.release(view);
+            // In the taskbar's drawer the menu gives way to ZUI's drag of the folder once the
+            // finger moves, as for the drawer's apps; else as ZUI does after a popup on a hold
+            // without a drag (skipHotseatDrag).
+            if (!TaskbarFolderDrag.start(view, folder)) {
+                IconPress.release(view);
+                FolderPress.pressedOff(view);
+            }
             return true;
         } catch (Throwable t) {
             L.d("native drawer: no folder menu (" + t + ")");

@@ -57,13 +57,20 @@ final class ZuiFolderHome {
     private static boolean sHolding;
     private static boolean sSaidPickup;
 
+    /** ZUI's drag picture of a held drawer folder is being made, in either drawer. */
+    static void holding(boolean holding) {
+        sHolding = holding;
+    }
+
     /**
-     * The pickup a held drawer folder gets, as a home-screen folder does. ZUI's drag picture
-     * grows from the size it is picked up at to a little larger ({@code DragView}: its start
-     * scale to {@code (width + extra) / width}, 150 ms). Our drawer folders are drawn larger than
-     * their picture (scaled to the drawer's icons, {@code ZuiFolders.align}), so the picture
-     * started at that larger scale and "grew" to about the same - no pickup at all (owner). Its
-     * end is taken relative to where it starts, so the same 6 % pickup plays.
+     * The pickup a held drawer folder gets, as an app icon does. ZUI's drag picture grows from the
+     * size it is picked up at to a little larger ({@code DragView}: its start scale to
+     * {@code (width + extra) / width}, 150 ms). An app's starts at its pressed size
+     * ({@code n0}: the icon's own scale, 0.8 under the finger); ours from our folder's press
+     * ({@link FolderPress}). Our drawer folders are drawn larger than their picture (scaled to the
+     * drawer's icons, {@code ZuiFolders.align}), so the end is taken relative to the size shown:
+     * without it the picture "grew" to about the size it had - no pickup (owner, 0.0.261) - and
+     * without the press it zoomed past it (owner, 0.0.269).
      */
     private static int hookPickup(ClassLoader loader) {
         Class<?> view = Reflect.findClass("com.android.launcher3.dragndrop.DragView", loader);
@@ -72,21 +79,32 @@ final class ZuiFolderHome {
         }
         return XposedBridge.hookAllConstructors(view, new XC_MethodHook() {
             @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                // DragView(context, picture, x, y, startScale, dropScale, ...): from the press.
+                if (sHolding && param.args.length >= 7
+                        && param.args[1] instanceof android.graphics.drawable.Drawable
+                        && param.args[4] instanceof Float) {
+                    param.args[4] = (Float) param.args[4] * FolderPress.PRESSED;
+                }
+            }
+
+            @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 if (!sHolding) {
                     return;
                 }
                 try {
                     float start = ((View) param.thisObject).getScaleX();
-                    if (start <= 1.01f) {
+                    float shown = start / FolderPress.PRESSED;
+                    if (shown <= 1.01f) {
                         return;
                     }
-                    float endX = scaleField(param.thisObject, "g", start);
-                    float endY = scaleField(param.thisObject, "D", start);
+                    float endX = scaleField(param.thisObject, "g", shown);
+                    float endY = scaleField(param.thisObject, "D", shown);
                     if (!sSaidPickup) {
                         sSaidPickup = true;
                         L.i("zui folder home: a held folder picked up from x" + start + " to x"
-                                + endX + "/" + endY + ", as on the home screen");
+                                + endX + "/" + endY + " (shown at x" + shown + "), as an app is");
                     }
                 } catch (Throwable t) {
                     L.d("zui folder home: pickup left as ZUI has it (" + t + ")");
@@ -219,6 +237,7 @@ final class ZuiFolderHome {
             Object preview = Class.forName(PREVIEW, false, loader).getConstructor(View.class)
                     .newInstance(icon);
             sHeld = new java.lang.ref.WeakReference<>(icon);
+            FolderPress.pressedOff(icon);
             sHolding = true;
             try {
                 begin.invoke(workspace, icon, draggable, Reflect.call(launcher, "getAppsView"),

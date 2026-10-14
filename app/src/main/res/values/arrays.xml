@@ -14,6 +14,8 @@
         <item>com.lenovo.launcher</item>
         <item>com.android.launcher3</item>
         <item>com.android.systemui</item>
+        <!-- ZUI's sidebar: only so it no longer freezes on drags without ZUI's AI service. -->
+        <item>com.zui.freeform.sidebar</item>
         <!-- System Framework: only for keeping apps on the monitor alive. -->
         <item>android</item>
     </string-array>

@@ -80,12 +80,34 @@ final class CancelBin {
             bin.setTranslationY(top);
             bin.setAlpha(0f);
             root.addView(bin, new ViewGroup.LayoutParams(width, width / 2));
+            bin.bringToFront();
             // ZUI's own fade for its drop target bar (DropTargetBar.animateToVisibility).
             bin.animate().alpha(1f).setDuration(175L).start();
+            bin.postDelayed(() -> trace(root, bin), 250L);
             return bin;
         } catch (Throwable t) {
-            L.d("cancel bin: not shown (" + t + ")");
+            L.w("cancel bin: not shown (" + t + ")");
             return null;
+        }
+    }
+
+    /**
+     * Read-only: where the bin is once laid out - the owner saw none (0.0.269), though the drag
+     * reached the drawer's window to its end. Once a drag.
+     */
+    private static void trace(ViewGroup root, View bin) {
+        try {
+            int[] at = new int[2];
+            bin.getLocationOnScreen(at);
+            L.i("cancel bin: trace: in " + root.getClass().getSimpleName() + " "
+                    + root.getWidth() + "x" + root.getHeight() + " (window "
+                    + (root.getWindowVisibility() == View.VISIBLE ? "visible" : "not visible")
+                    + ", shown " + root.isShown() + ", alpha " + root.getAlpha() + "), bin at "
+                    + at[0] + "," + at[1] + " " + bin.getWidth() + "x" + bin.getHeight()
+                    + ", attached " + bin.isAttachedToWindow() + ", shown " + bin.isShown()
+                    + ", alpha " + bin.getAlpha());
+        } catch (Throwable t) {
+            L.d("cancel bin: not traced (" + t + ")");
         }
     }
 

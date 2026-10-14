@@ -546,6 +546,18 @@ public final class Cfg {
         return getBool(Const.KEY_HOME_BAND, true);
     }
 
+    public static boolean homeEdges() {
+        return getBool(Const.KEY_HOME_EDGES, true);
+    }
+
+    public static boolean homeFolderRemove() {
+        return getBool(Const.KEY_HOME_FOLDER_REMOVE, true);
+    }
+
+    public static boolean sidebarAiWait() {
+        return getBool(Const.KEY_SIDEBAR_AI_WAIT, true);
+    }
+
     public static boolean loaderNoWait() {
         return getBool(Const.KEY_LOADER_NO_WAIT, true);
     }

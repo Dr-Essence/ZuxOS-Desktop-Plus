@@ -19,6 +19,7 @@ import com.zuxos.desktopplus.hook.home.PinRequestHooks;
 import com.zuxos.desktopplus.hook.home.SettingsRestart;
 import com.zuxos.desktopplus.hook.home.StockUnlockHooks;
 import com.zuxos.desktopplus.hook.recents.RecentsRoute;
+import com.zuxos.desktopplus.hook.sidebar.SidebarAiWait;
 import com.zuxos.desktopplus.hook.system.SystemBridge;
 import com.zuxos.desktopplus.hook.system.SystemDrag;
 import com.zuxos.desktopplus.hook.system.SystemFullscreen;
@@ -43,6 +44,7 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 public class XposedEntry implements IXposedHookLoadPackage {
 
     private static final String SYSTEMUI = "com.android.systemui";
+    private static final String SIDEBAR = "com.zui.freeform.sidebar";
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
@@ -78,6 +80,14 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     ClosedWindowInfo.install(lpparam.classLoader);
                     CaptionFollow.install(lpparam.classLoader);
                     ShellDropBar.install(lpparam.classLoader);
+                }
+                return;
+            }
+            if (SIDEBAR.equals(lpparam.packageName)) {
+                // ZUI's sidebar - ticked in LSPosed: only its wait for ZUI's AI service.
+                Cfg.reload();
+                if (Cfg.enabled() && Cfg.sidebarAiWait()) {
+                    SidebarAiWait.install(lpparam.classLoader);
                 }
                 return;
             }

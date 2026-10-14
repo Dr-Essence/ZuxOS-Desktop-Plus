@@ -22,7 +22,7 @@ mode along the way.
 | Launcher | `com.zui.launcher`, desktop activity `SecondaryDisplayLauncher` |
 | Needs | Root, LSPosed, and the module scoped to the home app |
 
-**Status (2026-10-14, build 0.0.269)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
+**Status (2026-10-15, build 0.0.270)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
 
 The work now is making every feature run through ZUI's own code - its folders, menus, drag, animations and grids - so it looks and moves like ZUI itself.
 
@@ -42,15 +42,19 @@ The work now is making every feature run through ZUI's own code - its folders, m
 - **Monitor:** after a replug, its touchscreen and pen stay on the monitor.
 - **Home screen uses the dock's space:** the strip ZUX Home keeps for its dock above the taskbar is home screen.
 
-**New in 0.0.269, awaiting the owner's test:**
+**New in 0.0.270, awaiting the owner's test:**
 
-- **Both drawers get every drag:** the taskbar's drawer rearranges like ZUX Home's; out of it, ZUI's floating window starts and the drawer closes; over the bar it is just the icon, pinned when let go; Cancel at the top stops it; resting on the start button opens the drawer again.
-- **ZUX Home's drawer -> taskbar:** pinned where you let go.
-- **Drawer folders open under a dragged app**, as ZUI's home folders do, so it can be placed anywhere inside (ZUX Home's drawer).
-- **Select in both drawers:** ZUI's marks, then drag the chosen apps together into a new place, a folder or the taskbar. Apps inside home-screen folders can be selected too.
-- **Holding a drawer folder** plays ZUI's pickup animation, as on the home screen.
-- **Home screen grids in ZUI's own settings** (Home settings -> grid): 6 x 5, 8 x 5, 8 x 6, 10 x 7 and 12 x 8 beside ZUI's own. On the fine grids icons, names and dots shrink to fit their cells and widgets keep their size on screen.
-- **Drawer drags:** our own work per finger move cut further; the log now shows how much of each frame is ours.
+- **Folders on the taskbar no longer show their apps two or three times**; the copies already saved are cleaned up.
+- **ZUI's sidebar stops "not responding" on drags** when ZUI's AI service is removed (tick ZUI's sidebar in LSPosed).
+- **Drawer folders that open under a dragged app now take it**, in both drawers.
+- **Taskbar drawer:** folders can be moved, apps inside its folders reordered, and a pinned app no longer leaves a blank cell.
+- **Folders react to touch** like app icons, then lift when dragged.
+- **Selected apps fly** into the folder or their new places, as on ZUI's home screen.
+- **Floating window and Split screen** in the menus of the taskbar's pinned and open apps.
+- **Remove folder** in the menu of a home-screen folder.
+- **The home screen uses its top and bottom bands.**
+
+Confirmed in 0.0.269: fine grids fit, ZUX Home's drawer to the taskbar, Select in the drawers.
 
 Also built and awaiting the owner's test: apps on the monitor never killed, no status bar on the monitor's desktop, the Retro theme, maximise and full screen, notification pop-ups on the monitor, editing the quick panel's tiles, one layout per monitor, the start animation.
 

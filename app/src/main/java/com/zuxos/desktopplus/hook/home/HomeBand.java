@@ -42,7 +42,7 @@ public final class HomeBand {
 
     public static void install(ClassLoader loader) {
         try {
-            if (!Cfg.enabled() || !Cfg.homeBand()) {
+            if (!Cfg.enabled() || (!Cfg.homeBand() && !Cfg.homeEdges())) {
                 return;
             }
             Class<?> profile = Reflect.findClass("com.android.launcher3.DeviceProfile", loader);
@@ -107,6 +107,12 @@ public final class HomeBand {
                     Context.class).invoke(null, ctx))) {
                 return;
             }
+            if (Cfg.homeEdges()) {
+                edges(dp, c);
+            }
+            if (!Cfg.homeBand()) {
+                return;
+            }
             int band = c.getField("hotseatAreaHeight").getInt(dp);
             int bar = c.getField("launcherTaskBarOffset").getInt(dp);
             int dockPart = band - bar;
@@ -124,6 +130,45 @@ public final class HomeBand {
             }
         } catch (Throwable t) {
             L.d("home band: the band kept (" + t + ")");
+        }
+    }
+
+    private static boolean sSaidEdges;
+
+    /**
+     * The bands at the home screen's top and bottom become home screen too (owner's screenshots,
+     * 23:39-23:41): the page dots' band, which ZUI adds under the grid
+     * ({@code N}: {@code workspacePageIndicatorHeight - r}, 60 dp here) though its dots show only
+     * while the pages are swiped, and the empty band each page keeps at its top
+     * ({@code cellLayoutPaddingPx.top}, 60 dp, from
+     * {@code Utilities.getCellLayoutPaddingVertical}),
+     * which takes ZUI's own side padding instead. The dots then draw over the last row while a
+     * swipe lasts. ZUI's {@code N} lays the padding out afresh each time, so the dots' band is
+     * taken each time; the page's top is set once.
+     */
+    private static void edges(Object dp, Class<?> c) throws Exception {
+        java.lang.reflect.Field responsive = c.getDeclaredField("f");
+        java.lang.reflect.Field overlap = c.getDeclaredField("r");
+        if (responsive.getType() != boolean.class || overlap.getType() != int.class) {
+            return;
+        }
+        responsive.setAccessible(true);
+        overlap.setAccessible(true);
+        if (responsive.getBoolean(dp)) {
+            // ZUI's responsive grids have no dots' band of this kind.
+            return;
+        }
+        int dots = Math.max(0, c.getField("workspacePageIndicatorHeight").getInt(dp)
+                - overlap.getInt(dp));
+        Rect padding = (Rect) c.getField("workspacePadding").get(dp);
+        padding.bottom = Math.max(0, padding.bottom - dots);
+        Rect cell = (Rect) c.getField("cellLayoutPaddingPx").get(dp);
+        int top = cell.top;
+        cell.top = Math.min(cell.top, cell.left);
+        if (!sSaidEdges) {
+            sSaidEdges = true;
+            L.i("home band: the home screen takes the page dots' " + dots + " px and its top "
+                    + (top - cell.top) + " px");
         }
     }
 

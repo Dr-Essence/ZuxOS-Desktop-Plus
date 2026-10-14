@@ -114,6 +114,12 @@ public final class DrawerStore {
                     mHidden.add(hidden.getString(i));
                 }
             }
+            // 0.0.269 saved each app of a folder again every time ZUI bound it: the copies go.
+            int copies = com.zuxos.desktopplus.logic.DrawerArrange.dedupe(mFolders);
+            if (copies > 0) {
+                L.i("drawer: " + copies + " repeated app(s) taken out of the folders");
+                save();
+            }
         } catch (Throwable t) {
             // The next save writes over it: what is there is kept aside first.
             Storage.keepAside(file);

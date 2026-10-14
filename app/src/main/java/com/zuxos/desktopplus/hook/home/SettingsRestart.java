@@ -99,6 +99,6 @@ public final class SettingsRestart {
                 + " drawer=" + Cfg.nativeDrawer() + " tray=" + Cfg.taskbarTray()
                 + " popups=" + Cfg.notifyPopups() + " unlock=" + Cfg.unlockStock()
                 + " monitors=" + Cfg.monitorLayouts() + " fit=" + Cfg.gridFit()
-                + " band=" + Cfg.homeBand();
+                + " band=" + Cfg.homeBand() + " edges=" + Cfg.homeEdges();
     }
 }

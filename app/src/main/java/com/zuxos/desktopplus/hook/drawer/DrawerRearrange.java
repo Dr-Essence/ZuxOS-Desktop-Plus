@@ -52,6 +52,14 @@ final class DrawerRearrange {
     static DrawerSession sSession;
     /** The taskbar drawer's controller told to keep the drag being started, or null. */
     private static Object sKeeping;
+    /** Our open folder the drag being kept starts in, or null. */
+    private static Object sKeepingFolder;
+    /**
+     * The taskbar drawer's controller told to keep a drag of our folder with no session for it:
+     * ZUI's system drag takes apps only ({@code o0}), so the folder stays in the drawer and is
+     * animated back; told again at the drag's end that the next drag is decided afresh.
+     */
+    private static Object sResetDisallow;
 
     private DrawerRearrange() {
     }
@@ -147,6 +155,16 @@ final class DrawerRearrange {
                             }
                         }
                     }).size();
+            Class<?> folder = Reflect.findClass("com.android.launcher3.folder.Folder", loader);
+            if (folder != null) {
+                hooked += XposedBridge.hookAllMethods(folder, "onDropCompleted",
+                        new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) {
+                                taken(param.thisObject, param.args);
+                            }
+                        }).size();
+            }
             hooked += XposedBridge.hookAllMethods(drags, "callOnDragEnd", new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
@@ -155,12 +173,28 @@ final class DrawerRearrange {
                             && session.controller == param.thisObject) {
                         end();
                     }
+                    if (sResetDisallow == param.thisObject) {
+                        sResetDisallow = null;
+                        Reflect.call(param.thisObject, "setDisallowGlobalDrag", false);
+                    }
                 }
             }).size();
             return hooked;
         } catch (Throwable t) {
             L.w("drawer rearrange: the taskbar drawer's drags stay ZUI's (" + t + ")");
             return 0;
+        }
+    }
+
+    /**
+     * A drag out of our folder in the taskbar's drawer let go: what ZUI's own source tells its
+     * controller ({@code n0}'s {@code b0}), so a drop the folder took is not animated back.
+     */
+    private static void taken(Object folder, Object[] args) {
+        DrawerSession session = sSession;
+        if (session != null && session.taskbar && session.inFolder() && args.length == 3
+                && Boolean.TRUE.equals(args[2])) {
+            TaskbarFolderDrag.setTaken(session.controller, true);
         }
     }
 
@@ -254,15 +288,23 @@ final class DrawerRearrange {
             Object drag = Reflect.field(controller, "mDragObject");
             Object original = drag == null ? null : Reflect.field(drag, "originalView");
             Object info = drag == null ? null : Reflect.field(drag, "dragInfo");
-            View apps = original instanceof View ? appsViewOf((View) original) : null;
-            if (apps == null || NativeDrawerHooks.keyOfEntry(info) == null
-                    || Boolean.TRUE.equals(Reflect.call(apps, "isSearching"))) {
+            View view = original instanceof View ? (View) original : null;
+            View apps = view == null ? null : appsViewOf(view);
+            Object folder = apps == null && view != null ? openFolderOf(view) : null;
+            if ((apps == null && folder == null) || keyFor(view, info) == null
+                    || (apps != null && Boolean.TRUE.equals(Reflect.call(apps, "isSearching")))) {
+                keepFolderAnyway(controller, view);
+                return;
+            }
+            if (folder != null && !fromFolder(controller, drag, folder, view, info)) {
                 return;
             }
             Reflect.call(controller, "setDisallowGlobalDrag", true);
             sKeeping = controller;
+            sKeepingFolder = folder;
         } catch (Throwable t) {
             sKeeping = null;
+            sKeepingFolder = null;
             L.d("drawer rearrange: a taskbar drawer drag left to ZUI (" + t + ")");
         }
     }
@@ -270,18 +312,27 @@ final class DrawerRearrange {
     /** ZUI kept a drag in the taskbar's drawer for us: the drawer rearranges under it. */
     private static void beginTaskbar(Object controller) {
         try {
+            Object folder = sKeepingFolder;
+            sKeepingFolder = null;
             end();
             Object drag = Reflect.field(controller, "mDragObject");
             View original = (View) Reflect.field(drag, "originalView");
             Object info = Reflect.field(drag, "dragInfo");
-            String key = NativeDrawerHooks.keyOfEntry(info);
-            View apps = appsViewOf(original);
+            String key = keyFor(original, info);
+            View apps = folder == null ? appsViewOf(original) : appsIn(original.getRootView());
             Object activity = Reflect.field(controller, "mActivity");
             Object layer = Reflect.call(activity, "getDragLayer");
-            ViewGroup grid = original.getParent() instanceof ViewGroup
-                    ? (ViewGroup) original.getParent() : null;
+            Object list = apps == null ? null : Reflect.call(apps, "getActiveRecyclerView");
+            ViewGroup grid = list instanceof ViewGroup ? (ViewGroup) list : null;
             DrawerReorder reorder = grid == null ? null : DrawerReorder.over(grid, key);
             if (apps == null || !(layer instanceof View) || reorder == null) {
+                if (ZuiFolders.folderOfIcon(original) != null) {
+                    // A folder has no system drag of ZUI's: it stays in the drawer, and goes back.
+                    sResetDisallow = controller;
+                    L.i("drawer rearrange: the taskbar drawer's drag of " + key + " goes back -"
+                            + " its place in the drawer not found");
+                    return;
+                }
                 L.i("drawer rearrange: the taskbar drawer's drag of " + key + " goes on as ZUI's"
                         + " - its place in the drawer not found");
                 DrawerSession.systemDrag(controller, original);
@@ -291,7 +342,15 @@ final class DrawerRearrange {
             DrawerSession session = new DrawerSession(true, activity, apps,
                     sheet instanceof View ? (View) sheet : apps, (View) layer, grid, controller,
                     reorder, key, drag, 0);
+            session.folderDragged = ZuiFolders.folderOfIcon(original);
+            if (Cfg.drawerFolderSpring() && folder == null) {
+                reorder.springFolders(session::springOpen);
+            }
             start(session, controller.getClass().getClassLoader());
+            if (folder != null) {
+                // Asked before the drawer: its apps move aside under the finger, ZUI's way.
+                session.inFolder(folder);
+            }
         } catch (Throwable t) {
             sSession = null;
             L.w("drawer rearrange: a taskbar drawer drag left to ZUI (" + t + ")");
@@ -299,11 +358,84 @@ final class DrawerRearrange {
             // decided afresh.
             Object drag = Reflect.field(controller, "mDragObject");
             Object original = drag == null ? null : Reflect.field(drag, "originalView");
-            if (!(original instanceof View)
+            if (original instanceof View && ZuiFolders.folderOfIcon((View) original) != null) {
+                // A folder has no system drag of ZUI's: it stays in the drawer, and goes back.
+                sResetDisallow = controller;
+            } else if (!(original instanceof View)
                     || !DrawerSession.systemDrag(controller, (View) original)) {
                 Reflect.call(controller, "setDisallowGlobalDrag", false);
             }
         }
+    }
+
+    /**
+     * A drag of our folder not kept for rearranging (a search showing, say) stays in the drawer
+     * all the same: ZUI's system drag is for apps only ({@code o0} reads an app from the icon).
+     */
+    private static void keepFolderAnyway(Object controller, View view) {
+        if (view != null && ZuiFolders.folderOfIcon(view) != null) {
+            Reflect.call(controller, "setDisallowGlobalDrag", true);
+            sResetDisallow = controller;
+        }
+    }
+
+    /** What the drag is of: our folder, an app of the drawer, or an app in one of our folders. */
+    private static String keyFor(View view, Object info) {
+        Item folder = view == null ? null : ZuiFolders.folderOfIcon(view);
+        if (folder != null) {
+            return folder.key();
+        }
+        Item child = ZuiFolders.childOf(info);
+        return child != null ? child.key() : NativeDrawerHooks.keyOfEntry(info);
+    }
+
+    /** Our open folder an app's icon is in, or null. */
+    private static Object openFolderOf(View icon) {
+        for (android.view.ViewParent p = icon.getParent(); p instanceof View; p = p.getParent()) {
+            if (p.getClass().getName().equals("com.android.launcher3.folder.Folder")) {
+                return ZuiFolders.isOurs(p) && Boolean.TRUE.equals(Reflect.call(p, "isOpen"))
+                        ? p : null;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * A drag of an app inside our open folder in the taskbar's drawer, as ZUI's home screen
+     * starts one ({@code Folder.startDrag}, through {@code Workspace.beginDragShared}): the folder
+     * is the drag's source, holds the app's place ({@code Folder.p}, its rank; {@code t}, its
+     * view) and hears the drag start, when it takes the app out of its pages
+     * ({@code Folder.onDragStart}). Its delegate in the taskbar's drawer starts no drag
+     * ({@code LauncherDelegate$b.b}), so it is told here. Let go in the folder, ZUI puts the app at
+     * its new place and saves the order ({@code Folder.onDrop}); dragged out of it, the drag goes
+     * on as ZUI's and the folder puts the app back ({@code onDropCompleted}).
+     */
+    private static boolean fromFolder(Object controller, Object drag, Object folder, View view,
+            Object info) {
+        try {
+            Object rank = Reflect.field(info, "rank");
+            if (!(rank instanceof Integer)) {
+                return false;
+            }
+            DrawerSession.setField(drag, "dragSource", folder);
+            DrawerSession.setField(folder, "p", rank);
+            DrawerSession.setField(folder, "t", view);
+            Reflect.call(controller, "addDragListener", folder);
+            return true;
+        } catch (Throwable t) {
+            L.d("drawer rearrange: the folder's drag left to ZUI (" + t + ")");
+            return false;
+        }
+    }
+
+    /** ZUI's drawer shown in a window: its all-apps container. */
+    private static View appsIn(View root) {
+        for (View view : Reflect.findByClassFragments(root, "AllAppsContainerView")) {
+            if (view.isShown()) {
+                return view;
+            }
+        }
+        return null;
     }
 
     /** The drawer's own apps view the icon is in: ZUI's all-apps container. */

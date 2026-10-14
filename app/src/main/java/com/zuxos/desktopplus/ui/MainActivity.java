@@ -126,6 +126,15 @@ public class MainActivity extends Activity {
                 "The band ZUX Home keeps for its dock above the taskbar becomes home screen, and "
                         + "the dock is hidden. The launcher restarts to apply it",
                 Const.KEY_HOME_BAND, true);
+        addSwitch("Home screen uses its top and bottom bands",
+                "The empty band at the top of each page and the page dots' band above the "
+                        + "taskbar become home screen; the dots show over the last row while you "
+                        + "swipe. The launcher restarts to apply it",
+                Const.KEY_HOME_EDGES, true);
+        addSwitch("Remove folder in the home folder menu",
+                "Hold a folder on the home screen: Remove folder puts its apps back on the home "
+                        + "screen, in the first free places, and the folder goes",
+                Const.KEY_HOME_FOLDER_REMOVE, true);
 
         addHeader("Customize");
         addSpinner("Theme", new String[]{
@@ -313,6 +322,11 @@ public class MainActivity extends Activity {
                         + "take screenshots, which an ordinary launcher may not. Turn off and "
                         + "those buttons open the matching settings screen instead",
                 Const.KEY_USE_ROOT, true);
+        addSwitch("ZUI's sidebar never waits for a missing AI service",
+                "With ZUI's AI service removed, the sidebar froze on every drag of an app and "
+                        + "Android said it was not responding. It no longer asks a service "
+                        + "that is not there. Needs ZUI's sidebar ticked in LSPosed",
+                Const.KEY_SIDEBAR_AI_WAIT, true);
 
         addHeader("Stock launcher unlocking (optional)");
         addSwitch("Try to unlock the stock launcher",

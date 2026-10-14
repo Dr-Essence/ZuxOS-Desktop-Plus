@@ -132,6 +132,24 @@ public final class DrawerArrange {
         return true;
     }
 
+    /**
+     * Every app once: a second copy of an app, in the same folder or another, goes. The first
+     * stays where it is. The number of copies taken out.
+     */
+    public static int dedupe(List<Item> folders) {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        int removed = 0;
+        for (Item folder : folders) {
+            for (java.util.Iterator<Item> it = folder.children.iterator(); it.hasNext(); ) {
+                if (!seen.add(it.next().key())) {
+                    it.remove();
+                    removed++;
+                }
+            }
+        }
+        return removed;
+    }
+
     /** The folder holding the app {@code key}, or null. */
     public static Item folderOf(List<Item> folders, String key) {
         for (Item folder : folders) {

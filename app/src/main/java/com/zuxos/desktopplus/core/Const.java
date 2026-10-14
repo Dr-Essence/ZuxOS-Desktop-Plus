@@ -120,6 +120,12 @@ public final class Const {
     public static final String KEY_GRID_FIT = "grid_fit";
     /** The band ZUX Home keeps for its dock above the tablet's bar is home screen. Start-only. */
     public static final String KEY_HOME_BAND = "home_band";
+    /** The home screen also takes the band at its top and the page dots' band. Start-only. */
+    public static final String KEY_HOME_EDGES = "home_edges";
+    /** Remove folder in the menu of a folder on ZUI's home screen. */
+    public static final String KEY_HOME_FOLDER_REMOVE = "home_folder_remove";
+    /** ZUI's sidebar skips its wait for ZUI's AI service on each drag when that is not there. */
+    public static final String KEY_SIDEBAR_AI_WAIT = "sidebar_ai_wait";
     /** ZUI's loader waits a second at most for an idle home screen before loading the app list. */
     public static final String KEY_LOADER_NO_WAIT = "loader_no_wait";
     /** Translucent glass behind the launcher's own app drawer. */

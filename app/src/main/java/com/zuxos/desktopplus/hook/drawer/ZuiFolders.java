@@ -188,6 +188,7 @@ public final class ZuiFolders {
             hooked += hookHeldOut(loader);
             hooked += hookNoEnlarge(loader);
             hooked += hookDragPicture(loader);
+            hooked += FolderPress.install(icon);
             ZuiFolderWrites.install(loader);
             ZuiFolderAdd.install(loader, folder);
             hooked += ZuiFolderHome.install(loader);
@@ -266,6 +267,8 @@ public final class ZuiFolders {
             protected void beforeHookedMethod(MethodHookParam param) {
                 try {
                     Object view = Reflect.field(param.thisObject, "mView");
+                    // The picture is the folder at rest, not pressed (FolderPress).
+                    FolderPress.sDrawingPicture = true;
                     if (view instanceof View && folderOfIcon((View) view) != null
                             && ((View) view).getScaleX() != 1f) {
                         View icon = (View) view;
@@ -280,6 +283,7 @@ public final class ZuiFolders {
 
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
+                FolderPress.sDrawingPicture = false;
                 try {
                     float[] scale = sDragScale;
                     sDragScale = null;
@@ -1495,17 +1499,25 @@ public final class ZuiFolders {
         if (all != null) {
             items = all;
         }
+        // By key: ZUI's apps map to our apps as they were when its folder was built - the bar's
+        // and the drawer's builds hold other copies of the same apps. Matched as objects, every
+        // app of a folder pinned to the bar was added again each time ZUI bound it (0.0.269).
+        Map<String, Item> ours = new java.util.LinkedHashMap<>();
+        for (Item child : folder.children) {
+            ours.putIfAbsent(child.key(), child);
+        }
         java.util.TreeMap<Integer, Item> byRank = new java.util.TreeMap<>();
         for (Object item : items) {
             Item child = childOf(item);
             Object rank = Reflect.field(item, "rank");
-            if (child != null && rank instanceof Integer) {
-                byRank.put((Integer) rank, child);
+            Item mine = child == null ? null : ours.get(child.key());
+            if (mine != null && rank instanceof Integer && !byRank.containsValue(mine)) {
+                byRank.put((Integer) rank, mine);
             }
         }
         // ZUI's order for the apps it shows; any of ours it does not (not installed) after them.
         List<Item> now = new java.util.ArrayList<>(byRank.values());
-        for (Item child : folder.children) {
+        for (Item child : ours.values()) {
             if (!now.contains(child)) {
                 now.add(child);
             }

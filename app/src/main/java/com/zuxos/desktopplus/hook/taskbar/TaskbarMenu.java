@@ -622,6 +622,8 @@ public final class TaskbarMenu {
         final String title;
         final Runnable action;
         final android.graphics.drawable.Drawable icon;
+        /** The icon is one of ZUI's glyphs, drawn in ZUI's shortcut colour. */
+        final boolean zuiGlyph;
 
         public Entry(String title, Runnable action) {
             this(title, null, action);
@@ -629,8 +631,15 @@ public final class TaskbarMenu {
 
         /** With an icon of its own - an app shortcut's - rather than the one its title suggests. */
         Entry(String title, android.graphics.drawable.Drawable icon, Runnable action) {
+            this(title, icon, false, action);
+        }
+
+        /** With one of ZUI's own glyphs ({@code zuiGlyph}), or an icon of its own. */
+        Entry(String title, android.graphics.drawable.Drawable icon, boolean zuiGlyph,
+                Runnable action) {
             this.title = title;
             this.icon = icon;
+            this.zuiGlyph = zuiGlyph;
             this.action = action;
         }
 
@@ -651,7 +660,7 @@ public final class TaskbarMenu {
 
         @Override
         public boolean ownIcon() {
-            return icon != null;
+            return icon != null && !zuiGlyph;
         }
     }
 }

@@ -91,6 +91,10 @@ public final class ShellDropBar {
                                 + (Boolean.TRUE.equals(param.getResult()) ? "used" : "not used"));
                     }
                     break;
+                case DragEvent.ACTION_DRAG_ENTERED:
+                case DragEvent.ACTION_DRAG_EXITED:
+                    trace(param.thisObject, event);
+                    break;
                 case DragEvent.ACTION_DRAG_ENDED:
                     restore();
                     break;
@@ -100,6 +104,26 @@ public final class ShellDropBar {
         } catch (Throwable t) {
             L.d("shell drop bar: left as the shell had it (" + t + ")");
         }
+    }
+
+    /** How many of the shell's enters and exits this drag has logged. */
+    private static int sTraced;
+
+    /**
+     * Read-only: the shell's window entered or left during a drag it shares with the bar - the
+     * owner saw its floating window not come back after the bar (0.0.269). Logged a few times a
+     * drag, with ZUI's own split flag, which decides whether the shell hides its preview on leaving
+     * ({@code DragAndDropController.onDrag}: {@code mIsZuiSplit}).
+     */
+    private static void trace(Object controller, DragEvent event) {
+        if (sNarrowed == null || sTraced >= 6) {
+            return;
+        }
+        sTraced++;
+        L.i("shell drop bar: trace: the shell's window "
+                + (event.getAction() == DragEvent.ACTION_DRAG_ENTERED ? "entered" : "left")
+                + " at " + Math.round(event.getX()) + "," + Math.round(event.getY())
+                + " (zui split " + Reflect.field(controller, "mIsZuiSplit") + ")");
     }
 
     /** The launcher's word in the clip: the home screen behind takes this drag. */
@@ -168,6 +192,7 @@ public final class ShellDropBar {
     private static void restore() {
         AttachedSurfaceControl narrowed = sNarrowed;
         sNarrowed = null;
+        sTraced = 0;
         if (narrowed != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             try {
                 narrowed.setTouchableRegion(null);

@@ -356,8 +356,12 @@ public final class TaskbarApps {
         try {
             int[] at = new int[2];
             icon.getLocationOnScreen(at);
+            List<TaskbarMenu.Entry> entries = entriesFor(icon.getContext(), pkg, user, displayId,
+                    taskId);
+            // After Open, ZUI's own floating window and split screen, as its bar's menus have.
+            entries.addAll(Math.min(1, entries.size()), ZuiWindows.entries(icon, pkg, user));
             return TaskbarMenu.showEntries(icon, displayId, at[0] + icon.getWidth() / 2f,
-                    entriesFor(icon.getContext(), pkg, user, displayId, taskId));
+                    entries);
         } catch (Throwable t) {
             L.e("taskbar apps: could not show the icon menu", t);
             return false;

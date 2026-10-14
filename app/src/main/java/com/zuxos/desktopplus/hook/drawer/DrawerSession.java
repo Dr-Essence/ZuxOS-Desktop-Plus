@@ -50,12 +50,23 @@ final class DrawerSession {
     boolean dropped;
     /** One of our folders opened for the drag: ZUI's folder takes it from there. */
     boolean folderOpened;
+    /** Our folder being dragged, as a whole, in the taskbar's drawer; or null. */
+    Item folderDragged;
+    /** Our open folder the drag started in, asked before the drawer; or null. */
+    private Object mInFolder;
+    /** ZUI's folder opened under the drag, while it is a drop target of the drag; or null. */
+    private Object mSprung;
+    /** The sprung folder was put on the drag's targets by us, to come off at the end. */
+    private boolean mSprungAdded;
     /** Over the taskbar, where it is pinned when let go. */
     private boolean onBar;
     private float lastX = -1f;
     private final Drawable icon;
     /** The apps chosen with the dragged one ({@link DrawerSelect}), going where it goes. */
     private final java.util.List<String> carried;
+    /** The chosen apps' pictures going with the drag; null with none. */
+    private CarriedFlight mFlight;
+    private boolean mFlightTried;
     /** The drag's frames, for the log; null where they cannot be read. */
     private FrameTrace frames;
     /** Time spent in our own handling of the drag's moves, for the log. */
@@ -160,10 +171,28 @@ final class DrawerSession {
         if (!keeping) {
             return;
         }
+        if (mInFolder != null) {
+            // Our target hears the drag only where the folder does not: it has left the folder,
+            // and goes on as ZUI's, the folder putting the app back as ZUI's drags out of it do.
+            toSystemDrag();
+            return;
+        }
         int[] layer = new int[2];
         dragLayer.getLocationOnScreen(layer);
         float sx = layer[0] + intField(drag, "x");
         float sy = layer[1] + intField(drag, "y");
+        if (!carried.isEmpty() && !mFlightTried) {
+            mFlightTried = true;
+            Object picture = Reflect.field(drag, "dragView");
+            mFlight = CarriedFlight.gather(dragLayer, picture instanceof View ? (View) picture
+                    : null, reorder, carried);
+            if (mFlight != null) {
+                reorder.away(mFlight.keys());
+            }
+        }
+        if (mFlight != null) {
+            mFlight.follow(sx, sy);
+        }
         RectF bar = TaskbarDrop.barOnScreen(display);
         if (bar != null && sx >= bar.left && sx <= bar.right && sy >= bar.top
                 && sy <= bar.bottom + 1f) {
@@ -181,6 +210,11 @@ final class DrawerSession {
             sheet.getLocationOnScreen(at);
             if (sx < at[0] || sx > at[0] + sheet.getWidth() || sy < at[1]
                     || sy > at[1] + sheet.getHeight()) {
+                if (folderDragged != null) {
+                    // A folder has no floating window: it stays this drawer's, for the bar.
+                    reorder.cancel();
+                    return;
+                }
                 toSystemDrag();
                 return;
             }
@@ -205,6 +239,7 @@ final class DrawerSession {
     /** ZUX Home's drawer: up past the grid, on to the home screen, through ZUI's own step. */
     private void toHome() {
         keeping = false;
+        flightOff();
         reorder.cancel();
         Reflect.call(controller, "removeDropTarget", target);
         Object states = Reflect.call(activity, "getStateManager");
@@ -218,12 +253,21 @@ final class DrawerSession {
      */
     private void toSystemDrag() {
         keeping = false;
+        flightOff();
         reorder.cancel();
         Reflect.call(controller, "removeDropTarget", target);
         Object original = Reflect.field(drag, "originalView");
         if (original instanceof View && systemDrag(controller, (View) original)) {
             L.i("drawer rearrange: the drag of " + key + " left the taskbar's drawer - ZUI's "
                     + "floating window and split screen");
+        }
+    }
+
+    /** The chosen apps' pictures gone where they are: the drag went on elsewhere. */
+    private void flightOff() {
+        if (mFlight != null) {
+            mFlight.fadeOut();
+            mFlight = null;
         }
     }
 
@@ -244,7 +288,7 @@ final class DrawerSession {
     /** A dragged app has rested on one of our folders: ZUI's folder opens for it. */
     boolean springOpen(View cell) {
         try {
-            if (!keeping || taskbar) {
+            if (!keeping) {
                 return false;
             }
             Object folder = Reflect.call(iconIn(cell), "getFolder");
@@ -258,12 +302,82 @@ final class DrawerSession {
             // the finger; let go, ZUI puts the app there (Folder.onDrop) and our model keeps it
             // (ZuiFolderWrites).
             Reflect.call(folder, "beginExternalDrag");
-            L.i("drawer rearrange: a folder opened under the drag of " + key);
+            mSprung = folder;
+            boolean added = asTarget(folder);
+            mSprungAdded |= added;
+            Object parent = folder instanceof View ? ((View) folder).getParent() : null;
+            L.i("drawer rearrange: a folder opened under the drag of " + key + " - in "
+                    + (parent == null ? "no window yet" : parent.getClass().getSimpleName())
+                    + ", state " + Reflect.field(folder, "mState") + ", "
+                    + (added ? "made a drop target of the drag" : "already its drop target"));
             return true;
         } catch (Throwable t) {
             L.d("drawer rearrange: the folder stays closed (" + t + ")");
             return false;
         }
+    }
+
+    /**
+     * ZUI's folder made a drop target of this drag, asked before ours: true when it was not one.
+     *
+     * <p>ZUI's folder adds itself only when it opens with no parent ({@code Folder.c0}), and the
+     * taskbar's controller turns folders away ({@code TaskbarDragController.addDropTarget}): in
+     * either drawer the drop went to our target, not the folder that had opened for it (owner,
+     * 23:47). ZUI's controller asks its targets newest first ({@code DragController.e}), so the
+     * folder goes after ours on the very list ZUI keeps.
+     */
+    private boolean asTarget(Object folder) {
+        java.util.List<Object> targets = targetsOf(controller, target);
+        if (targets == null) {
+            return false;
+        }
+        int at = targets.indexOf(folder);
+        if (at >= 0 && at > targets.indexOf(target)) {
+            return false;
+        }
+        if (at >= 0) {
+            targets.remove(at);
+        }
+        targets.add(folder);
+        return at < 0;
+    }
+
+    /** The drag started in our open folder: the folder is asked before the drawer. */
+    void inFolder(Object folder) {
+        mInFolder = folder;
+        mSprung = folder;
+        mSprungAdded |= asTarget(folder);
+    }
+
+    /** Whether the drag started inside one of our open folders. */
+    boolean inFolder() {
+        return mInFolder != null;
+    }
+
+    /** ZUI's drag controller's own list of drop targets, the one holding {@code ours}. */
+    @SuppressWarnings("unchecked")
+    private static java.util.List<Object> targetsOf(Object controller, Object ours) {
+        for (Class<?> c = controller.getClass(); c != null; c = c.getSuperclass()) {
+            if (!c.getName().equals("com.android.launcher3.dragndrop.DragController")) {
+                continue;
+            }
+            for (Field f : c.getDeclaredFields()) {
+                if (!java.util.List.class.isAssignableFrom(f.getType())) {
+                    continue;
+                }
+                try {
+                    f.setAccessible(true);
+                    Object list = f.get(controller);
+                    if (list instanceof java.util.List
+                            && ((java.util.List<?>) list).contains(ours)) {
+                        return (java.util.List<Object>) list;
+                    }
+                } catch (Throwable t) {
+                    L.d("drawer rearrange: a list of ZUI's drag not read (" + t + ")");
+                }
+            }
+        }
+        return null;
     }
 
     /** Let go: on the bar, pinned; over the drawer, rearranged and ZUI's icon flies in. */
@@ -281,6 +395,11 @@ final class DrawerSession {
             reorder.drop((cell, into) -> {
                 if (!landing[0]) {
                     landing[0] = true;
+                    if (mFlight != null) {
+                        // The chosen apps onto their new cells, or into the folder they went in.
+                        mFlight.land(reorder::cellOf, into ? cell : null);
+                        mFlight = null;
+                    }
                     land(dragged, cell, into);
                 }
             });
@@ -306,11 +425,12 @@ final class DrawerSession {
 
     /** Let go over the taskbar: pinned there, and ZUI ends the drag at once. */
     private void pin(Object drag) {
+        flightOff();
         TaskbarDrop.hintAt(display, -1f);
         onBar = false;
         setBoolean(drag, "deferDragViewCleanupPostAnimation", false);
         Object info = Reflect.field(drag, "dragInfo");
-        Item folder = ZuiFolderHome.folderDragged(info);
+        Item folder = folderDragged != null ? folderDragged : ZuiFolderHome.folderDragged(info);
         Context ctx = apps.getContext();
         Item item = folder != null ? folder : IconInfo.itemOf(ctx, info);
         // The apps chosen with it after it, in their order: each pinned where it was let go,
@@ -332,6 +452,18 @@ final class DrawerSession {
     void end() {
         boolean kept = keeping;
         keeping = false;
+        if (mSprung != null && mSprungAdded) {
+            java.util.List<Object> targets = targetsOf(controller, target);
+            if (targets != null) {
+                targets.remove(mSprung);
+            }
+        }
+        mSprung = null;
+        if (mFlight != null) {
+            // Nothing moved them: back to their cells.
+            mFlight.back();
+            mFlight = null;
+        }
         Reflect.call(controller, "removeDropTarget", target);
         if (onBar) {
             onBar = false;
@@ -343,6 +475,7 @@ final class DrawerSession {
         if (taskbar) {
             // As ZUI has it for this drawer again: the next drag is decided afresh.
             Reflect.call(controller, "setDisallowGlobalDrag", false);
+            showOriginal();
         }
         if (!carried.isEmpty()) {
             // The chosen apps went with it: choosing is over.
@@ -353,12 +486,27 @@ final class DrawerSession {
         String outcome = mOutcome != null ? mOutcome
                 : dropped ? reorder.outcome()
                 : folderOpened && filed != null ? "placed in a folder, where it was let go"
+                : mInFolder != null && kept ? "let go inside its folder, as ZUI places it"
                 : kept ? "let go of nowhere in the drawer, or cancelled - no change"
                 : taskbar ? "gone on as ZUI's" : "on the home screen's side, as ZUI has it";
         L.i("drawer rearrange: the drag of " + key + " ended - " + outcome);
         String ours = "ours " + oursMoves + " moves, " + FrameTrace.ms(oursNs) + " in all, "
                 + "longest " + FrameTrace.ms(oursLongestNs);
         L.i("drawer rearrange: trace: " + (frames != null ? frames.stop() + "; " : "") + ours);
+    }
+
+    /**
+     * The held icon shown again. ZUI hides it when its popup gives way to the drag
+     * ({@code PopupContainerWithArrow} {@code onPreDragEnd}: {@code INVISIBLE}) and the taskbar's
+     * controller brings back only its alpha ({@code TaskbarDragController.d0}): after a pin from
+     * the taskbar's drawer its cell stayed blank (owner, 0.0.269).
+     */
+    private void showOriginal() {
+        Object original = Reflect.field(drag, "originalView");
+        if (original instanceof View && ((View) original).getVisibility() != View.VISIBLE) {
+            ((View) original).setVisibility(View.VISIBLE);
+            Reflect.call(original, "setIconVisible", true);
+        }
     }
 
     private static boolean sSaidNoLanding;
@@ -479,6 +627,21 @@ final class DrawerSession {
     private static int intField(Object o, String name) {
         Object value = Reflect.field(o, name);
         return value instanceof Integer ? (Integer) value : 0;
+    }
+
+    /** A field of ZUI's set, found from the object's own class up. */
+    static void setField(Object o, String name, Object value) throws Exception {
+        for (Class<?> c = o.getClass(); c != null; c = c.getSuperclass()) {
+            try {
+                Field f = c.getDeclaredField(name);
+                f.setAccessible(true);
+                f.set(o, value);
+                return;
+            } catch (NoSuchFieldException e) {
+                // Up the hierarchy.
+            }
+        }
+        throw new NoSuchFieldException(name);
     }
 
     private static void setBoolean(Object o, String name, boolean value) {

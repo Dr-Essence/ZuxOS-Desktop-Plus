@@ -172,6 +172,24 @@ public class DrawerArrangeTest {
     }
 
     @Test
+    public void dedupeKeepsTheFirstCopyOfEachApp() {
+        Item a = app("a");
+        Item b = app("b");
+        Item c = app("c");
+        Item first = Item.folder("First");
+        first.children.addAll(Arrays.asList(a, b, app("a"), b));
+        Item second = Item.folder("Second");
+        second.children.addAll(Arrays.asList(app("b"), c, app("c")));
+        List<Item> folders = new ArrayList<>(Arrays.asList(first, second));
+
+        assertEquals(4, DrawerArrange.dedupe(folders));
+
+        assertEquals(order(a, b), order(first.children.toArray(new Item[0])));
+        assertEquals(order(c), order(second.children.toArray(new Item[0])));
+        assertEquals(0, DrawerArrange.dedupe(folders));
+    }
+
+    @Test
     public void appOfReadsAnAppKeyOnly() {
         Item app = DrawerArrange.appOf("com.x/com.x.Main#10", "X");
         assertNotNull(app);

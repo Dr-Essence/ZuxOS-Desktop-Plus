@@ -72,6 +72,8 @@ final class ZuiBarDrop {
     /** The drawer opened again for this drag from the start button, and rearranging under it. */
     private static boolean sReopened;
     private static Runnable sReopen;
+    /** The drag has reached the start button, said once a drag. */
+    private static boolean sSaidStart;
     /** What else became of the drag, for the log. */
     private static boolean sCancelled;
     private static boolean sRearranged;
@@ -265,16 +267,26 @@ final class ZuiBarDrop {
                     item.key(), x, y);
         }
         boolean onStart = TaskbarStart.overStart(sDisplay, x, y);
+        if (onStart && !sSaidStart) {
+            // Read-only: the owner saw the drawer open again once only (0.0.269).
+            sSaidStart = true;
+            L.i("zui bar drop: trace: the drag of " + item.pkg + " reached the start button at "
+                    + Math.round(x) + "," + Math.round(y));
+        }
         if (onStart && sReopen == null) {
             int display = sDisplay;
             sReopen = () -> {
                 sReopen = null;
-                if (sCatcher == catcher && TaskbarStart.openDrawer(display)) {
+                boolean opened = sCatcher == catcher && TaskbarStart.openDrawer(display);
+                if (opened) {
                     sReopened = true;
                     // The window takes the drag now, over all of it.
                     catcher.getRootView().requestLayout();
-                    L.i("zui bar drop: the drawer opened again for the drag of " + item.pkg);
                 }
+                L.i("zui bar drop: " + (opened ? "the drawer opened again for the drag of "
+                        + item.pkg : "the drawer did not open again for the drag ("
+                        + (sCatcher != catcher ? "its window gone" : "ZUI's button refused")
+                        + ")"));
             };
             catcher.postDelayed(sReopen, 500L);
         } else if (!onStart && sReopen != null) {
@@ -481,6 +493,7 @@ final class ZuiBarDrop {
         }
         sReopen = null;
         sReopened = false;
+        sSaidStart = false;
         com.zuxos.desktopplus.hook.drawer.DrawerReopen.reset();
         CancelBin.hide(sBin);
         sBin = null;

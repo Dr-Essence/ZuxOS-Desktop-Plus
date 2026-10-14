@@ -1700,6 +1700,9 @@ public final class TaskbarRunning {
             if (pin.pkg != null) {
                 entries.addAll(TaskbarApps.entriesFor(ctx, pin.pkg,
                         android.os.Process.myUserHandle(), displayId));
+                // After Open, ZUI's own floating window and split screen.
+                entries.addAll(Math.min(1, entries.size()), ZuiWindows.entries(icon, pin.pkg,
+                        android.os.Process.myUserHandle()));
             } else {
                 entries.add(new TaskbarMenu.Entry("Open folder",
                         () -> openFolder(ctx, icon, pin, displayId)));
