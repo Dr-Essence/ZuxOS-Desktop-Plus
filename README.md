@@ -22,24 +22,37 @@ mode along the way.
 | Launcher | `com.zui.launcher`, desktop activity `SecondaryDisplayLauncher` |
 | Needs | Root, LSPosed, and the module scoped to the home app |
 
-**Status (2026-10-12, build 0.0.238)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
+**Status (2026-10-14, build 0.0.268)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
 
-The work now is making every feature run through ZUI's own code - its folders, menus, drag, animations and edit mode - so it looks and moves like ZUI itself.
+The work now is making every feature run through ZUI's own code - its folders, menus, drag, animations and grids - so it looks and moves like ZUI itself.
 
-- **Drawers:** ZUI's own folders in both of the tablet's drawers, with ZUI's look and motion, Add apps and Uninstall. The folders open the same way in all three places, including over Recents.
-- **Menus:** ZUI's own popups. Shortcut icons have ZUI's icon shape. Close and Close all have different icons. Open, Close, New window, App info and Select are in the system's language.
-- **Select on the home screen:** Select in an app's menu opens ZUI's edit mode with that app selected. Tap more apps to add them, then drag them together. Selected apps wiggle.
-- **Drag onto the taskbar:** an app dragged out of the taskbar's drawer and let go on the bar is pinned there. Anywhere else it still opens as a floating window or in split screen.
-- **Tablet bar:**
-  - The open apps stop at the navigation keys.
-  - The keys sit flush with the bar's right edge.
-  - The start button's eyes follow the drawer frame by frame.
+**Working on the device** (confirmed by the owner, or seen working in the owner's videos):
+
+- **Drag and drop on the tablet, through ZUI's own drag:**
+  - taskbar drawer -> taskbar (pinned) and -> home screen (placed by ZUI);
+  - an app out of a taskbar folder -> taskbar (moved out of the folder);
+  - rearranging ZUX Home's drawer: apps and folders move, fold into folders and come out of them;
+  - a drawer folder -> home screen, as a ZUI folder with its apps.
+- **Drawers:** ZUI's own folders in both of the tablet's drawers, with ZUI's look and motion, Add apps, Remove from folder and Uninstall.
+- **Menus:** ZUI's own popups, shortcut icons in ZUI's icon shape.
+- **Select on the home screen:** ZUI's edit mode, several apps moved together.
+- **Tablet bar:** open apps stop at the navigation keys, which sit flush with the right edge; pinned folders are ZUI's own.
 - **Monitor:** after a replug, its touchscreen and pen stay on the monitor.
-- Bugs fixed, and which the owner has confirmed on the device: [`docs/ROADMAP.md`](docs/ROADMAP.md), "Fixed".
+
+**New in 0.0.261, awaiting the owner's test:**
+
+- **Drawer drags without stutter:** each frame used to ask the system for the user's id dozens of times; now it is asked once.
+- **Drops land through ZUI's own drop animation:** the icon glides and shrinks into its place.
+- **A folder pinned to the taskbar can be dragged to the home screen.**
+- **Home screen grid** (Settings -> Tablet home screen): ZUI's own, 6 x 5, 8 x 5, 8 x 6, 10 x 7 or 12 x 8, through ZUI's own grid code, which moves your icons. The finest grids let an icon land close to where it is let go.
+- **Home screen uses the dock's space** (on by default): the strip ZUX Home keeps for its dock above the taskbar becomes home screen.
+
+Also built and awaiting the owner's test: apps on the monitor never killed, no status bar on the monitor's desktop, the Retro theme, maximise and full screen, notification pop-ups on the monitor, editing the quick panel's tiles, one layout per monitor, the start animation.
 
 **Known bugs, still open**
 
-- **Window "…" menu on the wrong screen:** a window's menu can open on the tablet instead of the monitor after the window has moved between screens. It is being traced through SystemUI's own window log.
+- **Taskbar drawer:** holding a folder there shows our menu instead of ZUI's folder menu.
+- **Window "..." menu on the wrong screen:** after a window has moved between screens (traced through SystemUI's window log).
 - **Bar at the top of the monitor:** the notification and quick-settings panels may not show when pressed (traced, waiting for a log).
 - **Recents on the tablet:** a pale blank square at the left (waiting for a probe taken in Recents).
 - **Game Assistant:** its overlay does not come up over games on the monitor.
@@ -49,12 +62,7 @@ The work now is making every feature run through ZUI's own code - its folders, m
 
 **Roadmap, in order**
 
-1. **Drag and drop everywhere on the tablet, through ZUI's own drag:**
-   - taskbar drawer -> home screen when the home screen is behind it;
-   - taskbar -> home screen (moves the app off the bar);
-   - home screen and ZUX Home's drawer -> taskbar (moves the app off the home screen);
-   - reordering inside both drawers, where dragging to the top edge closes ZUX Home's drawer to the home screen;
-   - Select in the drawers too.
+1. Finish drag and drop on the tablet through ZUI's own drag, and the taskbar drawer's folders through ZUI's folder menu.
 2. The monitor's folders as ZUI's own, themed Glass or Retro.
 3. Seamless unplug and replug of the monitor.
 4. Customise the UI: taskbar, drawer, folders, menus, panels - colour, shape, transparency. The foundation is built.
@@ -66,23 +74,16 @@ The work now is making every feature run through ZUI's own code - its folders, m
 10. Less CPU, GPU and heat; the tablet's own heat management (both being measured).
 11. Adapting to ZUI updates on its own.
 12. No root for the monitor's keys and quick-settings toggles, widgets without the "allow" dialog, and work mode.
-13. **Native Linux**: Linux apps and games beside Android ones, hardware accelerated.
-    - **The Linux itself:** an ARM64 Linux in a chroot (no virtual machine), started and stopped with the monitor's desktop.
-    - **Graphics:** Mesa's Turnip (Vulkan) and Zink (OpenGL) straight on the tablet's Adreno GPU.
-    - **Windows:** no Termux:X11. Every Linux window is its own Android window, from our own Wayland compositor (with Xwayland). It opens, moves, resizes and minimises like an Android app, with ZUI's window frame, and it shows in the taskbar, Recents and Alt-Tab. The picture goes to the window straight from the GPU, never copied through the CPU. Touch, mouse, keyboard, pen and the clipboard go to the Linux program.
-    - **x86 apps:** x86 programs and Steam through FEX-Emu, and Windows games through Wine/Proton with DXVK and VKD3D-Proton. Options per app.
-    - **Apps as apps:** Linux apps in the drawer, pinnable to the home screen and taskbar, and tracked as open in the bar.
-    - **Status:** the probe already names the GPU and the kernel features a chroot needs. The next step is to read that probe on the device.
-
-Built and awaiting the owner's test:
-- apps on the monitor never killed;
-- no status bar on the monitor's desktop;
-- the Retro theme;
-- maximise and full screen;
-- notification pop-ups on the monitor;
-- editing the quick panel's tiles;
-- one layout per monitor;
-- the start animation.
+13. **Native Linux** - Linux apps and games as Android apps, everything written for this module, nothing else to install:
+    - **The Linux itself:** a lean Arch Linux ARM in a chroot of our own on the tablet's kernel - no virtual machine, no proot, full native speed. A full Linux (pacman, GTK, Qt, Mesa, PipeWire and the rest), started with the first Linux app and gone after the last.
+    - **Clean and secure:** Linux apps and games never run as root and never see Android's system, other apps' data or Magisk. They do see what a Linux PC would: your Documents, Downloads, Pictures (DCIM), Videos and Music, external drives, USB CD/DVD/Blu-ray drives, and every mouse, keyboard, pen and gamepad Android knows.
+    - **Every Linux window an Android window:** our own Wayland window host inside the module. Each window is its own Android window with the app's name and icon, in the taskbar, Recents and Alt-Tab, opening on the monitor, with ZUI's window frame. Its picture goes straight from the GPU to the screen (SurfaceFlinger), never copied - for games too.
+    - **Graphics:** Mesa's Turnip (Vulkan) and Zink (OpenGL) straight on the Adreno GPU.
+    - **A Linux tab in the drawers,** beside ZUI's work tab, with All, Games, Accessories, Internet, Office, Graphics, Multimedia, Development, System and Settings.
+    - **On an external SSD or USB drive without formatting it:** Linux apps and games in a library file on the drive.
+    - **Later:** x86 programs and Steam through FEX-Emu; Windows games through Wine/Proton with DXVK and VKD3D-Proton.
+    - **Status:** planned in full; it starts once the current drawer and home screen work is confirmed. The first step checks the GPU and the kernel, and proves the GPU-to-screen path with a one-triangle test.
+14. **Android games' data on an external drive without formatting it:** a game's big `Android/obb` and `Android/data` folders moved to an SSD, mounted back in place before the game starts; the game will not start with the drive unplugged, so nothing is ever lost.
 
 The full list, with every step's status and what each fix was: [`docs/ROADMAP.md`](docs/ROADMAP.md).
 

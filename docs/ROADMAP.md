@@ -5,14 +5,15 @@ in a fresh session: it is the project's memory.
 
 **Goal:** the best desktop mode on Android, for the Lenovo Legion Tab Gen 5 on ZuxOS 2.x.
 
-**Where we are (2026-10-13, build 0.0.251): early alpha, experimental.** Builds are numbered 0.0.<commit count> from 0.0.214; earlier ones were 1.0.1-1.0.213 (the same count, so installing over them keeps every setting and folder). No public release until
+**Where we are (2026-10-14, build 0.0.268): early alpha, experimental.** Builds are numbered 0.0.<commit count> from 0.0.214; earlier ones were 1.0.1-1.0.213 (the same count, so installing over them keeps every setting and folder). No public release until
 it is fully stable on the owner's tablet. The current work is moving every feature onto ZUI's
 own code paths ("Through ZUI's own path" below), one at a time:
 - Tablet drawers (ZUX Home's and the taskbar's): our folders are ZUI's own `FolderIcon` and `Folder`, with ZUI's motion, menus, Add apps and Uninstall.
 - Tablet menus: ZUI's own app popup with our actions in it, and ZUI's compact popup for our own menus.
 - Tablet bar: pins and open apps in our own row. ZUI's bar items were tried in 1.0.193-1.0.198 and taken out: ZUI laid them over its keys and repeated them. Pinned folders there are ZUI's own folders (1.0.209).
 - Monitor: our desktop, drawer, bar, recents and menus as before, plus the touchscreen and pen tied to the monitor at every plug (1.0.201-1.0.203).
-- Next: drag and drop between the tablet's drawers, home screen and bar through ZUI's own drag (plan in "Through ZUI's own path" #2), then the monitor's folders as ZUI's; later native Linux (#24).
+- Drag and drop between the tablet's drawers, home screen and bar through ZUI's own drag: working (0.0.249-0.0.260); 0.0.261 adds ZUI's drop landing, smooth drags, bar folders to home, bigger home grids and the dock's band as home screen, awaiting test.
+- Next: the taskbar drawer's folders through ZUI's folder menu, then the monitor's folders as ZUI's; then native Linux (#24, planned in full) and app data on external drives (#25).
 
 ## Rules
 
