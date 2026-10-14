@@ -7,7 +7,6 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
 import android.os.UserHandle;
-import android.os.UserManager;
 import android.view.View;
 
 import com.zuxos.desktopplus.core.AppCtx;
@@ -1011,14 +1010,7 @@ public final class NativeDrawerHooks {
         if (sShape != null && sShape.user != null) {
             Object user = Mirror.get(sShape.user, entry);
             if (user instanceof UserHandle) {
-                try {
-                    UserManager um = (UserManager) ctx.getSystemService(Context.USER_SERVICE);
-                    if (um != null) {
-                        serial = um.getSerialNumberForUser((UserHandle) user);
-                    }
-                } catch (Throwable ignored) {
-                    // Fall through with the default profile.
-                }
+                serial = IconInfo.serialOf(ctx, (UserHandle) user);
             }
         }
         return component.getPackageName() + "/" + component.getClassName() + "#" + serial;

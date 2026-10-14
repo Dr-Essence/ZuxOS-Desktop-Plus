@@ -138,10 +138,7 @@ final class ZuiFolderHome {
                         + " of its apps can go on the home screen");
                 return false;
             }
-            Object info = Class.forName(FOLDER_INFO, false, loader).getConstructor()
-                    .newInstance();
-            info.getClass().getField("title").set(info,
-                    folder.label != null ? folder.label : "Folder");
+            Object info = folderInfo(loader, folder);
             // No pre-drag of ours: ZUI sets its folder menu as the drag's pre-drag itself.
             Object options = Class.forName(OPTIONS, false, loader).getConstructor().newInstance();
             Object workspace = Reflect.call(launcher, "getWorkspace");
@@ -169,6 +166,39 @@ final class ZuiFolderHome {
             L.w("zui folder home: not dragged (" + t + ")");
             return false;
         }
+    }
+
+    /**
+     * ZUI's new folder for one of ours on its way to the home screen from elsewhere - a folder
+     * pinned to the bar: ZUI places it, and its apps go in as for one from the drawer
+     * ({@link #fill}). Null where fewer than two of its apps can go on the home screen.
+     */
+    static Object forHome(Context home, Item folder) {
+        try {
+            List<Object> apps = ZuiFolders.homeApps(home, folder);
+            if (apps.size() < 2) {
+                L.i("zui folder home: " + folder.label + " not for the home screen - "
+                        + apps.size() + " of its apps can go there");
+                return null;
+            }
+            Object info = folderInfo(home.getClassLoader(), folder);
+            sDragged = info;
+            sFolder = folder;
+            sApps = apps;
+            sMade = null;
+            return info;
+        } catch (Throwable t) {
+            L.w("zui folder home: " + folder.label + " not made for the home screen (" + t + ")");
+            return null;
+        }
+    }
+
+    /** A new folder of ZUI's, named as ours. */
+    private static Object folderInfo(ClassLoader loader, Item folder) throws Exception {
+        Object info = Class.forName(FOLDER_INFO, false, loader).getConstructor().newInstance();
+        info.getClass().getField("title").set(info,
+                folder.label != null ? folder.label : "Folder");
+        return info;
     }
 
     /**

@@ -14,7 +14,6 @@ import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.core.Threads;
 import com.zuxos.desktopplus.core.Ui;
-import com.zuxos.desktopplus.core.motion.Motion;
 import com.zuxos.desktopplus.model.Item;
 
 import java.lang.reflect.Field;
@@ -325,60 +324,108 @@ final class DrawerRearrange {
             }
         }
 
+        private static boolean sSaidNoLanding;
+
+        private static void noLanding(String why) {
+            if (!sSaidNoLanding) {
+                sSaidNoLanding = true;
+                L.w("drawer rearrange: a drop lands at once - " + why);
+            }
+        }
+
         /**
-         * ZUI's dragged icon onto the cell it now has, or into the folder it went in; then the
-         * drag ends, as ZUI ends one whose drop animated ({@code DragView.remove},
-         * {@code callOnDragEnd}).
+         * ZUI's dragged icon onto the cell it now has, or into the folder it went in, by ZUI's own
+         * drop animation ({@code DragLayer.animateViewIntoPosition}, as ZUI's home screen lands a
+         * drop): it stops the picture's own animation, moves and scales it onto the icon, and at
+         * its end ZUI removes it and ends the drag ({@code clearAnimatedView} - the drag's
+         * {@code deferDragViewCleanupPostAnimation}). Animated by us instead, the picture never
+         * moved, and swapped for the cell in one frame (video 14:17, owner: "bigger with no
+         * animation"). Where ZUI's animation is not found, the drag ends at once.
          */
         private void land(View dragged, View cell, boolean into) {
             if (dragged == null) {
                 return;
             }
-            boolean[] done = new boolean[1];
             long start = android.os.SystemClock.uptimeMillis();
-            String expected = cell == null ? null : DrawerReorder.keyOfCell(cell);
-            Runnable finish = () -> {
-                if (done[0]) {
-                    return;
-                }
-                done[0] = true;
-                // Read-only trace for the flashing on a drop (owner, 22:53): whether the cell
-                // the icon lands on still shows what it showed when the flight began.
-                String now = cell == null ? null : DrawerReorder.keyOfCell(cell);
-                L.i("drawer rearrange: trace: the icon landed after "
-                        + (android.os.SystemClock.uptimeMillis() - start) + " ms"
-                        + (cell == null ? ", on no cell" : expected != null && expected.equals(now)
-                        ? ", its cell unchanged" : ", its cell re-bound from " + expected + " to "
-                        + now) + (into ? " (into a folder)" : ""));
-                Reflect.call(dragged, "remove");
+            Runnable shown = () -> {
                 if (cell != null && !into) {
                     cell.setAlpha(1f);
                 }
-                Reflect.call(controller, "callOnDragEnd");
+                L.d("drawer rearrange: the icon landed after "
+                        + (android.os.SystemClock.uptimeMillis() - start) + " ms"
+                        + (into ? ", into a folder" : ""));
             };
-            if (cell == null) {
-                finish.run();
+            View icon = cell == null ? null : iconIn(cell);
+            if (icon != null && zuiLanding(dragged, icon, into, shown)) {
                 return;
             }
-            int[] from = new int[2];
-            int[] to = new int[2];
-            dragged.getLocationOnScreen(from);
-            cell.getLocationOnScreen(to);
-            float fromX = from[0] + dragged.getWidth() * dragged.getScaleX() / 2f;
-            float fromY = from[1] + dragged.getHeight() * dragged.getScaleY() / 2f;
-            float icon = Math.min(cell.getWidth(), cell.getHeight());
-            float toX = to[0] + cell.getWidth() / 2f;
-            float toY = to[1] + icon / 2f;
-            float fit = icon * 0.72f / Math.max(1, dragged.getWidth());
-            float scale = into ? 0.35f : Math.max(0.5f, Math.min(1.5f, fit));
-            dragged.animate()
-                    .translationX(dragged.getTranslationX() + toX - fromX)
-                    .translationY(dragged.getTranslationY() + toY - fromY)
-                    .scaleX(scale).scaleY(scale).alpha(into ? 0f : 1f)
-                    .setDuration(Motion.SPRING_MS).setInterpolator(Motion.SPRING_FIRM)
-                    .withEndAction(finish).start();
-            // Never left hanging, whatever happens to the animation.
-            dragged.postDelayed(finish, Motion.SPRING_MS + 400L);
+            shown.run();
+            Reflect.call(dragged, "remove");
+            Reflect.call(controller, "callOnDragEnd");
+        }
+
+        /** ZUI's own landing onto {@code icon}; false where it cannot be had. */
+        private boolean zuiLanding(View dragged, View icon, boolean into, Runnable shown) {
+            try {
+                View layer = dragLayer();
+                java.lang.reflect.Method map = layer.getClass().getMethod(
+                        "getDescendantCoordRelativeToSelf", View.class, float[].class);
+                java.lang.reflect.Method animate = null;
+                for (java.lang.reflect.Method m : layer.getClass().getMethods()) {
+                    if (m.getName().equals("animateViewIntoPosition")
+                            && m.getParameterCount() == 10
+                            && m.getParameterTypes()[1] == int.class) {
+                        animate = m;
+                        break;
+                    }
+                }
+                Object blurValue = Reflect.call(dragged, "getBlurSizeOutline");
+                if (animate == null || !(blurValue instanceof Integer)) {
+                    noLanding("ZUI's drop animation not found");
+                    return false;
+                }
+                int blur = (Integer) blurValue;
+                float[] at = {0f, 0f};
+                float inLayer = (Float) map.invoke(layer, icon, at);
+                Rect bounds = new Rect();
+                Reflect.call(icon, "getWorkspaceVisualDragBounds", bounds);
+                if (bounds.isEmpty()) {
+                    bounds.set(0, 0, icon.getWidth(), icon.getHeight());
+                }
+                int width = dragged.getMeasuredWidth();
+                int height = dragged.getMeasuredHeight();
+                // As ZUI works out where a dropped icon goes (animateViewIntoPosition(DragView,
+                // View, ...)): the picture, less its outline, scaled onto the icon's own bounds.
+                float scale = bounds.width() / (float) Math.max(1, width - blur) * inLayer;
+                if (into) {
+                    scale *= 0.35f;
+                }
+                float left = at[0] + bounds.left * inLayer;
+                float top = at[1] + bounds.top * inLayer;
+                if (into) {
+                    // Into the folder's middle, small.
+                    left += bounds.width() * inLayer * (1f - 0.35f) / 2f;
+                    top += bounds.height() * inLayer * (1f - 0.35f) / 2f;
+                }
+                int x = Math.round(left - blur * scale / 2f - width * (1f - scale) / 2f);
+                int y = Math.round(top - blur * scale / 2f - height * (1f - scale) / 2f);
+                animate.invoke(layer, dragged, x, y, into ? 0f : 1f, scale, scale, shown, 0, -1,
+                        null);
+                return true;
+            } catch (Throwable t) {
+                noLanding(String.valueOf(t));
+                return false;
+            }
+        }
+
+        /** The icon drawn in a drawer cell: the app's own, or the folder icon in our cell. */
+        private View iconIn(View cell) {
+            if (ZuiFolders.folderOfIcon(cell) == null && cell instanceof ViewGroup
+                    && ((ViewGroup) cell).getChildCount() > 0
+                    && ZuiFolders.folderOfIcon(((ViewGroup) cell).getChildAt(0)) != null) {
+                return ((ViewGroup) cell).getChildAt(0);
+            }
+            return cell;
         }
 
         private static int intField(Object o, String name) {

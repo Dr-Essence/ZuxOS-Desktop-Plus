@@ -105,6 +105,15 @@ public final class Const {
     public static final String KEY_DRAWER_REARRANGE = "drawer_rearrange";
     /** An app off the taskbar - its drawer, or a pin on the tablet - lands on the home screen. */
     public static final String KEY_HOME_DROP = "home_drop";
+    /** ZUX Home's home grid: 0 ZUI's own, else one of {@code HomeGrids}' sizes. Start-only. */
+    public static final String KEY_HOME_GRID = "home_grid";
+    /**
+     * The home grids offered, as columns x rows; index 0 is ZUI's own. 7x5 is left out: ZUI
+     * treats exactly 7x5 as its work-mode grid.
+     */
+    public static final int[][] HOME_GRIDS = {null, {6, 5}, {8, 5}, {8, 6}, {10, 7}, {12, 8}};
+    /** The band ZUX Home keeps for its dock above the tablet's bar is home screen. Start-only. */
+    public static final String KEY_HOME_BAND = "home_band";
     /** ZUI's loader waits a second at most for an idle home screen before loading the app list. */
     public static final String KEY_LOADER_NO_WAIT = "loader_no_wait";
     /** Translucent glass behind the launcher's own app drawer. */

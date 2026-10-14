@@ -4,7 +4,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.graphics.drawable.Icon;
 import android.os.UserHandle;
-import android.os.UserManager;
 import android.view.Display;
 import android.view.View;
 
@@ -365,11 +364,6 @@ final class ZuiAppRows {
     }
 
     private static long serialOf(Context ctx, UserHandle user) {
-        try {
-            UserManager users = ctx.getSystemService(UserManager.class);
-            return users == null || user == null ? 0L : users.getSerialNumberForUser(user);
-        } catch (Throwable t) {
-            return 0L;
-        }
+        return IconInfo.serialOf(ctx, user);
     }
 }

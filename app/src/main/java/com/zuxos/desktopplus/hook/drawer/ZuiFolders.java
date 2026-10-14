@@ -1376,6 +1376,14 @@ public final class ZuiFolders {
         return item == null ? null : CHILDREN.get(item);
     }
 
+    /**
+     * ZUI's new folder for one of ours on its way to the home screen from the bar: placed by ZUI,
+     * filled with its apps as one from the drawer is. Null where it cannot go.
+     */
+    public static Object forHome(Context home, Item folder) {
+        return ZuiFolderHome.forHome(home, folder);
+    }
+
     /** Our folder behind one of ZUI's folder icons of ours, or null. */
     public static Item folderOfIcon(View view) {
         Object tag = view == null ? null : view.getTag();

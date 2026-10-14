@@ -142,10 +142,32 @@ public final class IconInfo {
                 label.isEmpty() ? pkg : label);
     }
 
-    private static long serialOf(Context ctx, UserHandle user) {
+    /** Each user's serial, asked of the system once: it never changes while the process lives. */
+    private static final java.util.Map<UserHandle, Long> SERIALS =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * The user's serial, as our items store it. Asked of the system ({@code UserManager}, a call
+     * into the system process) only the first time: the drawer names every entry on screen several
+     * times on each move of a drag, and asking each time held frames up to 47 ms (0.0.260's trace,
+     * 14:17).
+     */
+    public static long serialOf(Context ctx, UserHandle user) {
+        if (user == null) {
+            return 0L;
+        }
+        Long known = SERIALS.get(user);
+        if (known != null) {
+            return known;
+        }
         try {
             UserManager users = (UserManager) ctx.getSystemService(Context.USER_SERVICE);
-            return users == null ? 0L : users.getSerialNumberForUser(user);
+            if (users == null) {
+                return 0L;
+            }
+            long serial = users.getSerialNumberForUser(user);
+            SERIALS.put(user, serial);
+            return serial;
         } catch (Throwable t) {
             return 0L;
         }

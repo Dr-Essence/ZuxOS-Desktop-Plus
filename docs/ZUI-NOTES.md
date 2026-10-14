@@ -525,6 +525,45 @@ vendor power HAL's, not in these jars.
   `onDropCompleted(target, dragObject, success)`. With `DragOptions.simulatedDndStartPoint` set
   the drag is driven by `SystemDragDriver` from `DragController.onDragEvent`: LOCATION moves,
   DROP moves and ends, EXITED leaves the drop target, ENDED cancels.
+- ZUI lands a drop with `DragLayer.animateViewIntoPosition(DragView, x, y, alpha, scaleX,
+  scaleY, Runnable onDone, completion, duration, View anchor)` -> `animateView`, which first
+  cancels the `DragView`'s own animation and then runs its own animators (`View.SCALE_X/Y`,
+  `VIEW_TRANSLATE_X/Y`, alpha). With completion 0 its end is `clearAnimatedView()` ->
+  `DragController` removing the picture and, with `deferDragViewCleanupPostAnimation`,
+  `callOnDragEnd()`. The target of an icon is worked out in `animateViewIntoPosition(DragView,
+  View, int, View)`: `getDescendantCoordRelativeToSelf(view, pos)` gives the scale, the icon's
+  `getWorkspaceVisualDragBounds`, then scale = bounds width / (picture width -
+  `getBlurSizeOutline()`) x that scale, and x = pos + bounds.left x scale0 - blur x scale / 2 -
+  width x (1 - scale) / 2 (y the same). A `View.animate()` on the picture is not followed
+  (video 14:17, read 2026-10-14).
+- `UserManager.getSerialNumberForUser` is a call into the system process each time; a key made
+  per drawer cell per finger move made drags 17-47 ms of input per frame (0.0.260's frame
+  trace). A user's serial does not change while the process lives.
+
+## ZUX Home's home grid and its dock's band (read 2026-10-14)
+
+- A grid is one of the `<grid-option>`s of `res/xml-sw480dp/device_profiles.xml` (ZUI forces the
+  factory density, so the sw480 bucket): "6x4" (default), "5x4", "6x5" (`canBeShown=false`),
+  and the custom 7x5 of its work and desktop modes. Names are columns x rows. ZUI's home
+  settings (`ZuiLauncherFragment`) list `Utilities.queryGridOptions` (`GridCustomizationsProxy`
+  over `parseAllGridOptions`, the shown ones); a choice goes through
+  `GridCustomizationsProxy.update("/default_grid")` -> `IDP.setCurrentGrid` ->
+  `onConfigChanged`, kept in `SettingsValue` "current_layout_config_key".
+- A partner app may set the grid: `InvariantDeviceProfile.v(Context, DisplayMetrics)` reads
+  `Partner` "grid_num_rows"/"grid_num_columns" into the public `numRows`/`numColumns` before
+  any `DeviceProfile` is made. `HomeGrids` sets them after it. `CellLayout.onMeasure` sizes its
+  cells from its own size (`calculateCellWidth/Height`).
+- At load `GridSizeMigrationTask.migrateGridIfNeeded` compares `numColumns x numRows` (and the
+  hotseat count) with the size it saved and moves the items (`MultiStepMigrationTask`, one row
+  or column a step). Items that no longer fit go to new pages up to `getMaxPageCount()` (9);
+  past that they are removed. ZUI treats exactly 7x5 as its work-mode grid (`DeviceProfile`
+  :853, :2244).
+- The dock's band is `DeviceProfile.hotseatAreaHeight` = `hotseat_bar_height_pad` +
+  `launcherTaskBarOffset` (`L()` :801). `N(Context)` (the workspace padding) sets
+  `workspacePadding.bottom` from it; the page dots and scrim follow the padding. In
+  `Utilities.isUnlimitedWorkMode` (tablet desktop mode) `N` takes another path. No setting gives
+  the band up. A drop goes to the dock only when `ZuiHotseat.getCustomBoundsView()` is not null
+  (`Workspace.D1`, its only caller); ZUI's desktop mode has the dock stand aside for touches.
 
 ## Two USB-C ports: which one charges (`services.jar` 16)
 

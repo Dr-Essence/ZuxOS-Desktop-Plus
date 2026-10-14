@@ -285,7 +285,7 @@ public final class HotseatButton {
             }
             ViewGroup dock = (ViewGroup) view;
             if (Cfg.enabled() && ((Cfg.startButtonLeft() && showsNothing(dock))
-                    || appsOnTheBar(dock))) {
+                    || appsOnTheBar(dock) || HomeBand.active())) {
                 param.setResult(null);
                 if (!sSkipSaid) {
                     sSkipSaid = true;

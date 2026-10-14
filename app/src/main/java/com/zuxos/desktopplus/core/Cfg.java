@@ -522,6 +522,14 @@ public final class Cfg {
         return getBool(Const.KEY_HOME_DROP, true);
     }
 
+    public static int homeGrid() {
+        return getInt(Const.KEY_HOME_GRID, 0);
+    }
+
+    public static boolean homeBand() {
+        return getBool(Const.KEY_HOME_BAND, true);
+    }
+
     public static boolean loaderNoWait() {
         return getBool(Const.KEY_LOADER_NO_WAIT, true);
     }
