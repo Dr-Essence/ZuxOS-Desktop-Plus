@@ -104,6 +104,7 @@ policy, and where each of our hooks lands. Read it before hooking anything of ZU
 ## Talking to the owner
 
 - Keep answers short and plain.
+- Answer a question directly. Plan only before making a build, never for a plain question.
 - Say what was verified and what was not.
 - A fix is "shipped, awaiting test" until the owner confirms it on the device. Never call it
   confirmed before then.
