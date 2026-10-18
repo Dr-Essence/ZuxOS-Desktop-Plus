@@ -635,7 +635,7 @@ public final class TaskbarMenu {
         }
 
         /** With one of ZUI's own glyphs ({@code zuiGlyph}), or an icon of its own. */
-        Entry(String title, android.graphics.drawable.Drawable icon, boolean zuiGlyph,
+        public Entry(String title, android.graphics.drawable.Drawable icon, boolean zuiGlyph,
                 Runnable action) {
             this.title = title;
             this.icon = icon;

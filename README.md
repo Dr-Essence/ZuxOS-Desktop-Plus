@@ -42,7 +42,11 @@ The work now is making every feature run through ZUI's own code - its folders, m
 - **Monitor:** after a replug, its touchscreen and pen stay on the monitor.
 - **Home screen uses the dock's space:** the strip ZUX Home keeps for its dock above the taskbar is home screen.
 
-**New in 0.0.272, awaiting the owner's test:**
+**New in 0.0.274, awaiting the owner's test:**
+
+- **Drawer folders are held exactly like ZUI's home-screen folders:** no shrink under the finger, the same small lift when held, and in the taskbar's drawer ZUI's own Rename in the folder's menu.
+
+**New in 0.0.272 (built as 0.0.273), awaiting the owner's test:**
 
 - **ZUX Home no longer stops** when an app is dropped into a folder in the taskbar's drawer.
 - **A folder held in the taskbar's drawer** is picked up at its own size and sharp, not three times too big.
@@ -68,7 +72,6 @@ Also built and awaiting the owner's test: apps on the monitor never killed, no s
 
 **Known bugs, still open**
 
-- **Taskbar drawer:** holding a folder there shows our menu instead of ZUI's folder menu.
 - **Taskbar drawer:** a folder dragged to a new place may fly back instead of moving (waiting for a log).
 - **Window "..." menu on the wrong screen:** after a window has moved between screens (traced through SystemUI's window log).
 - **Bar at the top of the monitor:** the notification and quick-settings panels may not show when pressed (traced, waiting for a log).

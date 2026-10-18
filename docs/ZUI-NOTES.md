@@ -4,6 +4,13 @@ What ZUI's own apps do, read from the owner's firmware (decompiled 2026-10-09). 
 hooking anything of ZUI's. It records facts - class roles, settings keys, behaviour - never ZUI's
 code; the decompiled sources stay outside the repo.
 
+**Where the firmware is:** the owner's private repo `Tiimoo-debug/Test`. Its releases (tags `Test`
+and `Test1`) hold the APKs and jars as pulled from the tablet - ZUX Home is `default.apk` - and its
+`decompiled/` folder holds each one decompiled with jadx 1.5.1 (sources and text resources,
+2026-10-18). A new session clones that repo (or downloads a release asset through the GitHub API
+with the session's token) instead of asking the owner. It stays private: nothing of it is ever
+copied into this public repository.
+
 ## The apps
 
 | APK | Package | Version | What it is |
@@ -658,10 +665,10 @@ vendor power HAL's, not in these jars.
   the card (`b.onDrawShadow`). SystemUI's drop window (`DragAndDropController.onDrag`) hides its
   zones on leaving unless `mIsZuiSplit`, and shows them on entering (`DragLayout.show`).
 
-## The taskbar's drag, drawer taps and the controller (read 2026-10-17)
+## The taskbar's drag, drawer taps, folders held and the controller (read 2026-10-17/18)
 
-From the owner's crash reports and the excerpts kept from the 2026-10-15 decompile (the
-decompile itself went with a reset container, 2026-10-17).
+From the owner's crash reports, then checked against ZUX Home and `services.jar` decompiled again
+on 2026-10-18.
 
 - **The drop's spoken announcement:** `TaskbarDragController.startDrag` gives the drag a
   `DragViewStateAnnouncer` (field `stateAnnouncer` of `DropTarget.DragObject`) unless it is an
@@ -670,21 +677,35 @@ decompile itself went with a reset container, 2026-10-17).
   `Launcher.getLauncher` for the view's context: in the taskbar's windows that throws ("Cannot
   find BaseActivity in parent tree") and ZUX Home stops. ZUI never meets it - the taskbar's
   controller refuses folders as drop targets.
-- **The taskbar's drag size:** `TaskbarDragController.g` is the size of the icon being dragged,
-  set by `n0` to the icon's `getIconSize()`; `startDrag` gives its `TaskbarDragView` a growth of
+- **The taskbar's drag size:** `TaskbarDragController.g` is the size of the icon being dragged
+  (the taskbar profile's `iconSizePx` at first), set by `n0` to the icon's `getIconSize()`;
+  `startDrag` gives its `TaskbarDragView` a growth of
   `g` less the drag rect's width (`DragView`: from its start scale to
   `(width + growth) / width`). For an app the two are equal: no growth. Its flight back (`k0`)
   sizes the view by its whole width unless it is a `BubbleTextView` or `ActiveIconView`.
 - **Where an app icon takes a touch:** `BubbleTextView.onTouchEvent` lets a touch down go when
   `CheckLongPressHelper.isContentRect(Context, View, x, y)` says it is off the icon's content
-  (unless it is from a mouse or TalkBack is on); that area is worked out from the profile's
-  sizes (`iconSizePx`, folder spans), not from the icon as drawn.
+  (unless it is from a mouse or TalkBack is on). That area is a square of the home profile's
+  `iconSizePx` (`LauncherAppState...getDeviceProfile(context)`), centred at the view's top
+  padding - the name is never in it - for app icons, folders and app pairs alike, in the drawers
+  too, whatever size they draw their icons at.
+- **A folder held on the home screen:** no press of its own (`FolderIcon.onTouchEvent` only arms
+  the long press). `Workspace.beginDragShared` picks it up at its own scale (an app's at its
+  pressed scale), with ZUI's folder menu as the pre-drag (`FolderIcon.startLongPressAction` →
+  `PopupContainerWithArrow.showForIcon`, which asks for `Launcher.getLauncher`: ZUX Home's
+  window only); while the menu shows the picture grows by `pre_drag_view_scale`, 6 dp, in 150 ms
+  (`LauncherDragController.startDrag`).
+- **ZUI's folder menu:** Enlarge (`SystemShortcut.SWITCH_FOLDER`, not in desktop mode) and Rename
+  (`RENAME_FOLDER`). Rename closes the menu and after `config_popupOpenCloseDuration` (150 ms)
+  calls `Folder.animateOpen(true)`, the folder opening with its name ready to edit.
 - **The drawer's icon size:** `DeviceProfile.allAppsIconSizePx` (kept under its own name).
 - **A game controller's buttons** (Android's `Generic.kcm`, unchanged by ZUI as far as the logs
   show): A falls back to DPAD_CENTER, B to BACK, X to DEL, Y to SPACE, Start to DPAD_CENTER,
   Select to MENU, Home (`BUTTON_MODE`) to HOME; L1/R1/L2/R2 to nothing. A fallback is pressed only
-  when the app in front leaves the button unhandled. `PhoneWindowManager
-  .interceptKeyBeforeDispatching` answering -1 drops a key before any window sees it.
+  when the app in front leaves the button unhandled. ZUI's `PhoneWindowManager
+  .interceptKeyBeforeDispatching(IBinder, KeyEvent, int)` returns a `long`, -1 dropping the key
+  before any window sees it; ZUI adds a pass-through of its own after the key combinations
+  (`continueDispatchKeyByMotoPolicy`). Nothing in it treats a controller's buttons.
 
 ## ZUI's sidebar and its AI service (read 2026-10-15, from the owner's ANR traces)
 

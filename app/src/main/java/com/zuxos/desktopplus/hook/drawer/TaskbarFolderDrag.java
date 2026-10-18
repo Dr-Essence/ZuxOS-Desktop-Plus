@@ -104,13 +104,14 @@ final class TaskbarFolderDrag {
             // The size ZUI's drag takes the picture to be, as it sets it for an app's icon
             // (n0: getIconSize): its drag view grows by this less the picture's width
             // (startDrag). Left at the last app's size, a folder's picture grew by the
-            // difference - three times too big and blurred (owner's video, 15:13).
-            if (!setIconSize(controller, bounds.width())) {
+            // difference - three times too big and blurred (owner's video, 15:13). Set to the
+            // picture's width and ZUI's pre-drag growth: the lift ZUI's home screen gives a
+            // held folder while its menu shows (LauncherDragController: pre_drag_view_scale).
+            if (!setIconSize(controller, bounds.width() + preDragGrowth(ctx))) {
                 L.i("zui folders: " + folder.label + " not dragged - ZUI's drag size not found");
                 return false;
             }
-            FolderPress.pressedOff(icon);
-            // Picked up from its pressed size, as ZUI's drag of an app is (ZuiFolderHome).
+            // Picked up at the size shown, as ZUI's home folders are (ZuiFolderHome).
             ZuiFolderHome.holding(true);
             try {
                 begin.invoke(controller, picture, null, icon, at[0] + shift.x,
@@ -141,6 +142,13 @@ final class TaskbarFolderDrag {
             }
         }
         return null;
+    }
+
+    /** ZUI's growth of a held icon while its menu shows ({@code pre_drag_view_scale}), or 0. */
+    private static int preDragGrowth(Context ctx) {
+        int id = ctx.getResources().getIdentifier("pre_drag_view_scale", "dimen",
+                ctx.getPackageName());
+        return id != 0 ? ctx.getResources().getDimensionPixelSize(id) : 0;
     }
 
     /** ZUI's size of the icon being dragged ({@code TaskbarDragController.g}); false if absent. */

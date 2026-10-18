@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import com.zuxos.desktopplus.core.L;
+import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.core.Ui;
 import com.zuxos.desktopplus.desktop.DesktopHost;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarApps;
@@ -256,8 +257,11 @@ final class DrawerHold {
         int display = TaskbarTray.displayIdOf(source);
         List<TaskbarMenu.Entry> entries = new ArrayList<>();
         if (item.type == Item.TYPE_FOLDER) {
-            // ZUI's own folder icon opens with its own click; our entry with our window.
-            entries.add(new TaskbarMenu.Entry("Open folder", () -> {
+            // ZUI's own folder icon: ZUI's folder menu, Rename (its Enlarge never offered); our
+            // entry opens with our window.
+            TaskbarMenu.Entry rename = ZuiFolders.folderOfIcon(source) != null
+                    ? renameAsZui(source) : null;
+            entries.add(rename != null ? rename : new TaskbarMenu.Entry("Open folder", () -> {
                 if (ZuiFolders.folderOfIcon(source) != null) {
                     source.performClick();
                 } else {
@@ -281,6 +285,38 @@ final class DrawerHold {
             }));
         }
         return entries;
+    }
+
+    /**
+     * ZUI's Rename, as ZUI's folder menu offers it for its own folders
+     * ({@code SystemShortcut.RenameFolder}): ZUI's glyph and word, and its click - the menu goes
+     * and, after ZUI's popup time, the folder opens with its name ready to edit
+     * ({@code Folder.animateOpen(true)}). ZUI's own entry needs ZUX Home's activity, which the
+     * taskbar's drawer has none of. Null when ZUI's resources for it are not found.
+     */
+    private static TaskbarMenu.Entry renameAsZui(View icon) {
+        Context ctx = icon.getContext();
+        android.content.res.Resources res = ctx.getResources();
+        String pkg = ctx.getPackageName();
+        int title = res.getIdentifier("rename_folder_item_title", "string", pkg);
+        int glyph = res.getIdentifier("ic_rename_folder_icon", "drawable", pkg);
+        int popup = res.getIdentifier("config_popupOpenCloseDuration", "integer", pkg);
+        if (title == 0 || glyph == 0) {
+            return null;
+        }
+        long wait = popup != 0 ? res.getInteger(popup) : 0L;
+        return new TaskbarMenu.Entry(ctx.getString(title), ctx.getDrawable(glyph), true,
+                () -> icon.postDelayed(() -> {
+                    try {
+                        Object folder = icon.getClass().getMethod("getFolder").invoke(icon);
+                        if (!Boolean.TRUE.equals(Reflect.call(folder, "isOpen"))) {
+                            folder.getClass().getMethod("animateOpen", boolean.class)
+                                    .invoke(folder, true);
+                        }
+                    } catch (Throwable t) {
+                        L.w("drawer hold: ZUI's Rename did not open the folder (" + t + ")");
+                    }
+                }, wait));
     }
 
     /** A copy for the desktop, under an id of its own so the two never get confused. */

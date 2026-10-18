@@ -936,7 +936,6 @@ public final class NativeDrawerHooks {
             // without a drag (skipHotseatDrag).
             if (!TaskbarFolderDrag.start(view, folder)) {
                 IconPress.release(view);
-                FolderPress.pressedOff(view);
             }
             return true;
         } catch (Throwable t) {

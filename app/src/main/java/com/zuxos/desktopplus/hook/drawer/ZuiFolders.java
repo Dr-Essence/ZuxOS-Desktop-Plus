@@ -188,7 +188,6 @@ public final class ZuiFolders {
             hooked += hookHeldOut(loader);
             hooked += hookNoEnlarge(loader);
             hooked += hookDragPicture(loader);
-            hooked += FolderPress.install(icon);
             ZuiFolderWrites.install(loader);
             ZuiFolderAdd.install(loader, folder);
             hooked += ZuiFolderHome.install(loader);
@@ -267,8 +266,6 @@ public final class ZuiFolders {
             protected void beforeHookedMethod(MethodHookParam param) {
                 try {
                     Object view = Reflect.field(param.thisObject, "mView");
-                    // The picture is the folder at rest, not pressed (FolderPress).
-                    FolderPress.sDrawingPicture = true;
                     if (view instanceof View && folderOfIcon((View) view) != null
                             && ((View) view).getScaleX() != 1f) {
                         View icon = (View) view;
@@ -283,7 +280,6 @@ public final class ZuiFolders {
 
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
-                FolderPress.sDrawingPicture = false;
                 try {
                     float[] scale = sDragScale;
                     sDragScale = null;
@@ -868,11 +864,6 @@ public final class ZuiFolders {
      */
     private static void alignNow(View icon, boolean retry) {
         try {
-            if (!icon.isPressed()) {
-                // A press whose end never reached the icon - its touch taken by a drag or by
-                // the list - does not leave it drawn shrunk.
-                FolderPress.pressedOff(icon);
-            }
             ViewGroup list = icon.getParent() != null
                     && icon.getParent().getParent() instanceof ViewGroup
                     ? (ViewGroup) icon.getParent().getParent() : null;
