@@ -64,8 +64,8 @@ final class DrawerSession {
     private boolean mOutside;
     /** The drag from {@link #mInFolder} has no way to the home screen: not tried again. */
     private boolean mNoHome;
-    /** Our folder the drag went out of as a copy to the home screen, to be shown whole again. */
-    private Item mCopiedFrom;
+    /** The drag from {@link #mInFolder} went on to the home screen as a copy of the app. */
+    private boolean mCopiedOut;
     /** ZUI's folder opened under the drag, while it is a drop target of the drag; or null. */
     private Object mSprung;
     /** The sprung folder was put on the drag's targets by us, to come off at the end. */
@@ -276,8 +276,8 @@ final class DrawerSession {
      * ZUI's stand-in for our folder's app is no item of its home screen: dropped there it would be
      * written as a move of a row that does not exist. With the drawer's own entry for the app
      * ({@code AppInfo}) and the drawer as its source, ZUI copies the app onto the home screen as
-     * from its drawer, and our folder keeps it - shown whole again at the drag's end, ZUI's folder
-     * having taken it off its pages. False where the drawer's entry is not found.
+     * from its drawer, and our folder keeps it ({@link #end} shows it whole again). False where
+     * the drawer's entry is not found.
      */
     private boolean asDrawerDrag() {
         try {
@@ -293,7 +293,7 @@ final class DrawerSession {
             }
             setField(drag, "dragInfo", app);
             setField(drag, "dragSource", apps);
-            mCopiedFrom = ZuiFolders.folderOfZui(mInFolder);
+            mCopiedOut = true;
             ZuiFolders.closeOpenFolders();
             return true;
         } catch (Throwable t) {
@@ -554,8 +554,15 @@ final class DrawerSession {
             // The chosen apps went with it: choosing is over.
             DrawerSelect.end();
         }
-        if (mCopiedFrom != null) {
-            ZuiFolders.rebuild(mCopiedFrom);
+        Item from = mInFolder != null && (mLeftFolder || mCopiedOut)
+                ? ZuiFolders.folderOfZui(mInFolder) : null;
+        if (from != null) {
+            // ZUI's folder took the app off its pages as the drag began: wherever the app went
+            // - back into it on its icon, another folder, the bar, a copy on the home screen -
+            // the folder is shown again from our model. Left as ZUI had it, the app was missing
+            // until the taskbar's drawer was opened again, and for good in ZUX Home's drawer,
+            // which keeps its icons (owner on 0.0.277).
+            ZuiFolders.rebuild(from);
         }
         String filed = ZuiFolders.sLastFiled;
         ZuiFolders.sLastFiled = null;
@@ -566,7 +573,7 @@ final class DrawerSession {
                 : mInFolder != null && kept && mOutside ? "let go out of the drawer - back in"
                         + " its folder"
                 : mInFolder != null && kept ? "let go inside its folder, as ZUI places it"
-                : mCopiedFrom != null ? "on the home screen's side as a copy, as ZUI has it"
+                : mCopiedOut ? "on the home screen's side as a copy, as ZUI has it"
                 : kept ? "let go of nowhere in the drawer, or cancelled - no change"
                 : taskbar ? "gone on as ZUI's" : "on the home screen's side, as ZUI has it";
         L.i("drawer rearrange: the drag of " + key + " ended - " + outcome);

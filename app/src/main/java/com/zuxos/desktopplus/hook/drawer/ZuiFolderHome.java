@@ -70,7 +70,9 @@ final class ZuiFolderHome {
      * {@code DragView}: from the start scale to {@code (width + growth) / width}). Our drawer
      * folders are drawn larger than their picture (scaled to the drawer's icons,
      * {@code ZuiFolders.align}), so the end is taken relative to the size shown: without it the
-     * picture "grew" to about the size it had - no pickup (owner, 0.0.261).
+     * picture "grew" to about the size it had - no pickup (owner, 0.0.261). The growth is ZUI's
+     * 6 dp on the folder as shown, as on its home screen: multiplied by the shown scale, it was
+     * ×1.53 in portrait, a folder held "too big" (owner on 0.0.277).
      */
     private static int hookPickup(ClassLoader loader) {
         Class<?> view = Reflect.findClass("com.android.launcher3.dragndrop.DragView", loader);
@@ -88,8 +90,8 @@ final class ZuiFolderHome {
                     if (shown <= 1.01f) {
                         return;
                     }
-                    float endX = scaleField(param.thisObject, "g", shown);
-                    float endY = scaleField(param.thisObject, "D", shown);
+                    float endX = liftField(param.thisObject, "g", shown);
+                    float endY = liftField(param.thisObject, "D", shown);
                     if (!sSaidPickup) {
                         sSaidPickup = true;
                         L.i("zui folder home: a held folder picked up at x" + shown + " to x"
@@ -102,8 +104,11 @@ final class ZuiFolderHome {
         }).size();
     }
 
-    /** A float field of ZUI's drag picture multiplied by {@code by}; its new value. */
-    private static float scaleField(Object target, String name, float by) throws Exception {
+    /**
+     * An end scale of ZUI's drag picture, {@code 1 + growth}, made {@code shown + growth}; its
+     * new value.
+     */
+    private static float liftField(Object target, String name, float shown) throws Exception {
         for (Class<?> c = target.getClass(); c != null; c = c.getSuperclass()) {
             try {
                 Field f = c.getDeclaredField(name);
@@ -111,7 +116,7 @@ final class ZuiFolderHome {
                     continue;
                 }
                 f.setAccessible(true);
-                float value = f.getFloat(target) * by;
+                float value = shown + f.getFloat(target) - 1f;
                 f.setFloat(target, value);
                 return value;
             } catch (NoSuchFieldException e) {

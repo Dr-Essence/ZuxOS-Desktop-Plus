@@ -2,6 +2,13 @@ package com.zuxos.desktopplus.hook.drawer;
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.ColorFilter;
+import android.graphics.Paint;
+import android.graphics.Picture;
+import android.graphics.PixelFormat;
+import android.graphics.drawable.Drawable;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.View;
@@ -275,9 +282,11 @@ public final class ZuiFolders {
                     param.setResult(null);
                     Object info = folderInfoOf(param.thisObject);
                     Object id = info == null ? null : Reflect.field(info, "id");
-                    if (id instanceof Integer) {
+                    Object count = Reflect.call(param.thisObject, "getItemCount");
+                    if (id instanceof Integer && count instanceof Integer) {
                         int folderId = (Integer) id;
-                        MAIN.post(() -> breakUp(folderId));
+                        int zuiHas = (Integer) count;
+                        MAIN.post(() -> breakUp(folderId, zuiHas));
                     }
                 }
             }
@@ -301,13 +310,32 @@ public final class ZuiFolders {
         }
     }
 
-    /** Our folder behind a folder ZUI dissolved, broken into its apps where it still is one. */
-    private static void breakUp(int id) {
+    /**
+     * Our folder behind a folder ZUI dissolved, broken into its apps where it still is one - and
+     * only when ZUI's folder shows all the apps of ours ZUI has ({@code zuiHas}): with fewer, an
+     * app of it is out on a drag, which ends by showing the folder whole again
+     * ({@link DrawerSession}). An app taken out of a folder of two and let go on it again broke
+     * the folder that still held both (owner on 0.0.277, 19:18:04).
+     */
+    private static void breakUp(int id, int zuiHas) {
         Item folder = folderOfId(id);
         if (folder == null) {
             return;
         }
         String key = folder.key();
+        int known = 0;
+        for (Item child : folder.children) {
+            if (sFiled.containsKey(child.key())) {
+                known++;
+            }
+        }
+        if (zuiHas < known) {
+            if (SAID_KEPT.add(key)) {
+                L.i("zui folders: " + folder.label + " kept - ZUI's folder shows " + zuiHas
+                        + " of its " + known + " apps while one is dragged");
+            }
+            return;
+        }
         boolean broke = NativeDrawerHooks.rearrange("broke " + folder.label
                 + " - ZUI's folder of one app", (order, folders) ->
                 DrawerArrange.breakUp(order, folders, key));
@@ -329,6 +357,12 @@ public final class ZuiFolders {
      * folder overflowed the picture and its corners were cut square (owner, video 22:53). For
      * the drawing only, the icon is at scale 1; ZUI then reads the scale from the view
      * ({@code getScaleAndPosition}) and the dragged picture is as large as the folder shown.
+     *
+     * <p>Shown ×1.53 in portrait, that picture of the natural size was blurred (owner on 0.0.277).
+     * While the icon is still at 1, ZUI's own drawing of it ({@code drawDragView}) is drawn again
+     * at the shown scale, into a hardware bitmap as ZUI's {@code BitmapRenderer} makes it, and
+     * handed back at ZUI's size ({@link SharpPicture}): ZUI places and scales it as before, and it
+     * is drawn at full resolution.
      */
     private static int hookDragPicture(ClassLoader loader) {
         Class<?> provider = Reflect.findClass("com.android.launcher3.graphics.DragPreviewProvider",
@@ -361,6 +395,13 @@ public final class ZuiFolders {
                     sDragScale = null;
                     Object view = Reflect.field(param.thisObject, "mView");
                     if (scale != null && view instanceof View) {
+                        if (scale[0] > 1.01f && param.getResult() instanceof Drawable) {
+                            Drawable sharp = sharp(param.thisObject,
+                                    (Drawable) param.getResult(), scale[0]);
+                            if (sharp != null) {
+                                param.setResult(sharp);
+                            }
+                        }
                         ((View) view).setScaleX(scale[0]);
                         ((View) view).setScaleY(scale[1]);
                     }
@@ -369,6 +410,111 @@ public final class ZuiFolders {
                 }
             }
         }).size();
+    }
+
+    private static boolean sSaidBlurry;
+
+    /**
+     * ZUI's drag picture of a folder ({@code small}) drawn again {@code scale} times as large by
+     * ZUI's own {@code drawDragView}, at ZUI's size; null, and ZUI's kept, when it cannot be.
+     */
+    private static Drawable sharp(Object provider, Drawable small, float scale) {
+        try {
+            int w = small.getIntrinsicWidth();
+            int h = small.getIntrinsicHeight();
+            Method draw = drawDragView(provider.getClass());
+            if (w <= 0 || h <= 0 || draw == null) {
+                throw new IllegalStateException(draw == null ? "no drawDragView" : "no size");
+            }
+            int bigW = Math.round(w * scale);
+            int bigH = Math.round(h * scale);
+            Picture picture = new Picture();
+            Canvas canvas = picture.beginRecording(bigW, bigH);
+            canvas.scale((float) bigW / w, (float) bigH / h);
+            draw.invoke(provider, canvas, 1f);
+            picture.endRecording();
+            return new SharpPicture(Bitmap.createBitmap(picture), w, h);
+        } catch (Throwable t) {
+            if (!sSaidBlurry) {
+                sSaidBlurry = true;
+                L.w("zui folders: a held folder keeps ZUI's picture of its natural size (" + t
+                        + ")");
+            }
+            return null;
+        }
+    }
+
+    /** {@code DragPreviewProvider.drawDragView(Canvas, float)}, by name or else by its kind. */
+    private static Method drawDragView(Class<?> provider) {
+        Method byKind = null;
+        for (Class<?> c = provider; c != null && c != Object.class; c = c.getSuperclass()) {
+            for (Method m : c.getDeclaredMethods()) {
+                Class<?>[] types = m.getParameterTypes();
+                if (types.length == 2 && types[0] == Canvas.class && types[1] == float.class
+                        && m.getReturnType() == void.class) {
+                    if (m.getName().equals("drawDragView")) {
+                        m.setAccessible(true);
+                        return m;
+                    }
+                    if (byKind == null) {
+                        byKind = m;
+                    }
+                }
+            }
+        }
+        if (byKind != null) {
+            byKind.setAccessible(true);
+        }
+        return byKind;
+    }
+
+    /**
+     * A picture drawn large, at the size of ZUI's own: ZUI's drag view sizes and scales it as
+     * the picture it made, and the large bitmap is what reaches the screen.
+     */
+    private static final class SharpPicture extends Drawable {
+        private final Bitmap mBitmap;
+        private final int mWidth;
+        private final int mHeight;
+        private final Paint mPaint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
+
+        SharpPicture(Bitmap bitmap, int width, int height) {
+            mBitmap = bitmap;
+            mWidth = width;
+            mHeight = height;
+        }
+
+        @Override
+        public void draw(Canvas canvas) {
+            canvas.drawBitmap(mBitmap, null, getBounds(), mPaint);
+        }
+
+        @Override
+        public int getIntrinsicWidth() {
+            return mWidth;
+        }
+
+        @Override
+        public int getIntrinsicHeight() {
+            return mHeight;
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+            mPaint.setAlpha(alpha);
+            invalidateSelf();
+        }
+
+        @Override
+        public void setColorFilter(ColorFilter filter) {
+            mPaint.setColorFilter(filter);
+            invalidateSelf();
+        }
+
+        @Override
+        public int getOpacity() {
+            return PixelFormat.TRANSLUCENT;
+        }
     }
 
     /**
@@ -1812,7 +1958,10 @@ public final class ZuiFolders {
                     boolean.class);
             int shown = 0;
             for (Item app : filed) {
-                Object entry = NativeDrawerHooks.entryOf(app.key());
+                // From ZUI's app store as our folders' apps are: the drawer's own list leaves the
+                // apps in folders out, so once filed they were not found and not shown until the
+                // drawer was opened again ("0 shown", owner on 0.0.277, 19:18:31).
+                Object entry = sFiled.get(app.key());
                 Object made = entry == null ? null : entry.getClass()
                         .getMethod("makeWorkspaceItem", Context.class).invoke(entry, ctx);
                 Item child = null;
@@ -1840,7 +1989,7 @@ public final class ZuiFolders {
 
     /**
      * Our folder's ZUI icons made again from our model on the drawer's next pass: ZUI's folder
-     * took an app off its pages for a drag that went elsewhere as a copy, and our folder keeps it.
+     * took an app off its pages for a drag that left it, and our model says where the app is now.
      */
     static void rebuild(Item folder) {
         for (Map<String, Built> mine : BUILT.values()) {

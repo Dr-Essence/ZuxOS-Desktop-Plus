@@ -369,7 +369,7 @@ public final class Probe {
     /** The home screen's views that can paint things of their own beyond their children. */
     private static final String[] DRAWING_CLASSES = {
             "ScrimView", "PageIndicatorDots", "Workspace", "DragLayer", "ZuiHotseat",
-            "StaticBlurView"};
+            "StaticBlurView", "CellLayout"};
 
     /**
      * What the home screen's own painters hold to paint with: each Drawable field's name, class,
@@ -418,6 +418,9 @@ public final class Probe {
                             .append('\n');
                 }
             }
+            if (isCellLayout(v)) {
+                describeCells(sb, v);
+            }
             for (Class<?> c = v.getClass(); c != null && c != View.class; c = c.getSuperclass()) {
                 for (java.lang.reflect.Field f : c.getDeclaredFields()) {
                     if (java.lang.reflect.Modifier.isStatic(f.getModifiers())
@@ -448,6 +451,88 @@ public final class Probe {
             }
         }
         return sb.toString();
+    }
+
+    private static boolean isCellLayout(View v) {
+        for (Class<?> c = v.getClass(); c != null && c != View.class; c = c.getSuperclass()) {
+            if (c.getName().equals("com.android.launcher3.CellLayout")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * What a page of the home screen paints over its cells itself, with no view of its own
+     * ({@code CellLayout.onDraw}, {@code dispatchDraw}): its delegated cell drawings (a folder's
+     * accept ring, {@code PreviewBackground}), its folder leave-behind, and its drop outlines
+     * still showing - each with its cell, and what view stands there now. A translucent square
+     * left on the home screen and in recents where a folder had been (owner on 0.0.277, video
+     * 21:31:33) is none of the window's views. Read only, by the fields' kinds.
+     */
+    private static void describeCells(StringBuilder sb, View page) {
+        java.util.List<java.lang.reflect.Field> fields = new java.util.ArrayList<>();
+        for (Class<?> c = page.getClass(); c != null && c != ViewGroup.class;
+                c = c.getSuperclass()) {
+            for (java.lang.reflect.Field f : c.getDeclaredFields()) {
+                if (!java.lang.reflect.Modifier.isStatic(f.getModifiers())) {
+                    fields.add(f);
+                }
+            }
+        }
+        for (java.lang.reflect.Field f : fields) {
+            f.setAccessible(true);
+            Object value = Mirror.get(f, page);
+            if (value instanceof java.util.List) {
+                for (Object item : new java.util.ArrayList<>((java.util.List<?>) value)) {
+                    Object x = item == null ? null : Reflect.field(item, "mDelegateCellX");
+                    if (x != null) {
+                        sb.append("    drawn over a cell (").append(f.getName()).append("): ")
+                                .append(item.getClass().getName()).append(" at ")
+                                .append(cellOf(page, item)).append('\n');
+                    }
+                }
+            } else if (value != null && value.getClass().getName().endsWith(
+                    ".PreviewBackground")) {
+                sb.append("    leave-behind (").append(f.getName()).append(") at ")
+                        .append(cellOf(page, value)).append('\n');
+            } else if (value instanceof float[]) {
+                float[] alphas = (float[]) value;
+                for (int i = 0; i < alphas.length; i++) {
+                    if (alphas[i] > 0f) {
+                        sb.append("    outline ").append(f.getName()).append('[').append(i)
+                                .append("] showing, alpha ").append(alphas[i]).append('\n');
+                    }
+                }
+            } else if (value instanceof Object[] && f.getType().getComponentType() != null
+                    && f.getType().getComponentType().getName().endsWith("LayoutParams")) {
+                sb.append("    outline cells ").append(f.getName()).append(':');
+                for (Object outline : (Object[]) value) {
+                    sb.append(' ').append(outline == null ? "-"
+                            : Reflect.call(outline, "getCellX") + ","
+                            + Reflect.call(outline, "getCellY"));
+                }
+                sb.append('\n');
+            } else if (f.getType() == boolean.class) {
+                sb.append("    flag ").append(f.getName()).append(" = ").append(value)
+                        .append('\n');
+            }
+        }
+    }
+
+    /** A delegated drawing's cell, and the view that stands at it now. */
+    private static String cellOf(View page, Object drawing) {
+        Object x = Reflect.field(drawing, "mDelegateCellX");
+        Object y = Reflect.field(drawing, "mDelegateCellY");
+        if (!(x instanceof Integer) || !(y instanceof Integer) || (Integer) x < 0
+                || (Integer) y < 0) {
+            return x + "," + y + " (none)";
+        }
+        Object there = Reflect.call(page, "getChildAt", x, y);
+        Object tag = there instanceof View ? ((View) there).getTag() : null;
+        return x + "," + y + " under " + (there == null ? "no view"
+                : there.getClass().getSimpleName() + " " + (tag == null ? "untagged"
+                : tag.getClass().getSimpleName() + " " + Reflect.field(tag, "title")));
     }
 
     /**

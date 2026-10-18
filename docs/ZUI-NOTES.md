@@ -771,6 +771,38 @@ For 0.0.277, from the owner's log of 11:00 and ZUX Home 18.2.0.0375 decompiled.
 - **Item types:** `ItemInfo.itemType` 0 is an app; ZUI's stand-ins for our folders' apps
   (`makeWorkspaceItem`) have no id (-1), so `REMOVE_ITEM` is never offered for them.
 
+## A folder's app back in, the drag picture and what a home page draws itself (read 2026-10-18)
+
+For 0.0.278, from the owner's material on 0.0.277 (LSPosed zip 21:30:29, probe 21:31:01, videos
+21:24-21:31) and ZUX Home 18.2.0.0375 decompiled.
+
+- **An app back into the folder it came from:** `Folder.beginExternalDrag` adds an empty place
+  at the end and opens the folder - on ZUI's home screen the folder icon's open alarm does this
+  for the app's own folder too. `Folder.onDrop` with the folder itself as the drag's source puts
+  its own view (`t`, the one `onDragStart` took off its pages) back at the new rank (`p`).
+- **The drag picture:** `DragPreviewProvider.createDrawable` draws the view at its `scaleX`
+  through `drawDragView(Canvas, float)` (jadx shows `h`) into a hardware bitmap the size of
+  `getSourceVisualDragBounds` plus `blur_size_medium_outline` (and, for a folder that is not big,
+  `blur_size_medium_outline_folder_diff`), and returns it as a `FastBitmapDrawable`. `DragView`
+  puts it in an `ImageView` of its intrinsic size and scales itself; `getPreviewBitmap` goes
+  through `Utilities.drawableToBitmap`, which takes any `Drawable`. Nothing casts a folder's drag
+  picture: `Workspace` and `TaskbarDragController` look only at a `BubbleTextView`'s icon.
+- **Hardware bitmaps:** ZUI's icons are hardware bitmaps (`BitmapRenderer.USE_HARDWARE_BITMAP`),
+  which a software `Canvas` cannot draw. `PreviewItemManager.drawParams` catches the error, so a
+  folder drawn on a software canvas comes out as its background alone. ZUI draws its pictures
+  through a `Picture` (`BitmapRenderer.createHardwareBitmap`): its canvas records hardware bitmaps
+  (`onHwFeatureInSwMode`) and `Bitmap.createBitmap(Picture)` renders it on the GPU.
+- **What a home page draws itself**, with no view of its own:
+  - `CellLayout.onDraw`: its background; each `DelegatedCellDrawing` of its list (`j`,
+    `drawUnderItem`) at the drawing's `mDelegateCellX/Y`; its folder leave-behind
+    (`PreviewBackground` `k`, `drawLeaveBehind` in a translucent grey, `S`) while its
+    `mDelegateCellX` is 0 or more. `dispatchDraw` draws the drawings' `drawOverItem`.
+  - `visualizeGrid`, while flag `w` or `x` is set: the drop outlines (cells `o`, alphas `p`).
+  - A `PreviewBackground` joins the list as a folder's accept ring (`n`,
+    `addDelegatedCellDrawing`) and leaves it at rest (`m`). The leave-behind is set only in the
+    dock (`ShortcutAndWidgetContainer.drawFolderLeaveBehindForIcon`, container type 1).
+  - The probe lists all three for each page ("drawn over a cell", "leave-behind", "outline").
+
 ## ZUI's sidebar and its AI service (read 2026-10-15, from the owner's ANR traces)
 
 - `com.zui.freeform.sidebar` listens to every drag (`FloatingOnDragListener.onDrag`) and on its
@@ -850,6 +882,9 @@ Every class and method the module hooks by name is present in this version:
   boolean, int)`, `dragndrop.DragLayer.dispatchKeyEvent`,
   `taskbar.overlay.TaskbarOverlayDragLayer.dispatchKeyEvent`, `Workspace.onDragStart` and
   `onDragEnd` (the home screen to the bar).
+- 0.0.278: `graphics.DragPreviewProvider.drawDragView(Canvas, float)` called (by name, else by
+  its parameters) to draw a held drawer folder's picture at its shown size; `Folder.getItemCount`
+  read when ZUI asks to dissolve one of our folders.
 
 Class names like these survive ZUI's R8 pass; fields and most private methods are renamed in
 every build, which is why the module finds those by type and shape, not by name.

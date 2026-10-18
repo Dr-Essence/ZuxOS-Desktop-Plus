@@ -2,7 +2,10 @@ package com.zuxos.desktopplus.hook.taskbar;
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Picture;
 import android.graphics.Point;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Process;
 import android.os.UserHandle;
@@ -434,7 +437,10 @@ final class ZuiHomeDrop {
 
     /**
      * A folder pinned to the bar, for the home screen: ZUI's new folder for it, which ZUI fills
-     * once placed ({@code ZuiFolderHome.forHome}), dragged as the bar draws it.
+     * once placed ({@code ZuiFolderHome.forHome}), dragged as the bar draws it. Drawn as ZUI's
+     * {@code BitmapRenderer} draws, through a {@code Picture} into a hardware bitmap: ZUI's icons
+     * are hardware bitmaps, which a software canvas cannot draw (ZUI's folder skips them), and
+     * the folder was dragged as an empty box (owner on 0.0.277, video 21:26:27).
      */
     private static Object[] folderOf(View catcher, Item pin) {
         View icon = sPinView != null ? sPinView.get() : null;
@@ -446,11 +452,11 @@ final class ZuiHomeDrop {
         if (info == null) {
             return null;
         }
-        android.graphics.Bitmap picture = android.graphics.Bitmap.createBitmap(icon.getWidth(),
-                icon.getHeight(), android.graphics.Bitmap.Config.ARGB_8888);
-        icon.draw(new android.graphics.Canvas(picture));
-        return new Object[]{info, new android.graphics.drawable.BitmapDrawable(
-                icon.getResources(), picture)};
+        Picture picture = new Picture();
+        icon.draw(picture.beginRecording(icon.getWidth(), icon.getHeight()));
+        picture.endRecording();
+        return new Object[]{info, new BitmapDrawable(icon.getResources(),
+                Bitmap.createBitmap(picture))};
     }
 
     private static String name(Item pin) {

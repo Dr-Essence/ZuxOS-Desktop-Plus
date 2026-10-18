@@ -417,7 +417,9 @@ final class DrawerRearrange {
             DrawerSession session = new DrawerSession(false, launcher, (View) apps, (View) apps,
                     layer instanceof View ? (View) layer : (View) apps, (ViewGroup) grid,
                     controller, reorder, key, drag, display.getDisplayId());
-            if (Cfg.drawerFolderSpring() && inFolder == null) {
+            if (Cfg.drawerFolderSpring()) {
+                // From a folder too: rested on a folder, its own included, it opens to take the
+                // app, as on ZUI's home screen (FolderIcon's open alarm, beginExternalDrag).
                 reorder.springFolders(session::springOpen);
             }
             start(session, source.getClass().getClassLoader());
@@ -523,7 +525,7 @@ final class DrawerRearrange {
                     sheet instanceof View ? (View) sheet : apps, (View) layer, grid, controller,
                     reorder, key, drag, 0);
             session.folderDragged = ZuiFolders.folderOfIcon(original);
-            if (Cfg.drawerFolderSpring() && folder == null) {
+            if (Cfg.drawerFolderSpring()) {
                 reorder.springFolders(session::springOpen);
             }
             start(session, controller.getClass().getClassLoader());

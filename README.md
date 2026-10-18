@@ -22,7 +22,7 @@ mode along the way.
 | Launcher | `com.zui.launcher`, desktop activity `SecondaryDisplayLauncher` |
 | Needs | Root, LSPosed, and the module scoped to the home app |
 
-**Status (2026-10-15, build 0.0.270)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
+**Status (2026-10-18, build 0.0.278)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
 
 The work now is making every feature run through ZUI's own code - its folders, menus, drag, animations and grids - so it looks and moves like ZUI itself.
 
@@ -42,7 +42,14 @@ The work now is making every feature run through ZUI's own code - its folders, m
 - **Monitor:** after a replug, its touchscreen and pen stay on the monitor.
 - **Home screen uses the dock's space:** the strip ZUX Home keeps for its dock above the taskbar is home screen.
 
-**New in 0.0.277, awaiting the owner's test:**
+**New in 0.0.278, awaiting the owner's test:**
+
+- **An app dragged out of a drawer folder goes back in:** rest it on the folder and the folder opens to take it; let go on the folder's icon and it shows there at once, in both drawers.
+- **A folder held in portrait** is picked up sharp, at its own size with ZUI's small lift.
+- **A folder dragged from the taskbar to the home screen** looks like the folder, not an empty box.
+- **Several chosen apps dropped into a folder** all show in it at once.
+
+**New in 0.0.277** (confirmed by the owner, apart from the icon):
 
 - **Rearrange apps inside drawer folders** in both drawers: hold an app in an open folder and move it, as on ZUI's home screen. Dragged out, it goes to the drawer, the taskbar or (ZUX Home's drawer) the home screen.
 - **Drag apps and folders from the home screen onto the taskbar**: they are pinned where you let go and leave the home screen.
