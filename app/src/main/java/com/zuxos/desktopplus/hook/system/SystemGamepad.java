@@ -4,8 +4,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Process;
 import android.os.UserHandle;
 import android.view.InputDevice;
+import android.view.InputEvent;
 import android.view.KeyEvent;
 
 import com.zuxos.desktopplus.core.L;
@@ -38,6 +40,8 @@ public final class SystemGamepad {
 
     private static boolean sInstalled;
     private static Handler sHandler;
+    /** {@code InputEvent.getDisplayId}, looked up once; null if this build has none. */
+    private static Method sDisplayId;
     private static boolean sSaidKey;
     private static boolean sSaidHome;
     private static int sErrors;
@@ -65,6 +69,11 @@ public final class SystemGamepad {
                 L.i("system gamepad: the key policy's dispatch not found - the controller's"
                         + " Home button stays Android's");
                 return;
+            }
+            try {
+                sDisplayId = InputEvent.class.getMethod("getDisplayId");
+            } catch (Throwable t) {
+                // Every press goes to the tablet's screen.
             }
             HandlerThread thread = Threads.guarded(new HandlerThread("zux-gamepad"));
             thread.start();
@@ -121,10 +130,14 @@ public final class SystemGamepad {
         }
     };
 
-    /** The screen the key is for; the tablet's when Android does not say. */
+    /**
+     * The screen the key is for; the tablet's when Android does not say. Android's
+     * {@code InputEvent.getDisplayId} is not in the public SDK the module is built with.
+     */
     private static int displayOf(KeyEvent event) {
         try {
-            return Math.max(event.getDisplayId(), 0);
+            Object display = sDisplayId == null ? null : sDisplayId.invoke(event);
+            return display instanceof Integer ? Math.max((Integer) display, 0) : 0;
         } catch (Throwable t) {
             return 0;
         }
@@ -134,6 +147,22 @@ public final class SystemGamepad {
         int source = event.getSource();
         return (source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
                 || (source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK;
+    }
+
+    /**
+     * The user in front ({@code UserHandle.CURRENT}, not in the public SDK the module is built
+     * with); this process's own if it cannot be read.
+     */
+    private static UserHandle currentUser() {
+        try {
+            Object current = UserHandle.class.getField("CURRENT").get(null);
+            if (current instanceof UserHandle) {
+                return (UserHandle) current;
+            }
+        } catch (Throwable t) {
+            // This process's own below.
+        }
+        return Process.myUserHandle();
     }
 
     /** ZUX Home told to open or close its drawer. Our own thread. */
@@ -146,7 +175,7 @@ public final class SystemGamepad {
             Intent intent = new Intent(ACTION_DRAWER).setPackage(LAUNCHER)
                     .putExtra(EXTRA_DISPLAY, display)
                     .addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
-            ctx.sendBroadcastAsUser(intent, UserHandle.ALL);
+            ctx.sendBroadcastAsUser(intent, currentUser());
             if (!sSaidHome) {
                 sSaidHome = true;
                 L.i("system gamepad: Home pressed on a controller - ZUX Home told to toggle its"
