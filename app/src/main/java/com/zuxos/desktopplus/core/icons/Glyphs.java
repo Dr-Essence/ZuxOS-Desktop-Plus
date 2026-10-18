@@ -373,13 +373,17 @@ public final class Glyphs {
                 p.lineTo(17, 19);
                 return p;
             case TASKS:
-                // A window listing what runs: three rows, each with its dot.
-                p.addRoundRect(new RectF(4, 4, 20, 20), 2.5f, 2.5f, Path.Direction.CW);
-                for (float y : new float[]{8.5f, 12, 15.5f}) {
-                    p.addCircle(8, y, 0.9f, Path.Direction.CW);
-                    p.moveTo(11, y);
-                    p.lineTo(17, y);
-                }
+                // A task manager's sign: a window with the pulse of what runs in it. The rows
+                // with their dots it had looked like a note (owner).
+                p.addRoundRect(new RectF(3.5f, 4.5f, 20.5f, 19.5f), 2.5f, 2.5f,
+                        Path.Direction.CW);
+                p.moveTo(5.5f, 13);
+                p.lineTo(8.5f, 13);
+                p.lineTo(10.5f, 8.5f);
+                p.lineTo(13.5f, 16.5f);
+                p.lineTo(15.5f, 11.5f);
+                p.lineTo(16.5f, 13);
+                p.lineTo(18.5f, 13);
                 return p;
             case MAXIMIZE:
                 // A window grown to fill its frame, and the frame's top edge.

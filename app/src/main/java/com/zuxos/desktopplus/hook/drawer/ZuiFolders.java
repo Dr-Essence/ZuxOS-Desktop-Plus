@@ -16,7 +16,6 @@ import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.hook.IconInfo;
 import com.zuxos.desktopplus.hook.IconPress;
 import com.zuxos.desktopplus.hook.Mirror;
-import com.zuxos.desktopplus.hook.ZuiApps;
 import com.zuxos.desktopplus.hook.ZuiMenu;
 import com.zuxos.desktopplus.logic.DrawerArrange;
 import com.zuxos.desktopplus.model.DrawerStore;
@@ -185,7 +184,7 @@ public final class ZuiFolders {
             hooked += hookHomeContext(loader);
             hooked += hookBack(folder);
             hooked += hookDrawerClose(loader);
-            hooked += hookHeldOut(loader);
+            hooked += hookDissolve(folder);
             hooked += hookNoEnlarge(loader);
             hooked += hookDragPicture(loader);
             ZuiFolderWrites.install(loader);
@@ -244,6 +243,83 @@ public final class ZuiFolders {
 
     /** The scale of the folder icon being drawn for a drag, while it is drawn at 1. Main thread. */
     private static float[] sDragScale;
+
+    /**
+     * ZUI dissolving one of our folders breaks it in our model instead. ZUI dissolves a folder
+     * left with one app ({@code Folder.X0}, its delegate's {@code i}: the last app put in the
+     * folder's place on the home screen) when it is bound with one ({@code E0}), when one of two
+     * is dragged out ({@code W0}) or removed. For ours, the taskbar drawer's delegate does
+     * nothing and ZUI will not open a folder of one ({@code Folder.a1}): it stayed, one app,
+     * never opening (owner on 0.0.276); in ZUX Home's drawer the delegate ran ZUI's home-screen
+     * replace on it, its writes kept out of ZUI's database (10:59:16). For our folders ZUI's
+     * delegate is never asked: the folder's apps take its place in the drawer
+     * ({@link DrawerArrange#breakUp}), after ZUI's call is done.
+     */
+    private static int hookDissolve(Class<?> folderCls) {
+        Method dissolve = null;
+        for (Method m : folderCls.getDeclaredMethods()) {
+            if (m.getName().equals("X0") && m.getParameterCount() == 1
+                    && m.getParameterTypes()[0] == boolean.class) {
+                dissolve = m;
+            }
+        }
+        if (dissolve == null) {
+            L.w("zui folders: ZUI's dissolve of a folder (X0) not found - a folder left with one"
+                    + " app breaks when the drawer is next loaded");
+            return 0;
+        }
+        XposedBridge.hookMethod(dissolve, new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                if (isOurs(param.thisObject)) {
+                    param.setResult(null);
+                    Object info = folderInfoOf(param.thisObject);
+                    Object id = info == null ? null : Reflect.field(info, "id");
+                    if (id instanceof Integer) {
+                        int folderId = (Integer) id;
+                        MAIN.post(() -> breakUp(folderId));
+                    }
+                }
+            }
+        });
+        return 1;
+    }
+
+    /** Our folder behind one of ZUI's folders, or null. */
+    static Item folderOfZui(Object zuiFolder) {
+        Object info = folderInfoOf(zuiFolder);
+        Object id = info == null ? null : Reflect.field(info, "id");
+        return id instanceof Integer && (Integer) id <= ID_BASE ? folderOfId((Integer) id) : null;
+    }
+
+    /** ZUI's {@code FolderInfo} of a folder of ZUI's, or null. */
+    private static Object folderInfoOf(Object folder) {
+        try {
+            return folder == null ? null : sFolderInfo.get(folder);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** Our folder behind a folder ZUI dissolved, broken into its apps where it still is one. */
+    private static void breakUp(int id) {
+        Item folder = folderOfId(id);
+        if (folder == null) {
+            return;
+        }
+        String key = folder.key();
+        boolean broke = NativeDrawerHooks.rearrange("broke " + folder.label
+                + " - ZUI's folder of one app", (order, folders) ->
+                DrawerArrange.breakUp(order, folders, key));
+        if (broke) {
+            closeOpenFolders();
+        } else if (SAID_KEPT.add(key)) {
+            // Already taken apart by the drop that emptied it, or a folder of the bar.
+            L.d("zui folders: " + folder.label + " not broken - not a folder of the drawer now");
+        }
+    }
+
+    private static final java.util.Set<String> SAID_KEPT = new java.util.HashSet<>();
 
     /**
      * The picture ZUI drags of one of our drawer folders is drawn at its natural size, with its
@@ -985,11 +1061,23 @@ public final class ZuiFolders {
                 icon.getContext().getPackageName());
         View view = id != 0 ? icon.findViewById(id) : null;
         if (!(view instanceof android.widget.TextView) || icon.getWidth() <= 0 || scale <= 0f) {
+            if (!(view instanceof android.widget.TextView)) {
+                traceName(icon, view == null ? "no name found" : "its name a "
+                        + view.getClass().getSimpleName());
+            }
             return;
         }
         android.widget.TextView name = (android.widget.TextView) view;
         int width = Math.round(icon.getWidth() / scale);
         ViewGroup.LayoutParams lp = name.getLayoutParams();
+        if (!(lp instanceof FrameLayout.LayoutParams)) {
+            traceName(icon, "its name's place is " + lp);
+        } else if (name.isLaidOut() && !name.isLayoutRequested() && lp.width == width
+                && Math.abs(name.getWidth() - width) > 2) {
+            traceName(icon, "its name laid out " + name.getWidth() + "x" + name.getHeight()
+                    + " for " + width + " (text " + name.getTextSize() + " px, "
+                    + name.getMaxLines() + " line(s))");
+        }
         if (lp instanceof FrameLayout.LayoutParams && lp.width != width) {
             FrameLayout.LayoutParams frame = (FrameLayout.LayoutParams) lp;
             frame.width = width;
@@ -1009,6 +1097,22 @@ public final class ZuiFolders {
         }
         if (name.getEllipsize() != drawer.ellipsize) {
             name.setEllipsize(drawer.ellipsize);
+        }
+    }
+
+    /** What the name trace has said, by orientation and what it saw. */
+    private static final java.util.Set<String> SAID_NAME = new java.util.HashSet<>();
+
+    /**
+     * Read-only: a folder whose name could not be fitted. Three of ZUX Home's drawer folders kept
+     * ZUI's home-size name (probe 11:00:38: 334x53 beside the others' 284x40) though they were
+     * aligned; what the probe cannot show is said here, once per orientation and kind.
+     */
+    private static void traceName(View icon, String what) {
+        String said = icon.getResources().getConfiguration().orientation + ":"
+                + what.substring(0, Math.min(14, what.length()));
+        if (SAID_NAME.size() < 6 && SAID_NAME.add(said)) {
+            L.i("zui folders: trace: a folder's name not fitted - " + what);
         }
     }
 
@@ -1372,10 +1476,11 @@ public final class ZuiFolders {
     }
 
     /**
-     * An app held inside one of our folders: what ZUI's drawer does with a hold on its own apps
-     * - its popup, and its drag once the finger moves - in either drawer. On ZUX Home without
-     * the drag (only the popup, {@code LauncherCustom.skipHotseatDrag}) when the drawer's drag
-     * is switched off.
+     * An app held inside one of our folders: its popup, and its drag once the finger moves. In
+     * ZUX Home's drawer that is ZUI's own hold on a home-screen folder's app, the folder the
+     * drag's source; in the taskbar's drawer, ZUI's drawer hold, the folder made the source
+     * ({@link DrawerRearrange}). On ZUX Home without the drag (only the popup,
+     * {@code LauncherCustom.skipHotseatDrag}) when the drawer's drag is switched off.
      */
     private static boolean holdInside(Object folder, View view) {
         try {
@@ -1384,8 +1489,13 @@ public final class ZuiFolders {
             }
             Context ctx = view.getContext();
             Object activity = lookup(ctx);
-            if (isLauncher(activity) && Cfg.drawerDrag() && holdAsDrawerApp(activity, view)) {
-                return true;
+            if (isLauncher(activity) && Cfg.drawerDrag()) {
+                // ZUI's own hold on a home-screen folder's app (Folder.onLongClick): its popup,
+                // then its drag with the folder as the source, which rearranges inside the
+                // folder; out of it the drawer takes the drag (DrawerRearrange). Made a drag of
+                // the drawer's entry instead, the folder shut as it started and nothing could be
+                // moved inside it (owner on 0.0.276).
+                return false;
             }
             if (isLauncher(activity)) {
                 Class.forName(POPUP, false, ctx.getClassLoader())
@@ -1406,80 +1516,6 @@ public final class ZuiFolders {
             L.d("zui folders: no popup inside our folder (" + t + ")");
             return false;
         }
-    }
-
-    /**
-     * ZUX Home's own drawer hold ({@code getAllAppsItemLongClickListener}: popup, then
-     * {@code Workspace.beginDragShared} as the finger moves) on an app in one of our folders,
-     * with the drawer's own entry for that app as what it holds and drags: ZUI's stand-in item
-     * for our folder's app is no item of its home screen, and dropped there it would be written
-     * as a move of a row that does not exist. With the drawer's entry ZUI copies the app onto
-     * the home screen, as from its drawer, and our folder keeps it. Our folder's rows stay in the
-     * popup: the entry is ours for as long as the hold is being handled.
-     *
-     * <p>ZUI's hold answers false even when it took the hold ({@code ItemLongClickListener}
-     * returns false after {@code beginDragShared}); whether its drag is waiting on the finger
-     * says whether it did. Our folder is shut once the drag is under way, as ZUI's drawer is.
-     */
-    private static boolean holdAsDrawerApp(Object launcher, View view) {
-        Object stand = view.getTag();
-        Item child = childOf(stand);
-        if (child == null || child.pkg == null || child.cls == null) {
-            return false;
-        }
-        Object app = ZuiApps.appInfo(launcher, new ComponentName(child.pkg, child.cls),
-                IconInfo.userOf(stand));
-        Object hold = Reflect.call(launcher, "getAllAppsItemLongClickListener");
-        Object drags = Reflect.call(launcher, "getDragController");
-        if (app == null || drags == null || !(hold instanceof View.OnLongClickListener)) {
-            return false;
-        }
-        noteChild(app, child);
-        view.setTag(app);
-        try {
-            ((View.OnLongClickListener) hold).onLongClick(view);
-        } finally {
-            view.setTag(stand);
-            CHILDREN.remove(app);
-        }
-        boolean took = Boolean.TRUE.equals(Reflect.call(drags, "isDragging"));
-        sHeldOut = took;
-        if (!took) {
-            L.i("zui folders: ZUI's drawer did not take the hold on " + child.pkg);
-        }
-        return took;
-    }
-
-    /** ZUI's drag of an app out of one of our folders is waiting on the finger or under way. */
-    private static boolean sHeldOut;
-
-    /**
-     * Our folder shuts as the drag out of it starts, as ZUI's drawer closes for its own: the home
-     * screen opens to take it ({@code Workspace.onDragStart}), and the folder would stay over it.
-     */
-    private static int hookHeldOut(ClassLoader loader) {
-        Class<?> workspace = Reflect.findClass("com.android.launcher3.Workspace", loader);
-        if (workspace == null) {
-            L.w("zui folders: ZUI's home screen not found - a folder stays open over a drag");
-            return 0;
-        }
-        int hooked = XposedBridge.hookAllMethods(workspace, "onDragStart", new XC_MethodHook() {
-            @Override
-            protected void afterHookedMethod(MethodHookParam param) {
-                if (sHeldOut) {
-                    sHeldOut = false;
-                    closeOpenFolders();
-                }
-            }
-        }).size();
-        hooked += XposedBridge.hookAllMethods(workspace, "onDragEnd", new XC_MethodHook() {
-            @Override
-            protected void afterHookedMethod(MethodHookParam param) {
-                // Let go before it moved: only the popup was shown, and the folder stays.
-                sHeldOut = false;
-            }
-        }).size();
-        return hooked;
     }
 
     // --- our model ---------------------------------------------------------
@@ -1800,6 +1836,20 @@ public final class ZuiFolders {
             L.w("zui folders: the chosen apps not filed with the dropped one (" + t + ")");
             return 0;
         }
+    }
+
+    /**
+     * Our folder's ZUI icons made again from our model on the drawer's next pass: ZUI's folder
+     * took an app off its pages for a drag that went elsewhere as a copy, and our folder keeps it.
+     */
+    static void rebuild(Item folder) {
+        for (Map<String, Built> mine : BUILT.values()) {
+            Built built = mine.get(folder.id);
+            if (built != null) {
+                built.content = "";
+            }
+        }
+        NativeDrawerHooks.refreshList();
     }
 
     /** Our folder's ZUI icons are kept as they are for its new contents: ZUI shows them already. */

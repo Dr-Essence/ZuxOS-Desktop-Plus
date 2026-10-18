@@ -114,10 +114,12 @@ public final class DrawerStore {
                     mHidden.add(hidden.getString(i));
                 }
             }
-            // 0.0.269 saved each app of a folder again every time ZUI bound it: the copies go.
-            int copies = com.zuxos.desktopplus.logic.DrawerArrange.dedupe(mFolders);
-            if (copies > 0) {
-                L.i("drawer: " + copies + " repeated app(s) taken out of the folders");
+            // 0.0.269 saved each app of a folder again every time ZUI bound it: the copies go,
+            // and a folder they leave with one app gives its place to it - kept, it showed one
+            // app and ZUI would not open it (owner on 0.0.276).
+            int tidied = com.zuxos.desktopplus.logic.DrawerArrange.dedupe(mOrder, mFolders);
+            if (tidied > 0) {
+                L.i("drawer: " + tidied + " repeated app(s) or one-app folder(s) tidied");
                 save();
             }
         } catch (Throwable t) {

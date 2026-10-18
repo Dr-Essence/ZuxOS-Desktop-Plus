@@ -250,6 +250,10 @@ public final class NativeDrawerHooks {
             }
             DrawerStore store = store(ctx);
             Set<String> filed = store.keysInFolders();
+            Map<String, Object> inStore = storeAppsByKey(ctx, appsList, filed);
+            if (inStore != null && forgetUninstalled(ctx, store, filed, inStore.keySet())) {
+                filed = store.keysInFolders();
+            }
             Set<String> hidden = store.hidden();
             if (filed.isEmpty() && hidden.isEmpty() && store.order().isEmpty()
                     && store.folders().isEmpty()) {
@@ -276,7 +280,7 @@ public final class NativeDrawerHooks {
                 }
                 kept.add(app);
             }
-            ZuiFolders.remember(storeAppsByKey(ctx, appsList, filed));
+            ZuiFolders.remember(inStore);
             if (kept.isEmpty()) {
                 note("refusing to empty the drawer - no entries survived filtering");
                 return false;
@@ -300,6 +304,41 @@ public final class NativeDrawerHooks {
             L.e("native drawer: rewriting the app list failed", t);
             return false;
         }
+    }
+
+    /**
+     * Apps uninstalled while in our folders leave them: a folder left with one app gives its place
+     * to it, one left with none goes ({@link DrawerArrange#forget}). Kept, the folder showed fewer
+     * apps than it held - one, which ZUI will not open, or none, an empty cell. Only apps of the
+     * tablet's own user that ZUI's app store does not have are asked about, and only the package
+     * manager's word that the package is not installed counts: one missing for a moment stays.
+     */
+    private static boolean forgetUninstalled(Context ctx, DrawerStore store, Set<String> filed,
+            Set<String> inStore) {
+        Set<String> gone = new java.util.HashSet<>();
+        android.content.pm.PackageManager pm = null;
+        for (String key : filed) {
+            Item app = inStore.contains(key) || !key.endsWith("#0") ? null
+                    : DrawerArrange.appOf(key, null);
+            if (app == null) {
+                continue;
+            }
+            if (pm == null) {
+                pm = ctx.getPackageManager();
+            }
+            try {
+                pm.getApplicationInfo(app.pkg, 0);
+            } catch (android.content.pm.PackageManager.NameNotFoundException uninstalled) {
+                gone.add(key);
+            }
+        }
+        if (gone.isEmpty()) {
+            return false;
+        }
+        int removed = DrawerArrange.forget(store.order(), store.folders(), gone);
+        store.save();
+        L.i("native drawer: " + removed + " uninstalled app(s) taken out of the folders");
+        return removed > 0;
     }
 
     /**

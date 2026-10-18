@@ -219,6 +219,11 @@ public class MainActivity extends Activity {
                         + "dragged off the tablet's taskbar moves there. The drawer needs System "
                         + "UI ticked in LSPosed",
                 Const.KEY_HOME_DROP, true);
+        addSwitch("Drag from the home screen to the taskbar",
+                "An app or a folder of apps dragged from ZUI's home screen and let go on the "
+                        + "taskbar is pinned there and leaves the home screen, as ZUI's own dock "
+                        + "takes it",
+                Const.KEY_HOME_TO_BAR, true);
         addSwitch("Drag a drawer folder to the home screen",
                 "In ZUX Home's drawer, hold one of our folders and move your finger: it lands on "
                         + "the home screen as ZUI's own folder with its apps; the drawer keeps it",
@@ -257,6 +262,11 @@ public class MainActivity extends Activity {
                         + "from Android, which otherwise goes home with it. Applies after a "
                         + "restart of the tablet",
                 Const.KEY_GAMEPAD_DRAWER, true);
+        addSwitch("Game controller's Triangle opens menus",
+                "In the drawers, Triangle opens the menu of the app or folder the controller is "
+                        + "on, as a hold does; in any menu the D-pad moves between its rows and "
+                        + "stays in it, A picks a row and B closes it",
+                Const.KEY_GAMEPAD_MENUS, true);
         addSwitch("Navigation keys at the bar's right edge",
                 "On the tablet the back, home and recents keys sit flush with the bar's right "
                         + "edge; ZUI's room there comes back while it has a button to show in it",

@@ -26,7 +26,8 @@ import de.robv.android.xposed.XposedBridge;
  * - and a drop target of ours ({@link DrawerSession}, on ZUI's own drag controller, asked before
  * the home screen) rearranges the drawer under the finger ({@link DrawerReorder}). Carried up past
  * the drawer's grid the drag goes on to the home screen through ZUI's own step; carried over the
- * taskbar it is pinned there.
+ * taskbar it is pinned there. An app held in one of our open folders is ZUI's own folder drag,
+ * kept the same way, the folder asked first so that it rearranges itself.
  *
  * <p><b>The taskbar's drawer.</b> ZUI turns a drag there into a system drag - the floating window
  * and split screen - as soon as it starts ({@code TaskbarDragController.callOnDragStart}), unless
@@ -54,6 +55,13 @@ final class DrawerRearrange {
     private static Object sKeeping;
     /** Our open folder the drag being kept starts in, or null. */
     private static Object sKeepingFolder;
+    /**
+     * The taskbar drawer's context whose open folder of ours stays open as the drag being kept
+     * starts in it; null at any other time.
+     */
+    private static Object sKeepOpenIn;
+    /** ZUI's {@code AbstractFloatingView.TYPE_FOLDER}. */
+    private static int sTypeFolder = 1;
     /**
      * The taskbar drawer's controller told to keep a drag of our folder with no session for it:
      * ZUI's system drag takes apps only ({@code o0}), so the folder stays in the drawer and is
@@ -102,8 +110,8 @@ final class DrawerRearrange {
                             || param.args.length == 0) {
                         return;
                     }
-                    if (param.args[0] == sSpringLoaded
-                            || (param.args[0] == sNormal && session.folderOpened)) {
+                    if (param.args[0] == sSpringLoaded || (param.args[0] == sNormal
+                            && (session.folderOpened || session.inFolder()))) {
                         // The drawer keeps this drag: the home screen does not open for it, and
                         // a drop in the drawer's folder does not close the drawer.
                         param.setResult(null);
@@ -149,12 +157,14 @@ final class DrawerRearrange {
 
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
+                            sKeepOpenIn = null;
                             if (sKeeping == param.thisObject) {
                                 sKeeping = null;
                                 beginTaskbar(param.thisObject);
                             }
                         }
                     }).size();
+            hooked += hookKeepFolderOpen(loader);
             Class<?> folder = Reflect.findClass("com.android.launcher3.folder.Folder", loader);
             if (folder != null) {
                 hooked += XposedBridge.hookAllMethods(folder, "onDrop", new XC_MethodHook() {
@@ -191,6 +201,55 @@ final class DrawerRearrange {
             L.w("drawer rearrange: the taskbar drawer's drags stay ZUI's (" + t + ")");
             return 0;
         }
+    }
+
+    /**
+     * A drag starting inside our open folder in the taskbar's drawer leaves the folder open, as
+     * one inside ZUI's home-screen folders does. Kept in the drawer ({@code setDisallowGlobalDrag},
+     * ours), ZUI's {@code TaskbarDragController.callOnDragStart} closes every open view of the
+     * drawer's window but the drawer itself ({@code closeAllOpenViewsExcept(context,
+     * TYPE_TASKBAR_ALL_APPS)}): our folder closed under the finger as the app was picked up, and
+     * nothing could be moved inside it (owner on 0.0.276; "left its folder" in the log the moment
+     * the drag began, 10:59:59). For that one start ZUI is told to keep folders too; its popup
+     * still gives way to the drag.
+     */
+    private static int hookKeepFolderOpen(ClassLoader loader) {
+        Class<?> floating = Reflect.findClass("com.android.launcher3.AbstractFloatingView",
+                loader);
+        if (floating == null) {
+            L.w("drawer rearrange: ZUI's open views not found - a drag in a taskbar drawer"
+                    + " folder closes it");
+            return 0;
+        }
+        try {
+            sTypeFolder = floating.getField("TYPE_FOLDER").getInt(null);
+        } catch (Throwable t) {
+            L.d("drawer rearrange: ZUI's folder type read as 1 (" + t + ")");
+        }
+        int hooked = 0;
+        for (Method m : floating.getDeclaredMethods()) {
+            Class<?>[] p = m.getParameterTypes();
+            // The two-argument form calls this one.
+            if (m.getName().equals("closeAllOpenViewsExcept") && p.length == 3
+                    && p[1] == boolean.class && p[2] == int.class) {
+                XposedBridge.hookMethod(m, new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) {
+                        Object keep = sKeepOpenIn;
+                        if (keep != null && param.args[0] == keep
+                                && param.args[2] instanceof Integer) {
+                            param.args[2] = (Integer) param.args[2] | sTypeFolder;
+                        }
+                    }
+                });
+                hooked++;
+            }
+        }
+        if (hooked == 0) {
+            L.w("drawer rearrange: ZUI's closeAllOpenViewsExcept not found - a drag in a taskbar"
+                    + " drawer folder closes it");
+        }
+        return hooked;
     }
 
     private static boolean sSaidQuiet;
@@ -310,14 +369,19 @@ final class DrawerRearrange {
             // made, which may be the monitor's.
             Object launcher = ZuiFolders.lookup(((View) source).getContext());
             Object apps = Reflect.call(launcher, "getAppsView");
-            if (apps != source) {
+            // An app held in our open folder of the drawer: ZUI's own folder drag, the folder
+            // its source, kept in the drawer as the drawer's own are (ZuiFolders.holdInside).
+            Object inFolder = apps != source && ZuiFolders.isOurs(source)
+                    && Boolean.TRUE.equals(Reflect.call(source, "isOpen")) ? source : null;
+            if (apps != source && inFolder == null) {
                 // A drag from anywhere but ZUX Home's drawer: not ours to keep, nothing to say.
                 return;
             }
             android.view.Display display = ((View) source).getDisplay();
             Object info = Reflect.field(drag, "dragInfo");
-            Item folder = ZuiFolderHome.folderDragged(info);
-            String key = folder != null ? folder.key() : NativeDrawerHooks.keyOfEntry(info);
+            Item folder = inFolder == null ? ZuiFolderHome.folderDragged(info) : null;
+            String key = folder != null ? folder.key() : inFolder != null ? keyFor(null, info)
+                    : NativeDrawerHooks.keyOfEntry(info);
             String why = null;
             if (display == null
                     || display.getDisplayId() != android.view.Display.DEFAULT_DISPLAY) {
@@ -341,16 +405,26 @@ final class DrawerRearrange {
             }
             if (why != null) {
                 L.i("drawer rearrange: a drag of " + key + " left to ZUI - " + why);
+                if (inFolder != null && controller != null) {
+                    // ZUI's stand-in for our folder's app is no item of its home screen: the
+                    // drag is called off and the folder puts the app back, once ZUI has told
+                    // every listener of the start.
+                    ((View) source).post(() -> Reflect.call(controller, "cancelDrag"));
+                }
                 return;
             }
             Object layer = Reflect.call(launcher, "getDragLayer");
             DrawerSession session = new DrawerSession(false, launcher, (View) apps, (View) apps,
                     layer instanceof View ? (View) layer : (View) apps, (ViewGroup) grid,
                     controller, reorder, key, drag, display.getDisplayId());
-            if (Cfg.drawerFolderSpring()) {
+            if (Cfg.drawerFolderSpring() && inFolder == null) {
                 reorder.springFolders(session::springOpen);
             }
             start(session, source.getClass().getClassLoader());
+            if (inFolder != null) {
+                // Asked before the drawer: its apps move aside under the finger, ZUI's way.
+                session.inFolder(inFolder);
+            }
         } catch (Throwable t) {
             sSession = null;
             L.w("drawer rearrange: a drag left to ZUI (" + t + ")");
@@ -365,6 +439,7 @@ final class DrawerRearrange {
     private static void keepInTaskbarDrawer(Object controller) {
         try {
             sKeeping = null;
+            sKeepOpenIn = null;
             if (!Cfg.drawerRearrange() || !Cfg.taskbarDrawerRearrange()) {
                 return;
             }
@@ -399,9 +474,11 @@ final class DrawerRearrange {
             Reflect.call(controller, "setDisallowGlobalDrag", true);
             sKeeping = controller;
             sKeepingFolder = folder;
+            sKeepOpenIn = folder != null ? activity : null;
         } catch (Throwable t) {
             sKeeping = null;
             sKeepingFolder = null;
+            sKeepOpenIn = null;
             L.d("drawer rearrange: a taskbar drawer drag left to ZUI (" + t + ")");
         }
     }
@@ -514,8 +591,9 @@ final class DrawerRearrange {
      * ({@code LauncherDelegate$b.b}), so it is told here. Let go in the folder, ZUI puts the app at
      * its new place and saves the order ({@code Folder.onDrop}); dragged out of it, ZUI's folder
      * closes ({@code onDragExit}) and the app goes on in the drawer, as in ZUX Home's drawer
-     * ({@link DrawerSession}); out of the drawer, on as ZUI's floating window, the folder putting
-     * the app back ({@code onDropCompleted}).
+     * ({@link DrawerSession}); let go out of the drawer, the folder puts it back
+     * ({@code onDropCompleted}) - ZUI's floating window has no icon to start from, the folder
+     * having taken it off its pages.
      */
     private static boolean fromFolder(Object controller, Object drag, Object folder, View view,
             Object info) {
@@ -528,6 +606,12 @@ final class DrawerRearrange {
             DrawerSession.setField(folder, "p", rank);
             DrawerSession.setField(folder, "t", view);
             Reflect.call(controller, "addDragListener", folder);
+            // ZUI's folder speaks each new place through the drag's announcer
+            // (Folder.onDragOver), which needs ZUX Home's activity: gone for this drag, as at the
+            // drop (quietDrop).
+            if (Reflect.field(drag, "stateAnnouncer") != null) {
+                DrawerSession.setField(drag, "stateAnnouncer", null);
+            }
             return true;
         } catch (Throwable t) {
             L.d("drawer rearrange: the folder's drag left to ZUI (" + t + ")");

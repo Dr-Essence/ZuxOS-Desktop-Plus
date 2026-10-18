@@ -95,6 +95,15 @@ public final class TaskbarDrop {
         return strip != null && strip.pin(item, screenX - strip.screenLeft());
     }
 
+    /**
+     * Why the bar on this display would not take {@code item}, in the words a drop there says it
+     * with; null when it would (a pin already there moves).
+     */
+    static String refusal(int display, Item item) {
+        DropStrip strip = stripOn(display);
+        return strip == null ? "The taskbar is not showing" : strip.refusal(item);
+    }
+
     /** A new layout pass on this display's bar: its touch region is worked out again. */
     static void relayoutBar(int display) {
         DropStrip strip = stripOn(display);
@@ -272,6 +281,27 @@ public final class TaskbarDrop {
             return payload != null && pin(payload.item, x);
         }
 
+        /** Why this would not be pinned here; null when it would (a pin moves along). */
+        String refusal(Item item) {
+            if (item == null) {
+                return "Only apps and folders can be pinned here";
+            }
+            if (PinList.holds(TaskbarPins.pins(getContext()), item.key())) {
+                return null;
+            }
+            if (item.pkg == null && item.type != Item.TYPE_FOLDER) {
+                // A widget, or a shortcut with nothing but an intent. A folder is fine - it opens
+                // rather than launches, and the bar knows how to do that.
+                return "Only apps and folders can be pinned here";
+            }
+            if (item.pkg != null && TaskbarRunning.alreadyInTheBar(mDragLayer, item.pkg)) {
+                // Said rather than done: pinning it would leave two of the same icon side by
+                // side, and a drop that quietly does nothing looks like a drop that missed.
+                return "That app is already in the taskbar";
+            }
+            return null;
+        }
+
         private boolean pin(Item item, float x) {
             if (item == null) {
                 return false;
@@ -286,16 +316,9 @@ public final class TaskbarDrop {
                 TaskbarRunning.clearPreview(mDragLayer);
                 return true;
             }
-            if (item.pkg == null && item.type != Item.TYPE_FOLDER) {
-                // A widget, or a shortcut with nothing but an intent. A folder is fine - it opens
-                // rather than launches, and the bar knows how to do that.
-                TaskbarMenu.toast(getContext(), "Only apps and folders can be pinned here");
-                return false;
-            }
-            if (item.pkg != null && TaskbarRunning.alreadyInTheBar(mDragLayer, item.pkg)) {
-                // Said rather than done: pinning it would leave two of the same icon side by
-                // side, and a drop that quietly does nothing looks like a drop that missed.
-                TaskbarMenu.toast(getContext(), "That app is already in the taskbar");
+            String no = refusal(item);
+            if (no != null) {
+                TaskbarMenu.toast(getContext(), no);
                 return false;
             }
             TaskbarPins.pin(getContext(), item, where(x));

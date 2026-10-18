@@ -42,6 +42,14 @@ The work now is making every feature run through ZUI's own code - its folders, m
 - **Monitor:** after a replug, its touchscreen and pen stay on the monitor.
 - **Home screen uses the dock's space:** the strip ZUX Home keeps for its dock above the taskbar is home screen.
 
+**New in 0.0.277, awaiting the owner's test:**
+
+- **Rearrange apps inside drawer folders** in both drawers: hold an app in an open folder and move it, as on ZUI's home screen. Dragged out, it goes to the drawer, the taskbar or (ZUX Home's drawer) the home screen.
+- **Drag apps and folders from the home screen onto the taskbar**: they are pinned where you let go and leave the home screen.
+- **A drawer folder left with one app breaks** into that app.
+- **Game controller:** Triangle opens the menu of the app or folder you are on; the D-pad moves through the menu, A picks, B or Triangle closes it.
+- **A real task manager icon** in the taskbar's menu.
+
 **New in 0.0.276, awaiting the owner's test:**
 
 - **Game controller:** the Home button now opens and closes the drawer; the focus mark follows you over folders; B closes only what is on top (a folder, then the drawer).

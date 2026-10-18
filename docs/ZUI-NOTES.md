@@ -728,6 +728,49 @@ on 2026-10-18.
   (`BroadcastOptions.setShareIdentityEnabled`); the system's own sends do not, so a receiver
   limits its senders by a permission instead.
 
+## Folders in a drag, dissolving, popups and the home screen to the bar (read 2026-10-18)
+
+For 0.0.277, from the owner's log of 11:00 and ZUX Home 18.2.0.0375 decompiled.
+
+- **The taskbar keeps a drag in its drawer by closing everything else:**
+  `TaskbarDragController.callOnDragStart`, with `setDisallowGlobalDrag` on (field `o`) or in
+  desktop mode, calls `AbstractFloatingView.closeAllOpenViewsExcept(ctx, 262144)`
+  (`TYPE_TASKBAR_ALL_APPS`); the 2-argument form calls `(ctx, boolean animate, int except)`. Any
+  open folder of the drawer closes as a drag starts, and ZUI's popup with it.
+- **A drag from inside a folder** (`Folder.onLongClick` → `startDrag(view, options)`: `p` the
+  rank, `t` the view, `Z` adds the folder as a drag listener, `d0` → its delegate's `b` →
+  `Workspace.beginDragShared(view, folder, options)`; the taskbar delegate's `b` does nothing).
+  `onLongClick` asks `getIsLauncherDraggingEnabled` and `LauncherCustom.skipHotseatDrag` (popup
+  only in OVERVIEW). `Folder.onDragStart` takes the icon off its pages and, inside `r0`, out of its
+  `FolderInfo` (`removeFolderContent`, its dissolving skipped while `r0` runs). `onDragExit` closes
+  the folder 400 ms after the drag leaves it (`completeDragExit`); `onDragOver` speaks each new
+  place through the drag's announcer. `onDropCompleted(target, drag, success)`: not taken, the app
+  goes back; taken elsewhere with one app left, `W0`.
+- **Dissolving:** `Folder.a1` refuses to open a folder of one ("Couldn't animate folder open").
+  `Folder.bind` posts `E0`: one item or none → `X0(true)`. `W0` is `X0(false)`. `X0` sets `B` from
+  `mLauncherDelegate.i(folder, z)`: the taskbar delegate's `i` does nothing; ZUX Home's
+  (`LauncherDelegate.i`, if `ZuiEditModeCustom.replaceFolderWithFinalItemEnable`) inflates the last
+  item into the folder's cell layout, `addOrMoveItemInDatabase`, `Launcher.removeItem` of the
+  folder (`deleteCollectionAndContentsFromDatabase`) and `addInScreenFromBind`.
+- **Popups:** `PopupContainerWithArrow.showForIcon(View)` (ZUX Home's, needs `Launcher`) and
+  `TaskbarPopupController.showForIcon(View)` (the bar and its drawer; reached from
+  `TaskbarControllers.taskbarPopupController`, which `TaskbarDragController` holds) both
+  `requestFocus()` the popup as it opens; `getOpen(ctx)` is `getOpenView(ctx, 2)`. A folder's own
+  hold menu is `FolderIcon.startLongPressAction` → `showForIcon(this)`. The drawers' layers see
+  every key first: `dragndrop.DragLayer.dispatchKeyEvent` (ZUX Home; overview's arrows aside, to
+  its drag controller then up) and `TaskbarOverlayDragLayer.dispatchKeyEvent` (back and Escape).
+  `ZuiSystemShortcuts.REMOVE_ITEM` shows only for an item with an id, or in the dock.
+- **The home screen's drag:** a drag listener's `Workspace.onDragStart(DragObject, DragOptions)`
+  sees every drag of ZUX Home's controller; the source is the `Workspace`, the `Hotseat`, a
+  `Folder` or a drawer. ZUI's drop targets are asked newest first (`DragController.e`).
+  `Launcher.removeItem(View, ItemInfo, boolean deleteFromDb, String)`: an item in a folder leaves
+  it (`removeFolderContent`), any other leaves its cell; then the database row goes (for a folder,
+  with its contents). `Workspace.onDropCompleted` takes the cell away itself for a drop taken
+  elsewhere (`ZuiEditModeCustom.canRemoveWorkspaceItem`). A group dragged in edit mode is in
+  `DragObject.multiDragSupport.selectedViews`.
+- **Item types:** `ItemInfo.itemType` 0 is an app; ZUI's stand-ins for our folders' apps
+  (`makeWorkspaceItem`) have no id (-1), so `REMOVE_ITEM` is never offered for them.
+
 ## ZUI's sidebar and its AI service (read 2026-10-15, from the owner's ANR traces)
 
 - `com.zui.freeform.sidebar` listens to every drag (`FloatingOnDragListener.onDrag`) and on its
@@ -802,6 +845,11 @@ Every class and method the module hooks by name is present in this version:
 - `com.zui.launcher.taskbar.ZuiTaskbarSearchContainer`, `com.zui.launcher.taskbar.TaskbarActivityContextDp`
 - `com.zui.launcher.dpmode.secondarydisplaydp.RecentsDragLayerDp`
 - `com.zui.launcher.secondarydisplay.SecondaryDisplayLauncher`
+- 0.0.277: `com.android.launcher3.folder.Folder.X0(boolean)` (renamed in each build: found by name
+  and parameter, logged when missing), `AbstractFloatingView.closeAllOpenViewsExcept(ActivityContext,
+  boolean, int)`, `dragndrop.DragLayer.dispatchKeyEvent`,
+  `taskbar.overlay.TaskbarOverlayDragLayer.dispatchKeyEvent`, `Workspace.onDragStart` and
+  `onDragEnd` (the home screen to the bar).
 
 Class names like these survive ZUI's R8 pass; fields and most private methods are renamed in
 every build, which is why the module finds those by type and shape, not by name.

@@ -566,6 +566,14 @@ public final class Cfg {
         return getBool(Const.KEY_GAMEPAD_DRAWER, true);
     }
 
+    public static boolean gamepadMenus() {
+        return getBool(Const.KEY_GAMEPAD_MENUS, true);
+    }
+
+    public static boolean homeToBar() {
+        return getBool(Const.KEY_HOME_TO_BAR, true);
+    }
+
     public static boolean loaderNoWait() {
         return getBool(Const.KEY_LOADER_NO_WAIT, true);
     }

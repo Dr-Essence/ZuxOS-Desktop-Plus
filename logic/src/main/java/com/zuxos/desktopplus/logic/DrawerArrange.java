@@ -134,9 +134,10 @@ public final class DrawerArrange {
 
     /**
      * Every app once: a second copy of an app, in the same folder or another, goes. The first
-     * stays where it is. The number of copies taken out.
+     * stays where it is. A folder then left with one app or none is no folder: its app takes its
+     * place in the order. How many copies and folders went.
      */
-    public static int dedupe(List<Item> folders) {
+    public static int dedupe(List<String> order, List<Item> folders) {
         java.util.Set<String> seen = new java.util.HashSet<>();
         int removed = 0;
         for (Item folder : folders) {
@@ -145,6 +146,57 @@ public final class DrawerArrange {
                     it.remove();
                     removed++;
                 }
+            }
+        }
+        for (Item folder : new java.util.ArrayList<>(folders)) {
+            if (folder.children.size() <= 1) {
+                breakUp(order, folders, folder.key());
+                removed++;
+            }
+        }
+        return removed;
+    }
+
+    /**
+     * The folder {@code folderKey} is no folder any more: its apps take its place in the order,
+     * in their order (one already in the order stays where it is). False when no folder has the
+     * key.
+     */
+    public static boolean breakUp(List<String> order, List<Item> folders, String folderKey) {
+        Item folder = null;
+        for (Item f : folders) {
+            if (f.key().equals(folderKey)) {
+                folder = f;
+            }
+        }
+        if (folder == null) {
+            return false;
+        }
+        folders.remove(folder);
+        int at = order.indexOf(folderKey);
+        if (at >= 0) {
+            order.remove(at);
+        } else {
+            at = order.size();
+        }
+        for (Item child : folder.children) {
+            if (!order.contains(child.key())) {
+                order.add(clamp(at++, order.size()), child.key());
+            }
+        }
+        return true;
+    }
+
+    /**
+     * The apps {@code gone} (uninstalled) out of the order and out of their folders; a folder
+     * left with one app gives its place to it, one left with none goes. How many went.
+     */
+    public static int forget(List<String> order, List<Item> folders, java.util.Set<String> gone) {
+        int removed = 0;
+        for (String key : gone) {
+            if (folderOf(folders, key) != null || order.contains(key)) {
+                leave(order, folders, key);
+                removed++;
             }
         }
         return removed;

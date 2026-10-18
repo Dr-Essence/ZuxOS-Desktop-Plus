@@ -100,6 +100,7 @@ public final class TaskbarTray {
         TaskbarStart.install(loader);
         TaskbarRunning.install();
         ZuiBarDrop.install(loader);
+        HomeBarDrop.install(loader);
         HomeDragTrace.install(loader);
         ZuiThemeFollow.install(loader);
         com.zuxos.desktopplus.hook.home.SettingsRestart.onLive(TaskbarTray::reapplyAll);

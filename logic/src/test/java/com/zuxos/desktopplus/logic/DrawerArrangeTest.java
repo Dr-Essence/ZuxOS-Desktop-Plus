@@ -181,12 +181,86 @@ public class DrawerArrangeTest {
         Item second = Item.folder("Second");
         second.children.addAll(Arrays.asList(app("b"), c, app("c")));
         List<Item> folders = new ArrayList<>(Arrays.asList(first, second));
+        List<String> order = new ArrayList<>(Arrays.asList(first.key(), second.key()));
 
-        assertEquals(4, DrawerArrange.dedupe(folders));
+        // Four copies, and Second left with one app: no folder any more.
+        assertEquals(5, DrawerArrange.dedupe(order, folders));
 
         assertEquals(order(a, b), order(first.children.toArray(new Item[0])));
-        assertEquals(order(c), order(second.children.toArray(new Item[0])));
-        assertEquals(0, DrawerArrange.dedupe(folders));
+        assertEquals(1, folders.size());
+        assertTrue(folders.get(0) == first);
+        assertEquals(Arrays.asList(first.key(), c.key()), order);
+        assertEquals(0, DrawerArrange.dedupe(order, folders));
+    }
+
+    @Test
+    public void dedupeDissolvesAFolderSavedWithOneApp() {
+        Item a = app("a");
+        Item b = app("b");
+        Item lone = Item.folder("Lone");
+        lone.children.add(a);
+        Item empty = Item.folder("Empty");
+        List<Item> folders = new ArrayList<>(Arrays.asList(lone, empty));
+        List<String> order = new ArrayList<>(Arrays.asList(b.key(), lone.key(), empty.key()));
+
+        assertEquals(2, DrawerArrange.dedupe(order, folders));
+
+        assertTrue(folders.isEmpty());
+        assertEquals(order(b, a), order);
+    }
+
+    @Test
+    public void breakUpPutsTheAppsWhereTheFolderWas() {
+        Item a = app("a");
+        Item b = app("b");
+        Item c = app("c");
+        Item d = app("d");
+        Item folder = Item.folder("Folder");
+        folder.children.addAll(Arrays.asList(b, c));
+        List<Item> folders = new ArrayList<>(Arrays.asList(folder));
+        List<String> order = new ArrayList<>(Arrays.asList(a.key(), folder.key(), d.key()));
+
+        assertTrue(DrawerArrange.breakUp(order, folders, folder.key()));
+
+        assertTrue(folders.isEmpty());
+        assertEquals(order(a, b, c, d), order);
+        assertFalse(DrawerArrange.breakUp(order, folders, folder.key()));
+    }
+
+    @Test
+    public void breakUpOfAFolderOutOfTheOrderAddsItsAppsAtTheEnd() {
+        Item a = app("a");
+        Item b = app("b");
+        Item folder = Item.folder("Folder");
+        folder.children.addAll(Arrays.asList(a, b));
+        List<Item> folders = new ArrayList<>(Arrays.asList(folder));
+        List<String> order = new ArrayList<>(Arrays.asList(a.key()));
+
+        assertTrue(DrawerArrange.breakUp(order, folders, folder.key()));
+
+        assertEquals(order(a, b), order);
+    }
+
+    @Test
+    public void forgetTakesGoneAppsOutAndDissolvesWhatIsLeft() {
+        Item a = app("a");
+        Item b = app("b");
+        Item c = app("c");
+        Item d = app("d");
+        Item pair = Item.folder("Pair");
+        pair.children.addAll(Arrays.asList(a, b));
+        Item gone = Item.folder("Gone");
+        gone.children.addAll(Arrays.asList(c, d));
+        Item e = app("e");
+        List<Item> folders = new ArrayList<>(Arrays.asList(pair, gone));
+        List<String> order = new ArrayList<>(Arrays.asList(pair.key(), e.key(), gone.key()));
+        java.util.Set<String> uninstalled = new java.util.HashSet<>(
+                Arrays.asList(b.key(), c.key(), d.key(), "p.never/C#0"));
+
+        assertEquals(3, DrawerArrange.forget(order, folders, uninstalled));
+
+        assertTrue(folders.isEmpty());
+        assertEquals(order(a, e), order);
     }
 
     @Test
