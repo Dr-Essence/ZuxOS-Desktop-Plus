@@ -42,6 +42,10 @@ The work now is making every feature run through ZUI's own code - its folders, m
 - **Monitor:** after a replug, its touchscreen and pen stay on the monitor.
 - **Home screen uses the dock's space:** the strip ZUX Home keeps for its dock above the taskbar is home screen.
 
+**New in 0.0.276, awaiting the owner's test:**
+
+- **Game controller:** the Home button now opens and closes the drawer; the focus mark follows you over folders; B closes only what is on top (a folder, then the drawer).
+
 **New in 0.0.275, awaiting the owner's test:**
 
 - **Dropping apps into a folder no longer stops ZUX Home** in the taskbar's drawer.

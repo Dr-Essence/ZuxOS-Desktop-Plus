@@ -704,6 +704,15 @@ on 2026-10-18.
   (`clearAnimatedView` → `DragController.g`), which reads its own drag object - null with no drag
   of its own. Then `multiDragSupport.onDropFolderSuccess` files ZUI's own chosen items.
   `Folder.addFolderContent(ItemInfo, rank, animate)` adds one item through ZUI's model writer.
+- **Back keys:** ZUX Home sets `enableOnBackInvokedCallback="true"`, so a back key goes first to
+  the window's top `OnBackInvokedCallback` (`ViewRootImpl.doOnBackKeyEvent`) and is then
+  forwarded to the views marked cancelled. `TaskbarOverlayDragLayer.dispatchKeyEvent` closes the
+  top open view on a back key's release without checking `isCanceled()`; Escape closes it on
+  press. The drawer's sheet registers itself as a back callback (`TaskbarAllAppsSlideInView`).
+- **The drawers' focus mark:** `FocusedItemDecorator` over the list, its listener set on each app
+  icon by the adapter (`BaseAllAppsAdapter.mIconFocusListener`); it draws at the focused view's
+  left and top in its parent (`SimpleFocusIndicatorHelper.viewToRect`). ZUI's folder focuses its
+  first app on opening (`setFocusOnFirstChild`) and its icon again on closing.
 - **ZUI's folder menu:** Enlarge (`SystemShortcut.SWITCH_FOLDER`, not in desktop mode) and Rename
   (`RENAME_FOLDER`). Rename closes the menu and after `config_popupOpenCloseDuration` (150 ms)
   calls `Folder.animateOpen(true)`, the folder opening with its name ready to edit.
@@ -714,7 +723,10 @@ on 2026-10-18.
   when the app in front leaves the button unhandled. ZUI's `PhoneWindowManager
   .interceptKeyBeforeDispatching(IBinder, KeyEvent, int)` returns a `long`, -1 dropping the key
   before any window sees it; ZUI adds a pass-through of its own after the key combinations
-  (`continueDispatchKeyByMotoPolicy`). Nothing in it treats a controller's buttons.
+  (`continueDispatchKeyByMotoPolicy`). Nothing in it treats a controller's buttons. A broadcast's
+  sender (`BroadcastReceiver.getSentFromUid`) is told only when the sender shares it
+  (`BroadcastOptions.setShareIdentityEnabled`); the system's own sends do not, so a receiver
+  limits its senders by a permission instead.
 
 ## ZUI's sidebar and its AI service (read 2026-10-15, from the owner's ANR traces)
 

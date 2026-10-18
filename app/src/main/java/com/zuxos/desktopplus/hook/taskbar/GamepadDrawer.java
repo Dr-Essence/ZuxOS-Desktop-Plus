@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.os.Process;
 
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
@@ -13,9 +12,12 @@ import com.zuxos.desktopplus.hook.system.SystemGamepad;
 /**
  * A game controller's Home button, taken in the system ({@link SystemGamepad}), opens and closes
  * ZUI's drawer: as a tap on our start button does, on the screen the button was pressed for, and
- * on the tablet's when that one has no button showing. Only the system may ask.
+ * on the tablet's when that one has no button showing. Only the system may ask ({@link #SENDER}).
  */
 final class GamepadDrawer {
+
+    /** What a sender must hold: input injection, the system's and the shell's alone. */
+    private static final String SENDER = "android.permission.INJECT_EVENTS";
 
     private static boolean sListening;
     private static int sSaid;
@@ -34,8 +36,11 @@ final class GamepadDrawer {
         }
         sListening = true;
         try {
+            // Only the system may ask: it holds every permission, and no app holds this one. The
+            // sender's own name is no test - Android gives it only to a sender that shares it,
+            // which the system's broadcasts do not: every press was refused (owner, 10:36:45).
             app.registerReceiver(new Receiver(), new IntentFilter(SystemGamepad.ACTION_DRAWER),
-                    Context.RECEIVER_EXPORTED);
+                    SENDER, null, Context.RECEIVER_EXPORTED);
             L.i("gamepad drawer: a controller's Home button opens and closes the drawer");
         } catch (Throwable t) {
             L.w("gamepad drawer: not listening (" + t + ")");
@@ -46,10 +51,6 @@ final class GamepadDrawer {
         @Override
         public void onReceive(Context context, Intent intent) {
             try {
-                if (getSentFromUid() != Process.SYSTEM_UID) {
-                    L.w("gamepad drawer: refused a request from " + getSentFromPackage());
-                    return;
-                }
                 int display = intent.getIntExtra(SystemGamepad.EXTRA_DISPLAY, 0);
                 boolean pressed = TaskbarStart.toggleDrawer(display)
                         || (display != 0 && TaskbarStart.toggleDrawer(0));

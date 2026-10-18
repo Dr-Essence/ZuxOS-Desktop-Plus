@@ -516,7 +516,40 @@ public final class ZuiFolders {
                 unregisterBack(param.thisObject);
             }
         }).size();
+        hooked += hookCancelledBack(folderCls.getClassLoader());
         return hooked;
+    }
+
+    /**
+     * A back key in the taskbar's drawer closes one thing, as the back gesture does. ZUX Home
+     * takes back through callbacks ({@code enableOnBackInvokedCallback}), so Android hands a back
+     * key to the top callback - our folder's, closing the folder - and then passes the same key
+     * on to the drawer's views marked cancelled ({@code ViewRootImpl.doOnBackKeyEvent}: "forward
+     * a cancelled event so that following stages cancel their back logic"). ZUI's drawer layer
+     * acts on a back key's release without asking whether it was cancelled
+     * ({@code TaskbarOverlayDragLayer.dispatchKeyEvent}), and closed the drawer under the folder
+     * just closed: a controller's B (Android's back for it) or a keyboard's back key took both
+     * away (owner, 10:37:53 and 10:37:58). A cancelled back is left to the callback that had it.
+     */
+    private static int hookCancelledBack(ClassLoader loader) {
+        Class<?> layer = Reflect.findClass(
+                "com.android.launcher3.taskbar.overlay.TaskbarOverlayDragLayer", loader);
+        if (layer == null) {
+            return 0;
+        }
+        return XposedBridge.hookAllMethods(layer, "dispatchKeyEvent", new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                if (param.args.length == 1 && param.args[0] instanceof android.view.KeyEvent) {
+                    android.view.KeyEvent key = (android.view.KeyEvent) param.args[0];
+                    if (key.getKeyCode() == android.view.KeyEvent.KEYCODE_BACK
+                            && key.getAction() == android.view.KeyEvent.ACTION_UP
+                            && key.isCanceled()) {
+                        param.setResult(Boolean.TRUE);
+                    }
+                }
+            }
+        }).size();
     }
 
     private static void registerBack(Object folder) {
@@ -894,11 +927,16 @@ public final class ZuiFolders {
                 fitName(icon, drawer, scale);
                 if (drawer.focus != null && icon.getOnFocusChangeListener() == null) {
                     // Reached by a keyboard or a controller, marked as ZUI marks its apps -
-                    // guarded, as ZUI made its mark for app icons.
+                    // guarded, as ZUI made its mark for app icons. ZUI draws the mark where the
+                    // view is in its list (FocusIndicatorHelper.viewToRect: its left and top in
+                    // its parent), so it is told of the folder's cell, the list's own child: told
+                    // of the folder inside the cell, the mark stayed on the list's first cell
+                    // wherever the focus went (owner's video, 10:37:46).
                     View.OnFocusChangeListener zui = drawer.focus;
                     icon.setOnFocusChangeListener((v, focused) -> {
                         try {
-                            zui.onFocusChange(v, focused);
+                            zui.onFocusChange(v.getParent() instanceof View
+                                    ? (View) v.getParent() : v, focused);
                         } catch (Throwable t) {
                             L.d("zui folders: ZUI's focus mark not drawn on a folder (" + t + ")");
                         }
