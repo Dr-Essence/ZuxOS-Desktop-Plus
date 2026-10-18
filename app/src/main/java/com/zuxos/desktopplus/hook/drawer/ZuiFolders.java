@@ -699,7 +699,7 @@ public final class ZuiFolders {
         }
     }
 
-    /** Our folders open in the taskbar's drawer, with the back callback each registered. */
+    /** Our folders and ZUI's popups open in the taskbar's drawer, with their back callbacks. */
     private static final Map<Object, Back> BACK = new WeakHashMap<>();
 
     /** Where a folder's back callback was registered, to take it off again. */
@@ -739,7 +739,61 @@ public final class ZuiFolders {
             }
         }).size();
         hooked += hookCancelledBack(folderCls.getClassLoader());
+        hooked += hookPopupBack(folderCls.getClassLoader());
         return hooked;
+    }
+
+    /**
+     * Back closes ZUI's popup in the taskbar's drawer, not the drawer under it. A popup there - an
+     * app's, or a folder's menu opened by a hold or the controller's Triangle - registers no back
+     * callback, so back went to the drawer's and closed the whole drawer with the menu (owner on
+     * 0.0.279). While a popup is open there one is registered as for our folders, closing ZUI's
+     * top open view; ZUX Home's own back already closes its popups first.
+     */
+    private static int hookPopupBack(ClassLoader loader) {
+        Class<?> popup = Reflect.findClass("com.android.launcher3.popup.ArrowPopup", loader);
+        if (popup == null) {
+            L.w("zui folders: ZUI's popups not found - back in the taskbar's drawer closes it");
+            return 0;
+        }
+        int hooked = XposedBridge.hookAllMethods(popup, "show", new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                registerPopupBack(param.thisObject);
+            }
+        }).size();
+        XC_MethodHook off = new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                unregisterBack(param.thisObject);
+            }
+        };
+        hooked += XposedBridge.hookAllMethods(popup, "handleClose", off).size();
+        hooked += XposedBridge.hookAllMethods(popup, "closeComplete", off).size();
+        return hooked;
+    }
+
+    private static void registerPopupBack(Object popup) {
+        try {
+            if (!(popup instanceof View) || BACK.containsKey(popup)) {
+                return;
+            }
+            Object where = lookup(((View) popup).getContext());
+            if (where == null || isLauncher(where) || isBar(where)
+                    || !where.getClass().getName().endsWith("TaskbarOverlayContext")) {
+                return;
+            }
+            android.window.OnBackInvokedDispatcher dispatcher =
+                    ((View) popup).findOnBackInvokedDispatcher();
+            if (dispatcher != null) {
+                android.window.OnBackInvokedCallback callback = () -> closeTop(popup, where);
+                dispatcher.registerOnBackInvokedCallback(
+                        android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback);
+                BACK.put(popup, new Back(dispatcher, callback));
+            }
+        } catch (Throwable t) {
+            L.d("zui folders: back not given to the popup (" + t + ")");
+        }
     }
 
     /**
@@ -794,7 +848,10 @@ public final class ZuiFolders {
         }
     }
 
-    /** ZUI's top open view in the drawer, closed as a back key closes it; else the folder. */
+    /**
+     * ZUI's top open view in the drawer, closed as a back key closes it; else the folder or popup
+     * the callback was registered for.
+     */
     private static void closeTop(Object folder, Object activity) {
         try {
             Class<?> floating = Class.forName("com.android.launcher3.AbstractFloatingView", false,
@@ -810,7 +867,11 @@ public final class ZuiFolders {
         } catch (Throwable t) {
             L.d("zui folders: top view not found for back (" + t + ")");
         }
-        ((android.window.OnBackInvokedCallback) folder).onBackInvoked();
+        if (folder instanceof android.window.OnBackInvokedCallback) {
+            ((android.window.OnBackInvokedCallback) folder).onBackInvoked();
+        } else {
+            Reflect.call(folder, "close", true);
+        }
     }
 
     private static void unregisterBack(Object folder) {

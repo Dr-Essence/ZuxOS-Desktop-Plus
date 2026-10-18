@@ -858,6 +858,10 @@ For 0.0.280, from ZUX Home 18.2.0.0375 decompiled.
     it, and passes every other key on.
   - The bar's window is a navigation-bar panel (type 2024) above every app, so while it is
     focusable it keeps the keys from the app below.
+- **Back over the taskbar's drawer:** ZUX Home takes back through callbacks, and in the
+  taskbar's drawer the drawer's sheet registers one (`TaskbarAllAppsSlideInView`). ZUI's
+  popups (`ArrowPopup.show`, closed by `handleClose`/`closeComplete`) register none, so back
+  closes the drawer with a popup open in it.
 - **Popup icon buttons:** the `PopupItemIconOnly` ripple (`selectableItemBackgroundBorderless`,
   `colorControlHighlight` `popupColorTertiary`) shows no visible focus on this build.
 
