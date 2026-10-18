@@ -554,6 +554,21 @@ final class DrawerSession {
             // The chosen apps went with it: choosing is over.
             DrawerSelect.end();
         }
+        if (mInFolder != null && mLeftFolder && !(folderOpened && sprung == mInFolder)
+                && !Boolean.TRUE.equals(Reflect.call(controller, "isDragging"))
+                && Boolean.TRUE.equals(Reflect.call(mInFolder, "isOpen"))) {
+            // ZUI closes a folder its app has left (Folder.onDragExit, then completeDragExit at
+            // the drop); now and then this one was still open, its blur behind it, with the app
+            // placed elsewhere (owner on 0.0.277). It closes as ZUI closes it - at the drag's
+            // end, after ZUI's own onDropCompleted, so a folder ZUI closed itself is not
+            // touched, nor one a new drag has started in.
+            Reflect.call(mInFolder, "close", true);
+            if (!sSaidLeftOpen) {
+                sSaidLeftOpen = true;
+                L.i("drawer rearrange: " + key + " left its folder, still open at the drag's end"
+                        + " in the " + (taskbar ? "taskbar's drawer" : "drawer") + " - closed");
+            }
+        }
         Item from = mInFolder != null && (mLeftFolder || mCopiedOut)
                 ? ZuiFolders.folderOfZui(mInFolder) : null;
         if (from != null) {
@@ -597,6 +612,7 @@ final class DrawerSession {
     }
 
     private static boolean sSaidNoLanding;
+    private static boolean sSaidLeftOpen;
 
     private static void noLanding(String why) {
         if (!sSaidNoLanding) {

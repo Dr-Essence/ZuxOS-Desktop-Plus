@@ -496,6 +496,8 @@ public final class Probe {
                     ".PreviewBackground")) {
                 sb.append("    leave-behind (").append(f.getName()).append(") at ")
                         .append(cellOf(page, value)).append('\n');
+            } else if (value != null && value.getClass().getName().endsWith(".MultiDragExt")) {
+                describeMultiDrag(sb, value);
             } else if (value instanceof float[]) {
                 float[] alphas = (float[]) value;
                 for (int i = 0; i < alphas.length; i++) {
@@ -517,6 +519,31 @@ public final class Probe {
                 sb.append("    flag ").append(f.getName()).append(" = ").append(value)
                         .append('\n');
             }
+        }
+    }
+
+    /**
+     * What ZUI's multi-drag still draws on a page ({@code MultiDragExt.visualizeGrid}, run by
+     * {@code CellLayout.visualizeGrid} on every page): its lists that are not empty, a cell's
+     * {@code int[]} given as its cell.
+     */
+    private static void describeMultiDrag(StringBuilder sb, Object multi) {
+        for (java.lang.reflect.Field g : multi.getClass().getDeclaredFields()) {
+            if (!java.util.List.class.isAssignableFrom(g.getType())) {
+                continue;
+            }
+            g.setAccessible(true);
+            Object list = Mirror.get(g, multi);
+            if (!(list instanceof java.util.List) || ((java.util.List<?>) list).isEmpty()) {
+                continue;
+            }
+            sb.append("    multi-drag ").append(g.getName()).append(':');
+            for (Object item : new java.util.ArrayList<>((java.util.List<?>) list)) {
+                sb.append(' ').append(item instanceof int[]
+                        ? java.util.Arrays.toString((int[]) item)
+                        : item == null ? "null" : item.getClass().getSimpleName());
+            }
+            sb.append('\n');
         }
     }
 

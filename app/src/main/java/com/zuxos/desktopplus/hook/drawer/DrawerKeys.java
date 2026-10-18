@@ -1,6 +1,9 @@
 package com.zuxos.desktopplus.hook.drawer;
 
 import android.content.Context;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.view.Display;
 import android.view.KeyEvent;
 import android.view.View;
@@ -38,20 +41,19 @@ import de.robv.android.xposed.XposedBridge;
  *   <li>{@code TaskbarPopupController.showForIcon} for an app in the taskbar's drawer;</li>
  *   <li>our folder menu ({@link DrawerHold#menuEntries}) for a folder there.</li>
  * </ul>
- * Its press and release are both taken, so no click follows.
+ * Its press and release are always taken, whatever is focused, so no click ever follows.
  *
  * <p>ZUI's popups ask for the focus as they open, which one opened by touch never gets: Android
  * keeps no focus in touch mode. While a popup is open, an arrow pressed with the focus outside it
- * puts the focus on its first row, and an arrow that would leave it is kept. A picks a row (the
- * controller's centre key), and B (back) or Triangle again closes the popup.
+ * puts the focus on its first row, and an arrow that would leave it is kept; every row shows
+ * ZUI's focus mark ({@link #markRows}). A picks a row (the controller's centre key), and B
+ * (back) or Triangle again closes the popup.
  */
 public final class DrawerKeys {
 
     private static final String POPUP = "com.android.launcher3.popup.PopupContainerWithArrow";
     private static final String CONTEXT = "com.android.launcher3.views.ActivityContext";
 
-    /** Triangle's press opened a menu: its release is taken too. */
-    private static boolean sTook;
     private static boolean sSaid;
 
     private DrawerKeys() {
@@ -95,15 +97,13 @@ public final class DrawerKeys {
             }
             int code = event.getKeyCode();
             if (code == KeyEvent.KEYCODE_BUTTON_Y) {
-                if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                    if (event.getRepeatCount() == 0) {
-                        sTook = menu(layer);
-                    }
-                    return sTook;
+                // Taken whatever it finds: left to Android, Triangle falls back to SPACE and
+                // clicks the icon, opening the app or folder whose menu was asked for (owner on
+                // 0.0.277).
+                if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                    menu(layer);
                 }
-                boolean took = sTook;
-                sTook = false;
-                return took;
+                return true;
             }
             int direction = direction(code);
             return direction != 0 && event.getAction() == KeyEvent.ACTION_DOWN
@@ -130,43 +130,60 @@ public final class DrawerKeys {
     }
 
     /**
-     * The menu of the focused icon, opened as a hold opens it, or the open menu closed again;
-     * false with neither.
+     * The menu of the focused icon, opened as a hold opens it, or the open menu closed again:
+     * an app, one of our folders, or one of ZUI's own folders on the home screen (its hold menu,
+     * {@code FolderIcon.startLongPressAction}: neither ours nor an app, it was clicked open).
      */
-    private static boolean menu(View layer) throws Exception {
+    private static void menu(View layer) {
         View focused = layer.findFocus();
         Object activity = lookup(layer.getContext());
         Object open = activity == null ? null : openPopup(layer, activity);
         if (open != null) {
             // Triangle again: the menu goes, as B takes it away.
             Reflect.call(open, "close", true);
-            return true;
+            return;
         }
         if (focused == null || activity == null) {
-            return false;
+            return;
         }
         boolean home = ZuiFolders.isLauncher(activity);
         for (View v = focused; v != null && v != layer; v = parentOf(v)) {
-            Item folder = ZuiFolders.isZuiFolder(v) ? ZuiFolders.folderOfIcon(v) : null;
-            String pkg = folder == null ? IconInfo.packageOf(v.getTag()) : null;
-            if (folder == null && pkg == null) {
+            boolean anyFolder = ZuiFolders.isZuiFolder(v);
+            Item folder = anyFolder ? ZuiFolders.folderOfIcon(v) : null;
+            String pkg = anyFolder ? null : IconInfo.packageOf(v.getTag());
+            if (!anyFolder && pkg == null) {
                 continue;
             }
-            boolean shown = folder != null
-                    ? home && showForIcon(v) || ZuiMenu.show(v, DrawerHold.menuEntries(v, folder))
-                    : home ? showForIcon(v) : showOnTaskbar(v, activity);
-            // Opened by a key, the popup may hold the focus itself rather than a row.
-            focusFirst(openPopup(layer, activity));
-            say("the menu of " + (folder != null ? folder.label : pkg), shown);
-            return true;
+            String what = folder != null ? folder.label : anyFolder ? "a folder of ZUI's" : pkg;
+            try {
+                boolean shown = folder != null
+                        ? home && showForIcon(v)
+                        || ZuiMenu.show(v, DrawerHold.menuEntries(v, folder))
+                        : home ? showForIcon(v) : showOnTaskbar(v, activity);
+                Object popup = openPopup(layer, activity);
+                // Opened by a key, the popup may hold the focus itself rather than a row.
+                focusFirst(popup);
+                markRows(popup);
+                say("the menu of " + what, shown, null);
+            } catch (Throwable t) {
+                say("the menu of " + what, false, t);
+            }
+            return;
         }
-        return false;
     }
 
-    private static void say(String what, boolean shown) {
-        if (!sSaid) {
-            sSaid = true;
-            L.i("drawer keys: Triangle - " + what + (shown ? " opened" : " not opened"));
+    private static boolean sSaidFailed;
+
+    /** The first menu opened, and the first that could not be, each told once. */
+    private static void say(String what, boolean shown, Throwable why) {
+        if (shown ? !sSaid : !sSaidFailed) {
+            if (shown) {
+                sSaid = true;
+            } else {
+                sSaidFailed = true;
+            }
+            L.i("drawer keys: Triangle - " + what + (shown ? " opened" : " not opened"
+                    + (why != null ? " (" + why + ")" : "")));
         }
     }
 
@@ -218,6 +235,74 @@ public final class DrawerKeys {
         }
     }
 
+    /** A popup whose rows carry the focus mark. */
+    private static final int TAG_MARKED = 0x7A000501;
+    private static boolean sSaidMarked;
+
+    /**
+     * ZUI's focus mark on each row of its popup that shows nothing when focused. ZUI's text rows
+     * ({@code deep_shortcut_zui}, {@code system_shortcut}) have plain shapes behind them, with no
+     * focused state, and the controller moved through them unseen (owner on 0.0.277); its icon
+     * buttons have a ripple, which shows the focus, and keep it. The mark is a foreground seen
+     * only while the row is focused - which only keys do - once per popup.
+     */
+    private static void markRows(Object popup) {
+        if (!(popup instanceof ViewGroup) || ((View) popup).getTag(TAG_MARKED) != null) {
+            return;
+        }
+        ViewGroup group = (ViewGroup) popup;
+        group.setTag(TAG_MARKED, Boolean.TRUE);
+        int marked = 0;
+        for (View v : group.getFocusables(View.FOCUS_DOWN)) {
+            Drawable behind = v.getBackground();
+            if (v == group || v.getForeground() != null
+                    || (behind != null && behind.isStateful())) {
+                continue;
+            }
+            v.setForeground(focusMark(group.getContext()));
+            marked++;
+        }
+        if (!sSaidMarked && marked > 0) {
+            sSaidMarked = true;
+            L.i("drawer keys: ZUI's focus mark on " + marked + " row(s) of its menu");
+        }
+    }
+
+    /**
+     * ZUI's own mark for the item a keyboard or controller is on, as its drawers draw it
+     * ({@code FocusIndicatorHelper}: {@code Utilities.getFocusRectColor}, a stroke of
+     * {@code focused_background_stroke_width} rounded by {@code focused_background_radius}),
+     * shown only in the focused state.
+     */
+    private static Drawable focusMark(Context ctx) {
+        float density = ctx.getResources().getDisplayMetrics().density;
+        GradientDrawable ring = new GradientDrawable();
+        ring.setCornerRadius(dimen(ctx, "focused_background_radius", 20 * density));
+        ring.setStroke(Math.round(dimen(ctx, "focused_background_stroke_width", 2 * density)),
+                focusColour(ctx));
+        StateListDrawable mark = new StateListDrawable();
+        mark.addState(new int[]{android.R.attr.state_focused}, ring);
+        return mark;
+    }
+
+    private static float dimen(Context ctx, String name, float otherwise) {
+        int id = ctx.getResources().getIdentifier(name, "dimen", ctx.getPackageName());
+        return id != 0 ? ctx.getResources().getDimension(id) : otherwise;
+    }
+
+    /** ZUI's focus colour ({@code Utilities.getFocusRectColor}), or its resource's. */
+    private static int focusColour(Context ctx) {
+        try {
+            return (Integer) Class.forName("com.android.launcher3.Utilities", false,
+                    ctx.getClassLoader()).getMethod("getFocusRectColor", Context.class)
+                    .invoke(null, ctx);
+        } catch (Throwable t) {
+            int id = ctx.getResources().getIdentifier("focused_background", "color",
+                    ctx.getPackageName());
+            return id != 0 ? ctx.getColor(id) : 0xFF4D8EFF;
+        }
+    }
+
     /** The first row of a popup that can take the focus, or null. */
     private static View firstRow(ViewGroup popup) {
         for (View v : popup.getFocusables(View.FOCUS_DOWN)) {
@@ -239,6 +324,7 @@ public final class DrawerKeys {
             return false;
         }
         ViewGroup group = (ViewGroup) popup;
+        markRows(group);
         View focused = layer.findFocus();
         if (focused == null || !within(focused, group)) {
             View first = firstRow(group);

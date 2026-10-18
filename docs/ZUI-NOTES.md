@@ -803,6 +803,36 @@ For 0.0.278, from the owner's material on 0.0.277 (LSPosed zip 21:30:29, probe 2
     dock (`ShortcutAndWidgetContainer.drawFolderLeaveBehindForIcon`, container type 1).
   - The probe lists all three for each page ("drawn over a cell", "leave-behind", "outline").
 
+## The controller's focus mark and ZUI's popups (read 2026-10-18)
+
+For 0.0.279, from ZUX Home 18.2.0.0375 decompiled.
+
+- **The drawer's focus mark:**
+  - `ActivityAllAppsContainerView` adds a `FocusedItemDecorator` to the list. It is a
+    `SimpleFocusIndicatorHelper`, whose `viewToRect` is the view's left, top, right and bottom
+    in its parent.
+  - It hands the helper to its adapter (`setIconFocusListener`, kept in
+    `BaseAllAppsAdapter.mIconFocusListener`), which sets it on each app it binds.
+  - The mark is a stroke in `Utilities.getFocusRectColor` (`focused_background`, or the
+    system's accent with Monet on), `focused_background_stroke_width` 2 dp, corners
+    `focused_background_radius` 20 dp. `shouldDraw` needs the view attached.
+- **Popup rows and focus:**
+  - Text rows (`deep_shortcut_zui`: `DeepShortcutView` on `middle_item_primary_zui`;
+    `system_shortcut` on `ic_popupcontainer_bg_new`) have plain shapes behind them, with no
+    focused state.
+  - The icon buttons (`system_shortcut_icon_only_zui`, style `PopupItemIconOnly`) have
+    `selectableItemBackgroundBorderless`, a ripple that shows focus.
+  - `PopupContainerWithArrow` makes itself focusable in touch mode as it opens.
+- **A folder's hold menu** is `FolderIcon.startLongPressAction` → `showForIcon(this)`. Triangle
+  on one of ZUI's own folders goes there: it is neither one of ours nor an app.
+- **Recents and the pages:** in ZUI's recents the pages' icons are faded but the pages
+  themselves still draw (`CellLayout.onDraw`: cell drawings, leave-behind, `visualizeGrid` with
+  its outlines and `MultiDragExt` cells). A mark seen only in recents is the page's own
+  drawing.
+- **The dock's predictions:** `HotseatPredictionController.onDragStart` adds outline drawings for
+  predicted icons. `onDragEnd` calls `h(true)`, which is empty in this build, so they are
+  removed only at the next drag's start (`s` → `r`). None were in the dock in the 21:31 probe.
+
 ## ZUI's sidebar and its AI service (read 2026-10-15, from the owner's ANR traces)
 
 - `com.zui.freeform.sidebar` listens to every drag (`FloatingOnDragListener.onDrag`) and on its
@@ -885,6 +915,9 @@ Every class and method the module hooks by name is present in this version:
 - 0.0.278: `graphics.DragPreviewProvider.drawDragView(Canvas, float)` called (by name, else by
   its parameters) to draw a held drawer folder's picture at its shown size; `Folder.getItemCount`
   read when ZUI asks to dissolve one of our folders.
+- 0.0.279: `BaseAllAppsAdapter.mIconFocusListener` read (by name, else by type);
+  `Utilities.getFocusRectColor(Context)` called; `DragController.isDragging` and `Folder.isOpen`
+  / `close(boolean)` at a drawer drag's end.
 
 Class names like these survive ZUI's R8 pass; fields and most private methods are renamed in
 every build, which is why the module finds those by type and shape, not by name.

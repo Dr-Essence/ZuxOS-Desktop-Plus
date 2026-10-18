@@ -22,7 +22,7 @@ mode along the way.
 | Launcher | `com.zui.launcher`, desktop activity `SecondaryDisplayLauncher` |
 | Needs | Root, LSPosed, and the module scoped to the home app |
 
-**Status (2026-10-18, build 0.0.278)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
+**Status (2026-10-18, build 0.0.279)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
 
 The work now is making every feature run through ZUI's own code - its folders, menus, drag, animations and grids - so it looks and moves like ZUI itself.
 
@@ -41,6 +41,11 @@ The work now is making every feature run through ZUI's own code - its folders, m
 - **Tablet bar:** open apps stop at the navigation keys, which sit flush with the right edge; pinned folders are ZUI's own.
 - **Monitor:** after a replug, its touchscreen and pen stay on the monitor.
 - **Home screen uses the dock's space:** the strip ZUX Home keeps for its dock above the taskbar is home screen.
+
+**New in 0.0.279, awaiting the owner's test:**
+
+- **Game controller in the drawers:** the focus mark is on the folders as soon as the drawer opens; every row of the app and folder menus shows the mark; Triangle always opens the menu, never the app or folder (ZUI's home folders included).
+- **A folder an app was dragged out of always closes**, its blur with it.
 
 **New in 0.0.278, awaiting the owner's test:**
 

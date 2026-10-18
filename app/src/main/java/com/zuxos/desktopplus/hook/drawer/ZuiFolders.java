@@ -1147,23 +1147,23 @@ public final class ZuiFolders {
             } else {
                 icon.setTranslationY(drawer.top - preview.top - icon.getTop());
                 fitName(icon, drawer, scale);
-                if (drawer.focus != null && icon.getOnFocusChangeListener() == null) {
-                    // Reached by a keyboard or a controller, marked as ZUI marks its apps -
-                    // guarded, as ZUI made its mark for app icons. ZUI draws the mark where the
-                    // view is in its list (FocusIndicatorHelper.viewToRect: its left and top in
-                    // its parent), so it is told of the folder's cell, the list's own child: told
-                    // of the folder inside the cell, the mark stayed on the list's first cell
-                    // wherever the focus went (owner's video, 10:37:46).
-                    View.OnFocusChangeListener zui = drawer.focus;
-                    icon.setOnFocusChangeListener((v, focused) -> {
-                        try {
-                            zui.onFocusChange(v.getParent() instanceof View
-                                    ? (View) v.getParent() : v, focused);
-                        } catch (Throwable t) {
-                            L.d("zui folders: ZUI's focus mark not drawn on a folder (" + t + ")");
-                        }
-                    });
-                }
+            }
+            View.OnFocusChangeListener zui = focusOf(list, drawer);
+            if (zui != null && icon.getOnFocusChangeListener() == null) {
+                // Reached by a keyboard or a controller, marked as ZUI marks its apps - guarded,
+                // as ZUI made its mark for app icons. ZUI draws the mark where the view is in its
+                // list (FocusIndicatorHelper.viewToRect: its left and top in its parent), so it
+                // is told of the folder's cell, the list's own child: told of the folder inside
+                // the cell, the mark stayed on the list's first cell wherever the focus went
+                // (owner's video, 10:37:46).
+                icon.setOnFocusChangeListener((v, focused) -> {
+                    try {
+                        zui.onFocusChange(v.getParent() instanceof View
+                                ? (View) v.getParent() : v, focused);
+                    } catch (Throwable t) {
+                        L.d("zui folders: ZUI's focus mark not drawn on a folder (" + t + ")");
+                    }
+                });
             }
             String said = icon.getResources().getConfiguration().orientation + ":" + size + ":"
                     + preview.width() + ":" + (drawer != null);
@@ -1183,6 +1183,30 @@ public final class ZuiFolders {
 
     /** What the alignment has told the log: each orientation, size and source once. */
     private static final java.util.Set<String> SAID_ALIGN = new java.util.HashSet<>();
+
+    /**
+     * ZUI's focus mark for the icons of a drawer list: the listener its adapter gives each app
+     * ({@code BaseAllAppsAdapter.mIconFocusListener}, ZUI's {@code FocusedItemDecorator}), so a
+     * folder has it before any app is laid out - the owner's drawer opens on rows of folders, and
+     * they had no mark until an app scrolled into view (owner on 0.0.277). An app's own listener
+     * when the adapter's is not found; null for neither.
+     */
+    private static View.OnFocusChangeListener focusOf(ViewGroup list, Look drawer) {
+        Object adapter = list == null ? null : Reflect.call(list, "getAdapter");
+        Object focus = adapter == null ? null : Reflect.field(adapter, "mIconFocusListener");
+        if (!(focus instanceof View.OnFocusChangeListener) && adapter != null) {
+            for (Field f : Mirror.fields(adapter.getClass())) {
+                if (f.getType() == View.OnFocusChangeListener.class) {
+                    focus = Mirror.get(f, adapter);
+                    break;
+                }
+            }
+        }
+        if (focus instanceof View.OnFocusChangeListener) {
+            return (View.OnFocusChangeListener) focus;
+        }
+        return drawer != null ? drawer.focus : null;
+    }
 
     /** The drawer's icon size in ZUI's profile for the icon's window, or 0. */
     private static int profileIconSize(View icon) {
