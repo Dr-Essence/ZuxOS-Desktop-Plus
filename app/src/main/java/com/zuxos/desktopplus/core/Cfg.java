@@ -558,6 +558,14 @@ public final class Cfg {
         return getBool(Const.KEY_SIDEBAR_AI_WAIT, true);
     }
 
+    public static boolean drawerTaps() {
+        return getBool(Const.KEY_DRAWER_TAPS, true);
+    }
+
+    public static boolean gamepadDrawer() {
+        return getBool(Const.KEY_GAMEPAD_DRAWER, true);
+    }
+
     public static boolean loaderNoWait() {
         return getBool(Const.KEY_LOADER_NO_WAIT, true);
     }

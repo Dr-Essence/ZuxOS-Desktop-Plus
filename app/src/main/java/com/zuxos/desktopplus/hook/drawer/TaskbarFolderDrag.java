@@ -88,12 +88,27 @@ final class TaskbarFolderDrag {
                     (proxy, method, args) -> {
                         if (method.getName().equals("onDropCompleted") && args != null
                                 && args.length == 3 && args[2] instanceof Boolean) {
-                            // What ZUI's own source tells it (n0's b0): a drop that took it is
-                            // not animated back to the drawer.
-                            setTaken(controller, (Boolean) args[2]);
+                            // What ZUI's own source tells it (n0's b0) - and taken either way:
+                            // ZUI's flight back (k0) sizes a view by its whole width unless it is
+                            // an app icon, and a folder's cell is twice its icon's width, so the
+                            // picture grew on its way back. Not taken, the folder shows again
+                            // in its place as the drag ends (DrawerSession.end).
+                            setTaken(controller, true);
+                            if (!(Boolean) args[2]) {
+                                L.i("zui folders: " + folder.label + " let go where nothing"
+                                        + " took it - shown again in its place");
+                            }
                         }
                         return null;
                     });
+            // The size ZUI's drag takes the picture to be, as it sets it for an app's icon
+            // (n0: getIconSize): its drag view grows by this less the picture's width
+            // (startDrag). Left at the last app's size, a folder's picture grew by the
+            // difference - three times too big and blurred (owner's video, 15:13).
+            if (!setIconSize(controller, bounds.width())) {
+                L.i("zui folders: " + folder.label + " not dragged - ZUI's drag size not found");
+                return false;
+            }
             FolderPress.pressedOff(icon);
             // Picked up from its pressed size, as ZUI's drag of an app is (ZuiFolderHome).
             ZuiFolderHome.holding(true);
@@ -126,6 +141,22 @@ final class TaskbarFolderDrag {
             }
         }
         return null;
+    }
+
+    /** ZUI's size of the icon being dragged ({@code TaskbarDragController.g}); false if absent. */
+    private static boolean setIconSize(Object controller, int size) {
+        try {
+            Field f = controller.getClass().getDeclaredField("g");
+            if (f.getType() != int.class || size <= 0) {
+                return false;
+            }
+            f.setAccessible(true);
+            f.setInt(controller, size);
+            return true;
+        } catch (Throwable t) {
+            L.d("zui folders: ZUI's drag size not set (" + t + ")");
+            return false;
+        }
     }
 
     /** ZUI's own note of a drop that took the drag ({@code TaskbarDragController.m}). */

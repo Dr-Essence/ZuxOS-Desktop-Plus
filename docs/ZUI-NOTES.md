@@ -658,6 +658,34 @@ vendor power HAL's, not in these jars.
   the card (`b.onDrawShadow`). SystemUI's drop window (`DragAndDropController.onDrag`) hides its
   zones on leaving unless `mIsZuiSplit`, and shows them on entering (`DragLayout.show`).
 
+## The taskbar's drag, drawer taps and the controller (read 2026-10-17)
+
+From the owner's crash reports and the excerpts kept from the 2026-10-15 decompile (the
+decompile itself went with a reset container, 2026-10-17).
+
+- **The drop's spoken announcement:** `TaskbarDragController.startDrag` gives the drag a
+  `DragViewStateAnnouncer` (field `stateAnnouncer` of `DropTarget.DragObject`) unless it is an
+  accessible drag; the announcer exists only while an accessibility service is on
+  (`DragViewStateAnnouncer.createFor`). `Folder.onDrop` ends with its `completeAction`, which asks
+  `Launcher.getLauncher` for the view's context: in the taskbar's windows that throws ("Cannot
+  find BaseActivity in parent tree") and ZUX Home stops. ZUI never meets it - the taskbar's
+  controller refuses folders as drop targets.
+- **The taskbar's drag size:** `TaskbarDragController.g` is the size of the icon being dragged,
+  set by `n0` to the icon's `getIconSize()`; `startDrag` gives its `TaskbarDragView` a growth of
+  `g` less the drag rect's width (`DragView`: from its start scale to
+  `(width + growth) / width`). For an app the two are equal: no growth. Its flight back (`k0`)
+  sizes the view by its whole width unless it is a `BubbleTextView` or `ActiveIconView`.
+- **Where an app icon takes a touch:** `BubbleTextView.onTouchEvent` lets a touch down go when
+  `CheckLongPressHelper.isContentRect(Context, View, x, y)` says it is off the icon's content
+  (unless it is from a mouse or TalkBack is on); that area is worked out from the profile's
+  sizes (`iconSizePx`, folder spans), not from the icon as drawn.
+- **The drawer's icon size:** `DeviceProfile.allAppsIconSizePx` (kept under its own name).
+- **A game controller's buttons** (Android's `Generic.kcm`, unchanged by ZUI as far as the logs
+  show): A falls back to DPAD_CENTER, B to BACK, X to DEL, Y to SPACE, Start to DPAD_CENTER,
+  Select to MENU, Home (`BUTTON_MODE`) to HOME; L1/R1/L2/R2 to nothing. A fallback is pressed only
+  when the app in front leaves the button unhandled. `PhoneWindowManager
+  .interceptKeyBeforeDispatching` answering -1 drops a key before any window sees it.
+
 ## ZUI's sidebar and its AI service (read 2026-10-15, from the owner's ANR traces)
 
 - `com.zui.freeform.sidebar` listens to every drag (`FloatingOnDragListener.onDrag`) and on its

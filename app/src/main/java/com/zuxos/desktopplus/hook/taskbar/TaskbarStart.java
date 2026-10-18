@@ -466,6 +466,27 @@ final class TaskbarStart {
         return true;
     }
 
+    /**
+     * ZUI's drawer on this display opened, or closed if it is up, as a press of our start button
+     * does - the bar's button even while the bar is tucked away. False with no button there.
+     */
+    static boolean toggleDrawer(int display) {
+        StartButton button = shownOn(display);
+        if (button == null) {
+            for (StartButton any : new java.util.ArrayList<>(BUTTONS.keySet())) {
+                if (any != null && any.isAttachedToWindow()
+                        && TaskbarTray.displayIdOf(any) == display) {
+                    button = any;
+                }
+            }
+        }
+        if (button == null) {
+            return false;
+        }
+        button.press();
+        return true;
+    }
+
     static StartButton buttonIn(ViewGroup dragLayer) {
         View found = dragLayer == null ? null : dragLayer.findViewWithTag(TAG_START);
         return found instanceof StartButton ? (StartButton) found : null;
@@ -482,6 +503,7 @@ final class TaskbarStart {
         button.setTag(TAG_START);
         BUTTONS.put(button, Boolean.TRUE);
         dragLayer.addView(button, lp);
+        GamepadDrawer.listen(dragLayer.getContext());
         if (!sSaid) {
             sSaid = true;
             L.i("taskbar start: our own start button beside the navigation keys; ZUI's is "

@@ -858,11 +858,21 @@ public final class ZuiFolders {
             (v, l, t, r, b, ol, ot, or, ob) -> alignNow(v, true);
 
     /**
-     * {@code retry}: when the list has no app icon laid out yet to measure - a first row of
-     * folders, laid out before any app - once more after this frame.
+     * {@code retry}: when the list has no app icon of this orientation laid out to measure - a
+     * screen of folders, laid out before any app - once more after this frame. Until an app is
+     * measured the folder takes the drawer's icon size from ZUI's profile
+     * ({@code allAppsIconSizePx}), and every folder of the list is aligned again the moment one
+     * is ({@link #drawerIconIn}). A folder laid out before any app used to keep ZUI's home size
+     * - in landscape smaller than the apps beside it, and than the folders aligned after it
+     * (owner, 0.0.270).
      */
     private static void alignNow(View icon, boolean retry) {
         try {
+            if (!icon.isPressed()) {
+                // A press whose end never reached the icon - its touch taken by a drag or by
+                // the list - does not leave it drawn shrunk.
+                FolderPress.pressedOff(icon);
+            }
             ViewGroup list = icon.getParent() != null
                     && icon.getParent().getParent() instanceof ViewGroup
                     ? (ViewGroup) icon.getParent().getParent() : null;
@@ -870,31 +880,69 @@ public final class ZuiFolders {
             android.graphics.Rect preview = new android.graphics.Rect();
             icon.getClass().getMethod("getPreviewBounds", android.graphics.Rect.class)
                     .invoke(icon, preview);
-            if (drawer == null || preview.width() <= 0) {
+            int size = drawer != null ? drawer.size : profileIconSize(icon);
+            if (size <= 0 || preview.width() <= 0) {
                 if (retry) {
                     icon.post(() -> alignNow(icon, false));
                 }
                 return;
             }
-            float scale = drawer.size / (float) preview.width();
+            float scale = size / (float) preview.width();
             icon.setPivotX(preview.exactCenterX());
             icon.setPivotY(preview.top);
             icon.setScaleX(scale);
             icon.setScaleY(scale);
-            icon.setTranslationY(drawer.top - preview.top - icon.getTop());
-            fitName(icon, drawer, scale);
-            if (!sSaidAlign) {
-                sSaidAlign = true;
+            if (drawer == null) {
+                // Sized, and placed once an app shows where the drawer draws its icons.
+                icon.setTranslationY(0f);
+                if (retry) {
+                    icon.post(() -> alignNow(icon, false));
+                }
+            } else {
+                icon.setTranslationY(drawer.top - preview.top - icon.getTop());
+                fitName(icon, drawer, scale);
+                if (drawer.focus != null && icon.getOnFocusChangeListener() == null) {
+                    // Reached by a keyboard or a controller, marked as ZUI marks its apps -
+                    // guarded, as ZUI made its mark for app icons.
+                    View.OnFocusChangeListener zui = drawer.focus;
+                    icon.setOnFocusChangeListener((v, focused) -> {
+                        try {
+                            zui.onFocusChange(v, focused);
+                        } catch (Throwable t) {
+                            L.d("zui folders: ZUI's focus mark not drawn on a folder (" + t + ")");
+                        }
+                    });
+                }
+            }
+            String said = icon.getResources().getConfiguration().orientation + ":" + size + ":"
+                    + preview.width() + ":" + (drawer != null);
+            if (SAID_ALIGN.size() < 16 && SAID_ALIGN.add(said)) {
                 L.i("zui folders: preview " + preview.width() + "px at " + preview.top
-                        + " to the drawer's " + drawer.size + "px at " + drawer.top
-                        + " (x" + scale + ")");
+                        + " to the drawer's " + size + "px"
+                        + (drawer != null ? " at " + drawer.top + ", measured on its apps"
+                        : ", from ZUI's profile until an app is laid out")
+                        + " (x" + scale + ", " + (icon.getResources().getConfiguration()
+                        .orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+                        ? "landscape" : "portrait") + ")");
             }
         } catch (Throwable t) {
             L.d("zui folders: not aligned (" + t + ")");
         }
     }
 
-    private static boolean sSaidAlign;
+    /** What the alignment has told the log: each orientation, size and source once. */
+    private static final java.util.Set<String> SAID_ALIGN = new java.util.HashSet<>();
+
+    /** The drawer's icon size in ZUI's profile for the icon's window, or 0. */
+    private static int profileIconSize(View icon) {
+        try {
+            Object profile = Reflect.call(lookup(icon.getContext()), "getDeviceProfile");
+            Object size = Reflect.field(profile, "allAppsIconSizePx");
+            return size instanceof Integer ? (Integer) size : 0;
+        } catch (Throwable t) {
+            return 0;
+        }
+    }
 
     /**
      * The folder's name as ZUI writes the app names beside it. ZUI's folder name is made for the
@@ -942,8 +990,13 @@ public final class ZuiFolders {
         final float textPx;
         final int lines;
         final android.text.TextUtils.TruncateAt ellipsize;
+        /** The list's orientation and width it was measured at: rotated, it is measured again. */
+        final int orientation;
+        final int width;
+        /** ZUI's mark for the icon a keyboard or controller is on, which its apps draw. */
+        final View.OnFocusChangeListener focus;
 
-        Look(android.widget.TextView app, int size) {
+        Look(android.widget.TextView app, int size, ViewGroup list) {
             this.size = size;
             this.top = app.getPaddingTop();
             this.textPx = app.getTextSize();
@@ -951,6 +1004,21 @@ public final class ZuiFolders {
             this.lines = app.getMaxLines() > 0 ? Math.min(app.getMaxLines(), 2) : 1;
             this.ellipsize = app.getEllipsize() != null ? app.getEllipsize()
                     : android.text.TextUtils.TruncateAt.END;
+            this.orientation = list.getResources().getConfiguration().orientation;
+            this.width = list.getWidth();
+            this.focus = app.getOnFocusChangeListener();
+        }
+
+        /** Still the list's look: the same orientation and width. */
+        boolean holdsFor(ViewGroup list) {
+            return orientation == list.getResources().getConfiguration().orientation
+                    && width == list.getWidth();
+        }
+
+        boolean sameAs(Look other) {
+            return other != null && size == other.size && top == other.top
+                    && textPx == other.textPx && lines == other.lines
+                    && orientation == other.orientation && width == other.width;
         }
     }
 
@@ -960,7 +1028,9 @@ public final class ZuiFolders {
     /**
      * The look of ZUI's own app icons in a drawer list, measured on one of them (its top
      * compound drawable, drawn at its top padding, and its name) and kept for when none is on
-     * screen.
+     * screen - while the list keeps its orientation and width. Measured different from before (a
+     * first app laid out, a rotation), every folder of the list is aligned to it, not only those
+     * laid out from now on.
      */
     private static Look drawerIconIn(ViewGroup list) {
         if (list == null) {
@@ -973,13 +1043,30 @@ public final class ZuiFolders {
                         ((android.widget.TextView) c).getCompoundDrawables()[1];
                 if (art != null && art.getBounds().width() > 0) {
                     Look measured = new Look((android.widget.TextView) c,
-                            art.getBounds().width());
-                    DRAWER_ICON.put(list, measured);
+                            art.getBounds().width(), list);
+                    Look before = DRAWER_ICON.put(list, measured);
+                    if (!measured.sameAs(before)) {
+                        list.post(() -> realign(list));
+                    }
                     return measured;
                 }
             }
         }
-        return DRAWER_ICON.get(list);
+        Look kept = DRAWER_ICON.get(list);
+        return kept != null && kept.holdsFor(list) ? kept : null;
+    }
+
+    /** Every folder of ours a drawer list shows, aligned again. */
+    private static void realign(ViewGroup list) {
+        for (int i = 0; i < list.getChildCount(); i++) {
+            View cell = list.getChildAt(i);
+            if (cell instanceof FrameLayout && ((FrameLayout) cell).getChildCount() == 1) {
+                View icon = ((FrameLayout) cell).getChildAt(0);
+                if (icon.getClass().getName().endsWith(".FolderIcon") && icon.isLaidOut()) {
+                    alignNow(icon, false);
+                }
+            }
+        }
     }
 
     /** ZUI's folder icon for one of our folders in this context, built once per change. */
@@ -1010,6 +1097,8 @@ public final class ZuiFolders {
         }
         // Held, our hold hook gives it ZUI's folder menu; ZUI's own hold needs it long-clickable.
         icon.setOnLongClickListener(v -> true);
+        // A keyboard's or a controller's arrows stop on it, and select opens it, as an app.
+        icon.setFocusable(true);
         // Aligned as it is laid out, before it is ever drawn at ZUI's home size.
         icon.addOnLayoutChangeListener(ALIGN);
         mine.put(folder.id, new Built(icon, content));

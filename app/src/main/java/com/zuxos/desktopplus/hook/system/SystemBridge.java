@@ -144,7 +144,7 @@ public final class SystemBridge {
         }
     }
 
-    private static Context systemContext() {
+    static Context systemContext() {
         try {
             Class<?> thread = Class.forName("android.app.ActivityThread");
             Object current = thread.getMethod("currentActivityThread").invoke(null);

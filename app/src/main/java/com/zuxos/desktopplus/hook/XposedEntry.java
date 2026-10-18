@@ -6,6 +6,7 @@ import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.ModuleStatus;
 import com.zuxos.desktopplus.hook.drawer.DrawerFromTop;
 import com.zuxos.desktopplus.hook.drawer.DrawerRetro;
+import com.zuxos.desktopplus.hook.drawer.DrawerTaps;
 import com.zuxos.desktopplus.hook.drawer.NativeDrawerHooks;
 import com.zuxos.desktopplus.hook.home.ActivityWatcher;
 import com.zuxos.desktopplus.hook.home.GridFit;
@@ -23,6 +24,7 @@ import com.zuxos.desktopplus.hook.sidebar.SidebarAiWait;
 import com.zuxos.desktopplus.hook.system.SystemBridge;
 import com.zuxos.desktopplus.hook.system.SystemDrag;
 import com.zuxos.desktopplus.hook.system.SystemFullscreen;
+import com.zuxos.desktopplus.hook.system.SystemGamepad;
 import com.zuxos.desktopplus.hook.system.SystemKeepAlive;
 import com.zuxos.desktopplus.hook.system.SystemNewWindow;
 import com.zuxos.desktopplus.hook.system.SystemTrace;
@@ -64,6 +66,9 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     SystemFullscreen.install(lpparam.classLoader);
                     SystemDrag.install(lpparam.classLoader);
                     SystemTrace.install(lpparam.classLoader);
+                    if (Cfg.gamepadDrawer()) {
+                        SystemGamepad.install(lpparam.classLoader);
+                    }
                     TouchScreens.install(lpparam.classLoader);
                 }
                 return;
@@ -108,6 +113,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
                 NativeDrawerHooks.install(lpparam.classLoader);
             }
             DrawerRetro.install(lpparam.classLoader);
+            DrawerTaps.install(lpparam.classLoader);
             DrawerFromTop.install(lpparam.classLoader);
             RecentsRoute.install(lpparam.classLoader);
             DetachGuard.install();

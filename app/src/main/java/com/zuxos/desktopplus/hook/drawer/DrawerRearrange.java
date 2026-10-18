@@ -157,6 +157,12 @@ final class DrawerRearrange {
                     }).size();
             Class<?> folder = Reflect.findClass("com.android.launcher3.folder.Folder", loader);
             if (folder != null) {
+                hooked += XposedBridge.hookAllMethods(folder, "onDrop", new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) {
+                        quietDrop(param.thisObject, param.args);
+                    }
+                }).size();
                 hooked += XposedBridge.hookAllMethods(folder, "onDropCompleted",
                         new XC_MethodHook() {
                             @Override
@@ -183,6 +189,36 @@ final class DrawerRearrange {
         } catch (Throwable t) {
             L.w("drawer rearrange: the taskbar drawer's drags stay ZUI's (" + t + ")");
             return 0;
+        }
+    }
+
+    private static boolean sSaidQuiet;
+
+    /**
+     * A drop into one of our folders outside ZUX Home's own window - the taskbar's drawer, where
+     * this module makes the folder a drop target - without ZUI's spoken "moved" for it. ZUI's drop
+     * ends by announcing it through the drag's {@code DragViewStateAnnouncer}, which only the
+     * taskbar's controller makes, and only while an accessibility service is on
+     * ({@code TaskbarDragController.startDrag}); the announcer asks for ZUX Home's activity
+     * ({@code Launcher.getLauncher}), which the taskbar's window has none of, and ZUX Home
+     * stopped on every such drop ("Cannot find BaseActivity in parent tree", owner, 15:15-15:18
+     * and 23:23).
+     */
+    private static void quietDrop(Object folder, Object[] args) {
+        try {
+            if (args.length == 0 || args[0] == null || !(folder instanceof View)
+                    || ZuiFolders.isLauncher(ZuiFolders.lookup(((View) folder).getContext()))
+                    || Reflect.field(args[0], "stateAnnouncer") == null) {
+                return;
+            }
+            DrawerSession.setField(args[0], "stateAnnouncer", null);
+            if (!sSaidQuiet) {
+                sSaidQuiet = true;
+                L.i("drawer rearrange: a drop into a folder outside ZUX Home's window goes"
+                        + " without ZUI's spoken announcement, which needs ZUX Home's activity");
+            }
+        } catch (Throwable t) {
+            L.d("drawer rearrange: a folder's drop left as ZUI has it (" + t + ")");
         }
     }
 

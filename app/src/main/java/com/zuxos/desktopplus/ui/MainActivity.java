@@ -245,6 +245,18 @@ public class MainActivity extends Activity {
                 "Select in a drawer app's menu marks it: tap others to add them, then drag them "
                         + "together into a new place, a folder or the taskbar",
                 Const.KEY_DRAWER_SELECT, true);
+        addSwitch("Taps on drawer apps always count",
+                "A tap anywhere on a drawer app's icon or name opens it. ZUI measures where an "
+                        + "icon can be touched by the home screen's icon size, so taps near the "
+                        + "edge of a larger drawer icon went nowhere. Applies after ZUX Home "
+                        + "restarts",
+                Const.KEY_DRAWER_TAPS, true);
+        addSwitch("Game controller's Home button opens the drawer",
+                "Press it to open or close the app drawer, then move with the stick or D-pad, "
+                        + "A to open, B to go back. Folders are reached too. Takes the button "
+                        + "from Android, which otherwise goes home with it. Applies after a "
+                        + "restart of the tablet",
+                Const.KEY_GAMEPAD_DRAWER, true);
         addSwitch("Navigation keys at the bar's right edge",
                 "On the tablet the back, home and recents keys sit flush with the bar's right "
                         + "edge; ZUI's room there comes back while it has a button to show in it",

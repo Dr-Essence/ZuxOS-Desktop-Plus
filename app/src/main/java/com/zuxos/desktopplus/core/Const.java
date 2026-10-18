@@ -126,6 +126,10 @@ public final class Const {
     public static final String KEY_HOME_FOLDER_REMOVE = "home_folder_remove";
     /** ZUI's sidebar skips its wait for ZUI's AI service on each drag when that is not there. */
     public static final String KEY_SIDEBAR_AI_WAIT = "sidebar_ai_wait";
+    /** A tap on a drawer app counts wherever it lands on the icon or its name. */
+    public static final String KEY_DRAWER_TAPS = "drawer_taps";
+    /** A game controller's Home button opens and closes the app drawer. */
+    public static final String KEY_GAMEPAD_DRAWER = "gamepad_drawer";
     /** ZUI's loader waits a second at most for an idle home screen before loading the app list. */
     public static final String KEY_LOADER_NO_WAIT = "loader_no_wait";
     /** Translucent glass behind the launcher's own app drawer. */
