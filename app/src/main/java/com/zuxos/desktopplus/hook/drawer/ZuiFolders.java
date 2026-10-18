@@ -1628,6 +1628,8 @@ public final class ZuiFolders {
 
     /** The app filed into one of our folders by the last drop into ZUI's folder, for the log. */
     static String sLastFiled;
+    /** Where in our folder {@link #sLastFiled} went: the apps chosen with it go after it. */
+    static int sLastFiledAt;
 
     /**
      * ZUI's folder of ours took a dragged app ({@code Folder.onDrop}, sprung open under it in the
@@ -1664,9 +1666,11 @@ public final class ZuiFolders {
                                 filed[0] = DrawerArrange.fileIntoAt(order, folders, f, app, rank);
                                 if (filed[0]) {
                                     keepBuilt(f);
-                                    for (Item child : f.children) {
+                                    for (int i = 0; i < f.children.size(); i++) {
+                                        Item child = f.children.get(i);
                                         if (child.key().equals(app.key())) {
                                             noteChild(item, child);
+                                            sLastFiledAt = i;
                                         }
                                     }
                                 }
@@ -1682,6 +1686,81 @@ public final class ZuiFolders {
         } catch (Throwable t) {
             L.w("zui folders: a dropped app not filed (" + t + ")");
             return false;
+        }
+    }
+
+    /**
+     * The apps chosen with a dragged one ({@link DrawerSelect}) into the folder of ours that took
+     * it ({@code Folder.onDrop}), after it and in their order. ZUI's own multi-drag files its
+     * chosen items after a drop into a folder ({@code MultiDragSupport.onDropFolderSuccess});
+     * ours are not ZUI's, so only the dragged app went in and the others went back to their
+     * cells (owner on 0.0.274). Into our model as the dropped app went ({@link #filedByDrop}),
+     * and shown by ZUI's open folder as ZUI's Add apps shows its picks ({@link ZuiFolderAdd}):
+     * the drawer's own entry made into ZUI's item for a folder ({@code makeWorkspaceItem}, as
+     * ZUI's drop makes it) and added through ZUI's {@code addFolderContent}, its writes kept out
+     * of ZUI's database ({@link ZuiFolderWrites}). How many went in.
+     */
+    static int fileCarried(Object zuiFolder, List<String> keys) {
+        try {
+            Object info = Reflect.field(zuiFolder, "mInfo");
+            Object id = info == null ? null : Reflect.field(info, "id");
+            Item folder = id instanceof Integer ? folderOfId((Integer) id) : null;
+            if (folder == null || keys.isEmpty() || !(zuiFolder instanceof View)) {
+                return 0;
+            }
+            String folderId = folder.id;
+            int after = sLastFiledAt;
+            List<Item> filed = new java.util.ArrayList<>();
+            NativeDrawerHooks.rearrange("put " + keys.size() + " chosen into a folder after "
+                    + after, (order, folders) -> {
+                        for (Item f : folders) {
+                            if (!f.id.equals(folderId)) {
+                                continue;
+                            }
+                            for (String key : keys) {
+                                Item app = DrawerArrange.appOf(key, NativeDrawerHooks.labelOf(key));
+                                if (app != null && DrawerArrange.fileIntoAt(order, folders, f, app,
+                                        after + 1 + filed.size())) {
+                                    filed.add(app);
+                                }
+                            }
+                            if (!filed.isEmpty()) {
+                                keepBuilt(f);
+                            }
+                            return !filed.isEmpty();
+                        }
+                        return false;
+                    });
+            Context ctx = ((View) zuiFolder).getContext();
+            Class<?> itemInfo = Class.forName("com.android.launcher3.model.data.ItemInfo", false,
+                    zuiFolder.getClass().getClassLoader());
+            Method add = zuiFolder.getClass().getMethod("addFolderContent", itemInfo, int.class,
+                    boolean.class);
+            int shown = 0;
+            for (Item app : filed) {
+                Object entry = NativeDrawerHooks.entryOf(app.key());
+                Object made = entry == null ? null : entry.getClass()
+                        .getMethod("makeWorkspaceItem", Context.class).invoke(entry, ctx);
+                Item child = null;
+                for (Item c : folder.children) {
+                    if (c.key().equals(app.key())) {
+                        child = c;
+                    }
+                }
+                if (made == null || child == null) {
+                    continue;
+                }
+                setInt(made, "container", (Integer) id);
+                noteChild(made, child);
+                add.invoke(zuiFolder, made, folder.children.indexOf(child), true);
+                shown++;
+            }
+            L.i("zui folders: " + filed.size() + " chosen with the dropped app into "
+                    + folder.label + ", " + shown + " shown by ZUI's folder");
+            return filed.size();
+        } catch (Throwable t) {
+            L.w("zui folders: the chosen apps not filed with the dropped one (" + t + ")");
+            return 0;
         }
     }
 

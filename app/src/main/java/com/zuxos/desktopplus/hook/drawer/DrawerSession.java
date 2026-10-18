@@ -54,6 +54,8 @@ final class DrawerSession {
     Item folderDragged;
     /** Our open folder the drag started in, asked before the drawer; or null. */
     private Object mInFolder;
+    /** The drag from {@link #mInFolder} has left it, for the drawer. */
+    private boolean mLeftFolder;
     /** ZUI's folder opened under the drag, while it is a drop target of the drag; or null. */
     private Object mSprung;
     /** The sprung folder was put on the drag's targets by us, to come off at the end. */
@@ -171,11 +173,13 @@ final class DrawerSession {
         if (!keeping) {
             return;
         }
-        if (mInFolder != null) {
-            // Our target hears the drag only where the folder does not: it has left the folder,
-            // and goes on as ZUI's, the folder putting the app back as ZUI's drags out of it do.
-            toSystemDrag();
-            return;
+        if (mInFolder != null && !mLeftFolder) {
+            // Our target hears the drag only where the folder does not: it has left the folder.
+            // ZUI's folder closes on the drag's exit (Folder.onDragExit) and the app goes on in
+            // the drawer, placed where it is let go - as in ZUX Home's drawer. Sent on as ZUI's
+            // floating window here, the drawer closed under it (owner on 0.0.274).
+            mLeftFolder = true;
+            L.i("drawer rearrange: the drag of " + key + " left its folder - on in the drawer");
         }
         int[] layer = new int[2];
         dragLayer.getLocationOnScreen(layer);
@@ -458,10 +462,20 @@ final class DrawerSession {
                 targets.remove(mSprung);
             }
         }
+        Object sprung = mSprung;
         mSprung = null;
+        // ZUI's folder took the dragged app: the apps chosen with it go in after it.
+        int carriedIn = folderOpened && ZuiFolders.sLastFiled != null && sprung != null
+                && !dropped && !carried.isEmpty() ? ZuiFolders.fileCarried(sprung, carried) : 0;
         if (mFlight != null) {
-            // Nothing moved them: back to their cells.
-            mFlight.back();
+            if (carriedIn > 0) {
+                // Into the folder's icon, as ZUI's multi-drag flies its chosen apps.
+                Object icon = Reflect.call(sprung, "getFolderIcon");
+                mFlight.land(chosen -> null, icon instanceof View ? (View) icon : (View) sprung);
+            } else {
+                // Nothing moved them: back to their cells.
+                mFlight.back();
+            }
             mFlight = null;
         }
         Reflect.call(controller, "removeDropTarget", target);
@@ -486,6 +500,7 @@ final class DrawerSession {
         String outcome = mOutcome != null ? mOutcome
                 : dropped ? reorder.outcome()
                 : folderOpened && filed != null ? "placed in a folder, where it was let go"
+                        + (carriedIn > 0 ? ", with " + carriedIn + " chosen" : "")
                 : mInFolder != null && kept ? "let go inside its folder, as ZUI places it"
                 : kept ? "let go of nowhere in the drawer, or cancelled - no change"
                 : taskbar ? "gone on as ZUI's" : "on the home screen's side, as ZUI has it";

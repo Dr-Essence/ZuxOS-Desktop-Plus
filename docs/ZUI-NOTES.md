@@ -695,6 +695,15 @@ on 2026-10-18.
   `PopupContainerWithArrow.showForIcon`, which asks for `Launcher.getLauncher`: ZUX Home's
   window only); while the menu shows the picture grows by `pre_drag_view_scale`, 6 dp, in 150 ms
   (`LauncherDragController.startDrag`).
+- **A drop into a folder** (`Folder.onDrop`): the folder's delegate's `Launcher` (`e()`; null
+  for a folder outside ZUX Home, and `onDrop` then returns) makes ZUI's item
+  (`WorkspaceItemFactory.makeWorkspaceItem(Context)`, an `AppInfo` from the drawer), adds it at
+  the folder's empty place, and lands the drag picture on that Launcher's `DragLayer`
+  (`animateViewIntoPosition(DragView, View, View)`; with a picture not drawn yet it shows the
+  icon at once instead). The landing's end calls that layer's controller
+  (`clearAnimatedView` → `DragController.g`), which reads its own drag object - null with no drag
+  of its own. Then `multiDragSupport.onDropFolderSuccess` files ZUI's own chosen items.
+  `Folder.addFolderContent(ItemInfo, rank, animate)` adds one item through ZUI's model writer.
 - **ZUI's folder menu:** Enlarge (`SystemShortcut.SWITCH_FOLDER`, not in desktop mode) and Rename
   (`RENAME_FOLDER`). Rename closes the menu and after `config_popupOpenCloseDuration` (150 ms)
   calls `Folder.animateOpen(true)`, the folder opening with its name ready to edit.

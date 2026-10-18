@@ -171,6 +171,7 @@ final class DrawerRearrange {
                             }
                         }).size();
             }
+            hooked += hookLanding(loader);
             hooked += XposedBridge.hookAllMethods(drags, "callOnDragEnd", new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
@@ -193,6 +194,66 @@ final class DrawerRearrange {
     }
 
     private static boolean sSaidQuiet;
+    private static boolean sSaidLanding;
+
+    /**
+     * A drop into one of our folders in the taskbar's drawer lands at once, as that drawer's
+     * drops do, not on ZUX Home's own layer. ZUI's folder lands a dropped icon through its
+     * delegate's {@code Launcher} ({@code Folder.onDrop}:
+     * {@code getDragLayer().animateViewIntoPosition(dragView, view, null)}); our folders there
+     * answer ZUX Home's ({@link ZuiFolders}, so that they are drawn as ZUI's), so the taskbar's
+     * picture was animated on ZUX Home's layer, and at its end ZUX Home's own controller, with no
+     * drag of its own, read its missing drag and ZUX Home stopped (owner, 10:20:06:
+     * {@code DragController.g} from {@code DragLayer.clearAnimatedView}). A picture that is not
+     * on the layer gets ZUI's own way for one it cannot animate ({@code onDrop}, not drawn yet):
+     * the icon shown, and the drag ended by its own controller. ZUX Home's own drops always have
+     * their picture on its layer and are left as they are.
+     */
+    private static int hookLanding(ClassLoader loader) {
+        Class<?> layer = Reflect.findClass("com.android.launcher3.dragndrop.DragLayer", loader);
+        if (layer == null) {
+            return 0;
+        }
+        int hooked = 0;
+        for (Method m : layer.getDeclaredMethods()) {
+            Class<?>[] p = m.getParameterTypes();
+            if (m.getName().equals("animateViewIntoPosition") && p.length == 3
+                    && p[1] == View.class && p[2] == View.class) {
+                XposedBridge.hookMethod(m, new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) {
+                        landElsewhere(param);
+                    }
+                });
+                hooked++;
+            }
+        }
+        if (hooked == 0) {
+            L.w("drawer rearrange: ZUX Home's drop landing not found - drops into the taskbar"
+                    + " drawer's folders may stop ZUX Home");
+        }
+        return hooked;
+    }
+
+    private static void landElsewhere(XC_MethodHook.MethodHookParam param) {
+        try {
+            Object picture = param.args[0];
+            if (!(picture instanceof View) || ((View) picture).getParent() == param.thisObject) {
+                return;
+            }
+            param.setResult(null);
+            if (param.args[1] instanceof View) {
+                ((View) param.args[1]).setVisibility(View.VISIBLE);
+            }
+            if (!sSaidLanding) {
+                sSaidLanding = true;
+                L.i("drawer rearrange: a drop from another window lands at once, not on ZUX"
+                        + " Home's layer");
+            }
+        } catch (Throwable t) {
+            L.d("drawer rearrange: a landing left to ZUI (" + t + ")");
+        }
+    }
 
     /**
      * A drop into one of our folders outside ZUX Home's own window - the taskbar's drawer, where
@@ -347,23 +408,29 @@ final class DrawerRearrange {
 
     /** ZUI kept a drag in the taskbar's drawer for us: the drawer rearranges under it. */
     private static void beginTaskbar(Object controller) {
+        Object folder = sKeepingFolder;
+        sKeepingFolder = null;
         try {
-            Object folder = sKeepingFolder;
-            sKeepingFolder = null;
             end();
             Object drag = Reflect.field(controller, "mDragObject");
             View original = (View) Reflect.field(drag, "originalView");
             Object info = Reflect.field(drag, "dragInfo");
             String key = keyFor(original, info);
-            View apps = folder == null ? appsViewOf(original) : appsIn(original.getRootView());
+            // From a folder, the drawer is found through the folder: ZUI's folder has already
+            // taken the app's icon off its pages (Folder.onDragStart, the folder being the
+            // drag's source), so the icon is in no window - and the drag went on as ZUI's
+            // floating window, closing the drawer (owner on 0.0.274, 10:20:42).
+            View apps = folder == null ? appsViewOf(original)
+                    : appsIn(((View) folder).getRootView());
             Object activity = Reflect.field(controller, "mActivity");
             Object layer = Reflect.call(activity, "getDragLayer");
             Object list = apps == null ? null : Reflect.call(apps, "getActiveRecyclerView");
             ViewGroup grid = list instanceof ViewGroup ? (ViewGroup) list : null;
             DrawerReorder reorder = grid == null ? null : DrawerReorder.over(grid, key);
             if (apps == null || !(layer instanceof View) || reorder == null) {
-                if (ZuiFolders.folderOfIcon(original) != null) {
-                    // A folder has no system drag of ZUI's: it stays in the drawer, and goes back.
+                if (ZuiFolders.folderOfIcon(original) != null || folder != null) {
+                    // A folder has no system drag of ZUI's, and an app from one goes back into
+                    // it: it stays in the drawer, and goes back.
                     sResetDisallow = controller;
                     L.i("drawer rearrange: the taskbar drawer's drag of " + key + " goes back -"
                             + " its place in the drawer not found");
@@ -394,8 +461,10 @@ final class DrawerRearrange {
             // decided afresh.
             Object drag = Reflect.field(controller, "mDragObject");
             Object original = drag == null ? null : Reflect.field(drag, "originalView");
-            if (original instanceof View && ZuiFolders.folderOfIcon((View) original) != null) {
-                // A folder has no system drag of ZUI's: it stays in the drawer, and goes back.
+            if (folder != null || (original instanceof View
+                    && ZuiFolders.folderOfIcon((View) original) != null)) {
+                // A folder has no system drag of ZUI's, and an app from one goes back into it:
+                // it stays in the drawer, and goes back.
                 sResetDisallow = controller;
             } else if (!(original instanceof View)
                     || !DrawerSession.systemDrag(controller, (View) original)) {
@@ -443,8 +512,10 @@ final class DrawerRearrange {
      * view) and hears the drag start, when it takes the app out of its pages
      * ({@code Folder.onDragStart}). Its delegate in the taskbar's drawer starts no drag
      * ({@code LauncherDelegate$b.b}), so it is told here. Let go in the folder, ZUI puts the app at
-     * its new place and saves the order ({@code Folder.onDrop}); dragged out of it, the drag goes
-     * on as ZUI's and the folder puts the app back ({@code onDropCompleted}).
+     * its new place and saves the order ({@code Folder.onDrop}); dragged out of it, ZUI's folder
+     * closes ({@code onDragExit}) and the app goes on in the drawer, as in ZUX Home's drawer
+     * ({@link DrawerSession}); out of the drawer, on as ZUI's floating window, the folder putting
+     * the app back ({@code onDropCompleted}).
      */
     private static boolean fromFolder(Object controller, Object drag, Object folder, View view,
             Object info) {

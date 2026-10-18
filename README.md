@@ -42,6 +42,12 @@ The work now is making every feature run through ZUI's own code - its folders, m
 - **Monitor:** after a replug, its touchscreen and pen stay on the monitor.
 - **Home screen uses the dock's space:** the strip ZUX Home keeps for its dock above the taskbar is home screen.
 
+**New in 0.0.275, awaiting the owner's test:**
+
+- **Dropping apps into a folder no longer stops ZUX Home** in the taskbar's drawer.
+- **Every chosen app goes into the folder**, after the dragged one and in order, and their pictures fly in.
+- **Taskbar drawer:** an app dragged out of a folder is placed in the drawer where you let go, and the drawer stays open.
+
 **New in 0.0.274, awaiting the owner's test:**
 
 - **Drawer folders are held exactly like ZUI's home-screen folders:** no shrink under the finger, the same small lift when held, and in the taskbar's drawer ZUI's own Rename in the folder's menu.

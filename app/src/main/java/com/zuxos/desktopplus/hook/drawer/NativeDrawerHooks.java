@@ -513,6 +513,22 @@ public final class NativeDrawerHooks {
         return key.isEmpty() ? null : key;
     }
 
+    /** ZUI's own drawer entry for an app key ({@code AppInfo}), or null. */
+    static Object entryOf(String key) {
+        Context ctx = AppCtx.get();
+        Object list = sLastList != null ? sLastList.get() : null;
+        List<Object> apps = list == null ? null : appsListOf(list);
+        if (ctx == null || apps == null) {
+            return null;
+        }
+        for (Object app : apps) {
+            if (key.equals(entryKey(ctx, app))) {
+                return app;
+            }
+        }
+        return null;
+    }
+
     /** The name the drawer shows for an app key, or the name it has in one of our folders. */
     static String labelOf(String key) {
         Context ctx = AppCtx.get();
