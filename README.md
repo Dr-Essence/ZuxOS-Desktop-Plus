@@ -22,7 +22,7 @@ mode along the way.
 | Launcher | `com.zui.launcher`, desktop activity `SecondaryDisplayLauncher` |
 | Needs | Root, LSPosed, and the module scoped to the home app |
 
-**Status (2026-10-18, build 0.0.279)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
+**Status (2026-10-18, build 0.0.280)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
 
 The work now is making every feature run through ZUI's own code - its folders, menus, drag, animations and grids - so it looks and moves like ZUI itself.
 
@@ -42,7 +42,13 @@ The work now is making every feature run through ZUI's own code - its folders, m
 - **Monitor:** after a replug, its touchscreen and pen stay on the monitor.
 - **Home screen uses the dock's space:** the strip ZUX Home keeps for its dock above the taskbar is home screen.
 
-**New in 0.0.279, awaiting the owner's test:**
+**New in 0.0.280, awaiting the owner's test:**
+
+- **A held drawer folder is picked up at its own size with ZUI's small lift**: it was lifted three times over.
+- **Game controller on the taskbar:** from the bottom row of the home screen or a drawer, press down to move onto the taskbar. Left and right move across the start button, apps and folders, each lifting with ZUI's focus ring. A opens, Triangle gives the menu, B or up goes back. A touch hands the bar back to touch. It has its own switch.
+- **Every option in the menus shows the controller's mark**, the small buttons (floating window, app info…) included.
+
+**New in 0.0.279** (seen working by the owner: folder marks, row marks, Triangle):
 
 - **Game controller in the drawers:** the focus mark is on the folders as soon as the drawer opens; every row of the app and folder menus shows the mark; Triangle always opens the menu, never the app or folder (ZUI's home folders included).
 - **A folder an app was dragged out of always closes**, its blur with it.

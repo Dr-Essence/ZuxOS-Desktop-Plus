@@ -833,6 +833,34 @@ For 0.0.279, from ZUX Home 18.2.0.0375 decompiled.
   predicted icons. `onDragEnd` calls `h(true)`, which is empty in this build, so they are
   removed only at the next drag's start (`s` → `r`). None were in the dock in the 21:31 probe.
 
+## The drag picture's constructors and the taskbar's focusable window (read 2026-10-18)
+
+For 0.0.280, from ZUX Home 18.2.0.0375 decompiled.
+
+- **`DragView` is built in three steps.** `DragView(ctx, Drawable, regX, regY, initial, onDrop,
+  growth)` calls `DragView(ctx, View, w, h, regX, regY, initial, onDrop, growth)`, which calls
+  `DragView(ctx, View, w, h, regX, regY, initial, onDrop, SizeF, boolean)`. The last one:
+  - sets the end scales `g` and `D` (`(w + growth) / w`);
+  - sets the scale to `initial`;
+  - adds the 150 ms growth animator (`n`: from `initial` to `g`).
+
+  A hook on all constructors runs after each of the three. `TaskbarDragView` is a `DragView`
+  whose `animateTo` scales to `mScaleOnDrop`.
+- **The taskbar's window and keys:**
+  - `TaskbarActivityContext.setTaskbarWindowFocusable(focusable, ime)`:
+    - true clears `FLAG_NOT_FOCUSABLE` and `FLAG_NOT_TOUCH_MODAL`, and with `ime` also
+      `FLAG_ALT_FOCUSABLE_IM`, so the window then takes every touch;
+    - false sets both back.
+  - ZUI calls it from `onPopupVisibilityChanged`: still true while a folder of its is open
+    (`getOpenView(this, 1)`). It also calls it from a folder's state (open → true) and for the
+    IME.
+  - `TaskbarDragLayer.dispatchKeyEvent` gives back's release to the top open view that can take
+    it, and passes every other key on.
+  - The bar's window is a navigation-bar panel (type 2024) above every app, so while it is
+    focusable it keeps the keys from the app below.
+- **Popup icon buttons:** the `PopupItemIconOnly` ripple (`selectableItemBackgroundBorderless`,
+  `colorControlHighlight` `popupColorTertiary`) shows no visible focus on this build.
+
 ## ZUI's sidebar and its AI service (read 2026-10-15, from the owner's ANR traces)
 
 - `com.zui.freeform.sidebar` listens to every drag (`FloatingOnDragListener.onDrag`) and on its
@@ -918,6 +946,9 @@ Every class and method the module hooks by name is present in this version:
 - 0.0.279: `BaseAllAppsAdapter.mIconFocusListener` read (by name, else by type);
   `Utilities.getFocusRectColor(Context)` called; `DragController.isDragging` and `Folder.isOpen`
   / `close(boolean)` at a drawer drag's end.
+- 0.0.280: `taskbar.TaskbarDragLayer.dispatchKeyEvent` and `dispatchTouchEvent`,
+  `TaskbarActivityContext.setTaskbarWindowFocusable(boolean, boolean)` (hooked and called),
+  `onPopupVisibilityChanged(boolean)` called, `AbstractFloatingView.getTopOpenView` read.
 
 Class names like these survive ZUI's R8 pass; fields and most private methods are renamed in
 every build, which is why the module finds those by type and shape, not by name.

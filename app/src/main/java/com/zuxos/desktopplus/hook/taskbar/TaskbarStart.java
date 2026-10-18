@@ -434,7 +434,7 @@ final class TaskbarStart {
     }
 
     /** Our start button showing on this display, or null. */
-    private static StartButton shownOn(int display) {
+    static StartButton shownOn(int display) {
         for (StartButton button : new java.util.ArrayList<>(BUTTONS.keySet())) {
             if (button != null && button.isShown() && button.getWidth() > 0
                     && TaskbarTray.displayIdOf(button) == display) {
@@ -503,6 +503,7 @@ final class TaskbarStart {
         button.setTag(TAG_START);
         BUTTONS.put(button, Boolean.TRUE);
         dragLayer.addView(button, lp);
+        TaskbarKeys.focusable(button, TaskbarTray.displayIdOf(dragLayer));
         GamepadDrawer.listen(dragLayer.getContext());
         if (!sSaid) {
             sSaid = true;

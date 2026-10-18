@@ -132,6 +132,8 @@ public final class Const {
     public static final String KEY_GAMEPAD_DRAWER = "gamepad_drawer";
     /** A game controller's Triangle opens the focused icon's menu; menus follow the controller. */
     public static final String KEY_GAMEPAD_MENUS = "gamepad_menus";
+    /** A game controller's D-pad goes down onto the tablet's taskbar and moves along it. */
+    public static final String KEY_GAMEPAD_BAR = "gamepad_bar";
     /** An app or folder dragged from ZUI's home screen onto the taskbar moves there. */
     public static final String KEY_HOME_TO_BAR = "home_to_bar";
     /** ZUI's loader waits a second at most for an idle home screen before loading the app list. */

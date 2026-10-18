@@ -570,6 +570,10 @@ public final class Cfg {
         return getBool(Const.KEY_GAMEPAD_MENUS, true);
     }
 
+    public static boolean gamepadBar() {
+        return getBool(Const.KEY_GAMEPAD_BAR, true);
+    }
+
     public static boolean homeToBar() {
         return getBool(Const.KEY_HOME_TO_BAR, true);
     }

@@ -36,6 +36,7 @@ import com.zuxos.desktopplus.hook.systemui.MonitorStatusBar;
 import com.zuxos.desktopplus.hook.systemui.ShellDropBar;
 import com.zuxos.desktopplus.hook.systemui.StableBounds;
 import com.zuxos.desktopplus.hook.systemui.WindowCaptions;
+import com.zuxos.desktopplus.hook.taskbar.TaskbarKeys;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarTray;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
@@ -124,6 +125,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
             }
             if (Cfg.taskbarTray()) {
                 TaskbarTray.install(lpparam.classLoader);
+                TaskbarKeys.install(lpparam.classLoader);
             }
             HotseatButton.install(lpparam.classLoader);
             HomeSelect.install(lpparam.classLoader);

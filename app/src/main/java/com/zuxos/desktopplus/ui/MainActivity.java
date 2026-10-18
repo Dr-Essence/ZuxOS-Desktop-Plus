@@ -267,6 +267,11 @@ public class MainActivity extends Activity {
                         + "on, as a hold does; in any menu the D-pad moves between its rows and "
                         + "stays in it, A picks a row and B closes it",
                 Const.KEY_GAMEPAD_MENUS, true);
+        addSwitch("Game controller on the taskbar",
+                "From the bottom row of the home screen or a drawer, D-pad down goes onto the "
+                        + "taskbar: left and right move along it, A opens, Triangle gives the "
+                        + "menu, B or up goes back. A touch hands the bar back to touch",
+                Const.KEY_GAMEPAD_BAR, true);
         addSwitch("Navigation keys at the bar's right edge",
                 "On the tablet the back, home and recents keys sit flush with the bar's right "
                         + "edge; ZUI's room there comes back while it has a button to show in it",

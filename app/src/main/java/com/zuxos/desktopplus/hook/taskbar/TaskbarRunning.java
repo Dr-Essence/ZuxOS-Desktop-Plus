@@ -1718,6 +1718,8 @@ public final class TaskbarRunning {
         icon.setOnLongClickListener(null);
         icon.setLongClickable(false);
         icon.setOnTouchListener(new PinGesture(pin, menu));
+        // The controller's Triangle asks for the same menu (TaskbarKeys).
+        icon.setTag(TaskbarKeys.TAG_MENU, menu);
         return icon;
     }
 
@@ -1734,6 +1736,7 @@ public final class TaskbarRunning {
             View zui = ZuiFolders.barIcon(ctx, folder);
             if (zui != null) {
                 TaskbarPreview.attachHover(zui);
+                TaskbarKeys.focusable(zui, displayId);
                 return zui;
             }
         }
@@ -1758,6 +1761,7 @@ public final class TaskbarRunning {
             // A folder lifts and jiggles under the pointer like the apps beside it; it has no
             // windows, so no preview.
             TaskbarPreview.attachHover(view);
+            TaskbarKeys.focusable(view, displayId);
             return view;
         } catch (Throwable t) {
             L.d("taskbar running: could not draw the pinned folder (" + t + ")");
@@ -2081,6 +2085,7 @@ public final class TaskbarRunning {
                     taskId >= 0 ? taskId : firstWindow(pkg, displayId)));
             view.setOnTouchListener(new Press());
             TaskbarPreview.attach(view, pkg, displayId, taskId);
+            TaskbarKeys.focusable(view, displayId);
             return view;
         } catch (Throwable t) {
             // An app we cannot draw is an app we leave out.

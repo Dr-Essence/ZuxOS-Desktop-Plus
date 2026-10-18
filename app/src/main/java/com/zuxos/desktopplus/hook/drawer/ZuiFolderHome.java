@@ -55,6 +55,8 @@ final class ZuiFolderHome {
 
     /** ZUI's drag of a held drawer folder is being made. Main thread. */
     private static boolean sHolding;
+    /** A drag picture already given its lift. */
+    private static final int TAG_LIFTED = 0x7A000601;
     private static boolean sSaidPickup;
 
     /** ZUI's drag picture of a held drawer folder is being made, in either drawer. */
@@ -73,6 +75,11 @@ final class ZuiFolderHome {
      * picture "grew" to about the size it had - no pickup (owner, 0.0.261). The growth is ZUI's
      * 6 dp on the folder as shown, as on its home screen: multiplied by the shown scale, it was
      * ×1.53 in portrait, a folder held "too big" (owner on 0.0.277).
+     *
+     * <p>Once per picture: ZUI's {@code DragView} is made through three constructors, each
+     * calling the next, and the lift was given as each returned - three times, the folder held
+     * at 1.77 times its size (owner's video on 0.0.279, 22:27:57; 0.0.277 multiplied it three
+     * times).
      */
     private static int hookPickup(ClassLoader loader) {
         Class<?> view = Reflect.findClass("com.android.launcher3.dragndrop.DragView", loader);
@@ -86,10 +93,12 @@ final class ZuiFolderHome {
                     return;
                 }
                 try {
-                    float shown = ((View) param.thisObject).getScaleX();
-                    if (shown <= 1.01f) {
+                    View picture = (View) param.thisObject;
+                    float shown = picture.getScaleX();
+                    if (shown <= 1.01f || picture.getTag(TAG_LIFTED) != null) {
                         return;
                     }
+                    picture.setTag(TAG_LIFTED, Boolean.TRUE);
                     float endX = liftField(param.thisObject, "g", shown);
                     float endY = liftField(param.thisObject, "D", shown);
                     if (!sSaidPickup) {
