@@ -48,6 +48,8 @@ public final class TaskbarKeys {
     static final int TAG_MENU = 0x7A000502;
     /** The bar's mark on an icon, kept to be shown again. */
     private static final int TAG_MARK = 0x7A000503;
+    /** The bar's mark's corners, as a share of the icon's size. */
+    private static final float BAR_MARK_CORNER = 0.28f;
     /** A bar layer whose window's focus is watched. */
     private static final int TAG_WATCHED = 0x7A000504;
 
@@ -379,8 +381,8 @@ public final class TaskbarKeys {
     /**
      * A clicked the icon or a row: an app opened from it - on the bar, in a folder of the bar,
      * from a menu - takes the screen, and the controller goes with it; the bar, above every app,
-     * would otherwise keep its keys. A folder opens on the bar and keeps it; the start button's
-     * drawer takes the window focus, which ends the bar's turn by itself.
+     * would otherwise keep its keys. A folder opens on the bar and keeps it; the start button
+     * gives the bar back itself, before its drawer opens ({@link #release}).
      */
     private static void opened(ViewGroup layer, View icon) {
         if (icon == null || ZuiFolders.isZuiFolder(icon)
@@ -388,6 +390,18 @@ public final class TaskbarKeys {
             return;
         }
         layer.post(() -> leave("an app opened"));
+    }
+
+    /**
+     * The bar given back before a drawer opens from the start button - a tap, A, or the
+     * controller's Home. The bar's window is above the drawer's and, kept focusable for the
+     * controller, kept its keys: the D-pad moved nothing in the drawer until the screen was
+     * touched (owner's video on 0.0.281, 22:45:23).
+     */
+    static void release(String why) {
+        if (on() != null) {
+            leave(why);
+        }
     }
 
     /**
@@ -469,7 +483,10 @@ public final class TaskbarKeys {
         Object mark = icon.getTag(TAG_MARK);
         if (on) {
             if (!(mark instanceof android.graphics.drawable.Drawable)) {
-                mark = ZuiFocus.mark(icon.getContext());
+                // ZUI's drawer corners (20 dp) on a bar icon made the ring a circle: corners in
+                // proportion to the icon, as the bar's rounded icons have.
+                mark = ZuiFocus.mark(icon.getContext(),
+                        Math.min(icon.getWidth(), icon.getHeight()) * BAR_MARK_CORNER);
                 icon.setTag(TAG_MARK, mark);
             }
             if (icon.getForeground() == null || icon.getForeground() == mark) {

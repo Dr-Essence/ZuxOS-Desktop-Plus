@@ -1,5 +1,6 @@
 package com.zuxos.desktopplus.hook.drawer;
 
+import android.graphics.Canvas;
 import android.view.Display;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,7 +22,8 @@ import de.robv.android.xposed.XposedBridge;
  * draws its cover over the bar only in the home screen's drawer, so scrolled rows passed under
  * the bar's icons (14:12). Clipped to its padding, the list ends at the bar's top edge - what
  * ZUI's other navigation modes get from that margin. Set once as each drawer opens; nothing of
- * ZUI's sets it back. The monitor's drawer is left as it is.
+ * ZUI's sets it back. The monitor's drawer is left as it is. ZUI's focus mark is clipped the same
+ * way ({@link #clipMark}).
  */
 final class DrawerAboveBar {
 
@@ -49,6 +51,7 @@ final class DrawerAboveBar {
                             clip((View) param.thisObject, list);
                         }
                     }).size();
+            hooked += clipMark(loader);
             Health.hooked("drawer: list ends above the bar", hooked,
                     Cfg::drawerAboveBar);
             L.i("drawer above bar: the taskbar drawer's list ends at the bar x" + hooked);
@@ -71,6 +74,53 @@ final class DrawerAboveBar {
         } catch (Throwable t) {
             L.d("drawer above bar: not clipped (" + t + ")");
         }
+    }
+
+    /** The canvas's save count while ZUI's focus mark is drawn clipped; -1 when not. */
+    private static int sMarkSaved = -1;
+
+    /**
+     * ZUI's mark for the icon a keyboard or controller is on is a decoration of the list
+     * ({@code FocusedItemDecorator.onDrawOver}), drawn after its rows and not clipped to its
+     * padding as the rows are: for a row half under the search bar or the taskbar, the mark was
+     * drawn whole over them (owner's video on 0.0.281, 22:45:23). Clipped as the list clips its
+     * rows, it is cut where the row is.
+     */
+    private static int clipMark(ClassLoader loader) {
+        Class<?> decorator = Reflect.findClass(
+                "com.android.launcher3.keyboard.FocusedItemDecorator", loader);
+        if (decorator == null) {
+            L.w("drawer above bar: ZUI's focus mark not found - drawn as ZUI draws it");
+            return 0;
+        }
+        return XposedBridge.hookAllMethods(decorator, "onDrawOver", new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                sMarkSaved = -1;
+                if (!Cfg.enabled() || !Cfg.drawerAboveBar() || param.args.length < 2
+                        || !(param.args[0] instanceof Canvas)
+                        || !(param.args[1] instanceof ViewGroup)) {
+                    return;
+                }
+                ViewGroup list = (ViewGroup) param.args[1];
+                if (!list.getClipToPadding()) {
+                    return;
+                }
+                Canvas canvas = (Canvas) param.args[0];
+                sMarkSaved = canvas.save();
+                canvas.clipRect(list.getPaddingLeft(), list.getPaddingTop(),
+                        list.getWidth() - list.getPaddingRight(),
+                        list.getHeight() - list.getPaddingBottom());
+            }
+
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                if (sMarkSaved >= 0 && param.args[0] instanceof Canvas) {
+                    ((Canvas) param.args[0]).restoreToCount(sMarkSaved);
+                }
+                sMarkSaved = -1;
+            }
+        }).size();
     }
 
     private static int clipIn(View view, Class<?> list) {

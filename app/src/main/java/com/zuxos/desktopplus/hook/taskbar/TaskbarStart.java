@@ -922,6 +922,7 @@ final class TaskbarStart {
         }
 
         void press() {
+            TaskbarKeys.release("the start button");
             int display = TaskbarTray.displayIdOf(this);
             if (SAID_PRESS.add(TaskbarScope.label(this))) {
                 // Once per bar - the tablet has two on one screen: proof the press reached it.

@@ -381,8 +381,13 @@ public final class Probe {
         for (View root : roots) {
             queue.add(root);
         }
+        View launcherLayer = null;
         for (int i = 0; i < queue.size() && i < 4000; i++) {
             View v = queue.get(i);
+            if (launcherLayer == null
+                    && v.getClass().getName().equals("com.android.launcher3.dragndrop.DragLayer")) {
+                launcherLayer = v;
+            }
             if (v instanceof android.view.ViewGroup) {
                 android.view.ViewGroup g = (android.view.ViewGroup) v;
                 for (int c = 0; c < g.getChildCount(); c++) {
@@ -449,6 +454,33 @@ public final class Probe {
                     }
                 }
             }
+        }
+        sb.append(describeBlurAreas(launcherLayer));
+        return sb.toString();
+    }
+
+    /**
+     * The blur areas ZUX Home has the system draw behind its window ({@code Launcher
+     * .getBlurAreaProvider}, sent by {@code updateAreaBlur} as {@code setBlurRegions}): each
+     * provider with its rect, alpha, radius and whether it counts now. No view draws them, so the
+     * window's tree cannot show one. Read only.
+     */
+    private static String describeBlurAreas(View launcherLayer) {
+        StringBuilder sb = new StringBuilder("\nblur areas behind the launcher\n");
+        Object launcher = launcherLayer == null ? null
+                : ZuiFocus.lookup(launcherLayer.getContext());
+        Object providers = Reflect.call(launcher, "getBlurAreaProvider");
+        if (!(providers instanceof java.util.List)) {
+            return sb.append("  (none read)\n").toString();
+        }
+        for (Object provider : new java.util.ArrayList<>((java.util.List<?>) providers)) {
+            Object data = Reflect.call(provider, "getBlurAreaData");
+            sb.append("  ").append(provider == null ? "null" : provider.getClass().getSimpleName())
+                    .append(": ").append(data == null ? "no area" : "rect "
+                            + Reflect.field(data, "blurRect") + " alpha "
+                            + Reflect.field(data, "blurAlpha") + " radius "
+                            + Reflect.field(data, "blurRadius") + " counts "
+                            + Reflect.field(data, "isValidate")).append('\n');
         }
         return sb.toString();
     }

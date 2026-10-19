@@ -171,8 +171,14 @@ public final class ZuiFocus {
      */
     public static Drawable mark(Context ctx) {
         float density = ctx.getResources().getDisplayMetrics().density;
+        return mark(ctx, dimen(ctx, "focused_background_radius", 20 * density));
+    }
+
+    /** ZUI's mark with corners of its own, for an item smaller than ZUI's drawer cells. */
+    public static Drawable mark(Context ctx, float radius) {
+        float density = ctx.getResources().getDisplayMetrics().density;
         GradientDrawable ring = new GradientDrawable();
-        ring.setCornerRadius(dimen(ctx, "focused_background_radius", 20 * density));
+        ring.setCornerRadius(radius);
         ring.setStroke(Math.round(dimen(ctx, "focused_background_stroke_width", 2 * density)),
                 colour(ctx));
         StateListDrawable mark = new StateListDrawable();

@@ -1219,8 +1219,16 @@ public final class ZuiFolders {
                 // (owner's video, 10:37:46).
                 icon.setOnFocusChangeListener((v, focused) -> {
                     try {
-                        zui.onFocusChange(v.getParent() instanceof View
-                                ? (View) v.getParent() : v, focused);
+                        View cell = v.getParent() instanceof View ? (View) v.getParent() : v;
+                        zui.onFocusChange(cell, focused);
+                        if (focused) {
+                            // The whole cell into view: the list scrolls to the focused view's
+                            // laid-out bounds, and the folder is drawn larger than those, so a
+                            // folder at the top or bottom stayed half out of the list (owner's
+                            // video on 0.0.281, 22:45:23).
+                            cell.requestRectangleOnScreen(new android.graphics.Rect(0, 0,
+                                    cell.getWidth(), cell.getHeight()), false);
+                        }
                     } catch (Throwable t) {
                         L.d("zui folders: ZUI's focus mark not drawn on a folder (" + t + ")");
                     }

@@ -22,7 +22,7 @@ mode along the way.
 | Launcher | `com.zui.launcher`, desktop activity `SecondaryDisplayLauncher` |
 | Needs | Root, LSPosed, and the module scoped to the home app |
 
-**Status (2026-10-18, build 0.0.281)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
+**Status (2026-10-19, build 0.0.282)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
 
 The work now is making every feature run through ZUI's own code - its folders, menus, drag, animations and grids - so it looks and moves like ZUI itself.
 
@@ -41,6 +41,12 @@ The work now is making every feature run through ZUI's own code - its folders, m
 - **Tablet bar:** open apps stop at the navigation keys, which sit flush with the right edge; pinned folders are ZUI's own.
 - **Monitor:** after a replug, its touchscreen and pen stay on the monitor.
 - **Home screen uses the dock's space:** the strip ZUX Home keeps for its dock above the taskbar is home screen.
+
+**New in 0.0.282, awaiting the owner's test:**
+
+- **The see-through box is gone** in recents, during drags and where ZUI's home button was: it was the dock's blur, left behind when we hid the dock.
+- **Home opens the drawer with the controller on the taskbar** and the D-pad works in it at once.
+- **The controller's ring stays inside the drawer's list**, and a folder at the top or bottom scrolls fully into view.
 
 **New in 0.0.281, awaiting the owner's test:**
 

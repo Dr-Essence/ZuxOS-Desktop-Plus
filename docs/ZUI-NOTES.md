@@ -862,6 +862,22 @@ For 0.0.280, from ZUX Home 18.2.0.0375 decompiled.
   taskbar's drawer the drawer's sheet registers one (`TaskbarAllAppsSlideInView`). ZUI's
   popups (`ArrowPopup.show`, closed by `handleClose`/`closeComplete`) register none, so back
   closes the drawer with a popup open in it.
+- **Blur areas behind the launcher's window:**
+  - `Launcher.updateAreaBlur` sends `SurfaceControl.Transaction.setBlurRegions` for every
+    `LauncherBlurAreaProvider` (`addBlurAreaProvider`) whose `LauncherBlurAreaData` has a
+    radius, an alpha, a non-empty rect and `isValidate`. SurfaceFlinger draws them behind the
+    window, so no view or probe of the window's tree shows one.
+  - Providers:
+    - big folders (`FolderIcon.addBlurProvider`, only when `isBigFolder` and folder blur is on;
+      areas on the current page only, `screenId == currentScreenId`, and all of them in
+      overview);
+    - ZUI's search widget;
+    - the dock: `ZuiHotseat.getBlurAreaData`, updated in `B0`/`onOverlayScrollChange` when
+      `BlurUtils.isDockDynamicBlurEnable`. Its rect is the pill rect `z0` moved by the dock's
+      scale (pivot `H0`/`I0`) and its place on the screen (`getBlurRect`). Its alpha is the
+      dock's alpha × the drag layer's (`getBlurAlpha`), not its drawing.
+- **The list's focus mark is a decoration:** `FocusedItemDecorator.onDrawOver` draws after the
+  rows and is not clipped by `clipToPadding`, which clips only the children.
 - **Popup icon buttons:** the `PopupItemIconOnly` ripple (`selectableItemBackgroundBorderless`,
   `colorControlHighlight` `popupColorTertiary`) shows no visible focus on this build.
 
@@ -953,6 +969,10 @@ Every class and method the module hooks by name is present in this version:
 - 0.0.280: `taskbar.TaskbarDragLayer.dispatchKeyEvent` and `dispatchTouchEvent`,
   `TaskbarActivityContext.setTaskbarWindowFocusable(boolean, boolean)` (hooked and called),
   `onPopupVisibilityChanged(boolean)` called, `AbstractFloatingView.getTopOpenView` read.
+- 0.0.281: `popup.ArrowPopup.show`, `handleClose`, `closeComplete`.
+- 0.0.282: `ZuiHotseat.getBlurAreaData` (its result replaced while the dock's drawing is held
+  back), `keyboard.FocusedItemDecorator.onDrawOver` (clipped), `Launcher.getBlurAreaProvider`
+  read by the probe.
 
 Class names like these survive ZUI's R8 pass; fields and most private methods are renamed in
 every build, which is why the module finds those by type and shape, not by name.

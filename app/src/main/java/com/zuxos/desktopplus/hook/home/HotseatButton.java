@@ -7,6 +7,7 @@ import android.widget.ImageButton;
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.Health;
 import com.zuxos.desktopplus.core.L;
+import com.zuxos.desktopplus.core.Reflect;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -56,6 +57,7 @@ public final class HotseatButton {
             installDrawSkip(hotseat);
             installArrowOff(loader);
             installDockBlurOff();
+            installAreaBlurOff(hotseat);
         } catch (Throwable t) {
             L.i("zux home: no dock of ZUI's on this build (" + t + ")");
         }
@@ -283,9 +285,7 @@ public final class HotseatButton {
             if (view == null || view.getClass() != sDock) {
                 return;
             }
-            ViewGroup dock = (ViewGroup) view;
-            if (Cfg.enabled() && ((Cfg.startButtonLeft() && showsNothing(dock))
-                    || appsOnTheBar(dock) || HomeBand.active())) {
+            if (heldBack((ViewGroup) view)) {
                 param.setResult(null);
                 if (!sSkipSaid) {
                     sSkipSaid = true;
@@ -294,6 +294,60 @@ public final class HotseatButton {
             }
         }
     };
+
+    /** The dock draws nothing of its own: our start button, the bar or the band stand in. */
+    private static boolean heldBack(ViewGroup dock) {
+        return Cfg.enabled() && ((Cfg.startButtonLeft() && showsNothing(dock))
+                || appsOnTheBar(dock) || HomeBand.active());
+    }
+
+    // --- the dock's blur area behind the window: left out while it draws nothing ---------
+
+    private static boolean sAreaSaid;
+
+    /**
+     * ZUI's dock is one of the blur areas ZUX Home has the system draw behind its window
+     * ({@code Launcher.updateAreaBlur}: {@code SurfaceControl.Transaction.setBlurRegions} of every
+     * {@code LauncherBlurAreaProvider} with an alpha): its pill's rect, moved with the dock's own
+     * scale and place ({@code ZuiHotseat.getBlurRect}). Holding back the dock's drawing left that
+     * area: a blurred, see-through square where ZUI's drawer button had been and, with the dock
+     * moved for recents or a drag, one in the middle of the screen - no view, so no probe showed
+     * it (owner's videos on 0.0.281, 22:43:33). While the dock's drawing is held back ZUI is
+     * handed an empty area for it (no radius, no alpha), which its own update leaves out; ZUI's
+     * own data stays as it is.
+     */
+    private static void installAreaBlurOff(Class<?> hotseat) {
+        try {
+            Method area = hotseat.getMethod("getBlurAreaData");
+            XposedBridge.hookMethod(area, new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    Object data = param.getResult();
+                    if (data == null || !(param.thisObject instanceof ViewGroup)
+                            || !heldBack((ViewGroup) param.thisObject)) {
+                        return;
+                    }
+                    try {
+                        // A new one each time: ZUI may write to what it is handed.
+                        Object empty = data.getClass().getConstructor().newInstance();
+                        if (!sAreaSaid) {
+                            sAreaSaid = true;
+                            L.i("zux home: the dock's blur area behind the window left out - it"
+                                    + " had " + Reflect.field(data, "blurRect") + " at alpha "
+                                    + Reflect.field(data, "blurAlpha"));
+                        }
+                        param.setResult(empty);
+                    } catch (Throwable t) {
+                        L.d("zux home: the dock's blur area left as ZUI has it (" + t + ")");
+                    }
+                }
+            });
+            Health.hooked("zux home: dock's blur area off", 1);
+        } catch (Throwable t) {
+            Health.hooked("zux home: dock's blur area off", 0);
+            L.i("zux home: the dock's blur area left as ZUI has it (" + t + ")");
+        }
+    }
 
     private static final XC_MethodHook AFTER = new XC_MethodHook() {
         @Override
