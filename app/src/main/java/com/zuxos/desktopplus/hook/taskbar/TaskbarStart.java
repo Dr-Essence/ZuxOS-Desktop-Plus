@@ -487,6 +487,25 @@ final class TaskbarStart {
         return true;
     }
 
+    /**
+     * The bar's own Home key on this display pressed, as a tap on it does: ZUI goes home its own
+     * way, and puts the taskbar's drawer away with it. False with no bar or no Home key there.
+     */
+    static boolean pressHome(int display) {
+        for (StartButton any : new java.util.ArrayList<>(BUTTONS.keySet())) {
+            if (any == null || !any.isAttachedToWindow() || TaskbarTray.displayIdOf(any) != display
+                    || !(any.getParent() instanceof View)) {
+                continue;
+            }
+            java.util.List<View> keys = Reflect.findByIdNames((View) any.getParent(), "home");
+            if (!keys.isEmpty()) {
+                TaskbarKeys.release("Home held");
+                return keys.get(0).performClick();
+            }
+        }
+        return false;
+    }
+
     static StartButton buttonIn(ViewGroup dragLayer) {
         View found = dragLayer == null ? null : dragLayer.findViewWithTag(TAG_START);
         return found instanceof StartButton ? (StartButton) found : null;
@@ -504,7 +523,7 @@ final class TaskbarStart {
         BUTTONS.put(button, Boolean.TRUE);
         dragLayer.addView(button, lp);
         TaskbarKeys.focusable(button, TaskbarTray.displayIdOf(dragLayer));
-        GamepadDrawer.listen(dragLayer.getContext());
+        GamepadButtons.listen(dragLayer.getContext());
         if (!sSaid) {
             sSaid = true;
             L.i("taskbar start: our own start button beside the navigation keys; ZUI's is "

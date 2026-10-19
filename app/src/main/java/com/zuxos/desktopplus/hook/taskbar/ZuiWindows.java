@@ -7,9 +7,11 @@ import android.graphics.drawable.Drawable;
 import android.os.UserHandle;
 import android.view.View;
 
+import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.hook.ZuiApps;
+import com.zuxos.desktopplus.hook.ZuiFocus;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -35,10 +37,16 @@ final class ZuiWindows {
     private ZuiWindows() {
     }
 
-    /** ZUI's floating window and split screen rows for {@code pkg}, held at {@code icon}. */
+    /**
+     * ZUI's floating window and split screen rows for {@code pkg}, held at {@code icon}; none in
+     * a menu the controller opened, as ZUI's own menus have none then ({@code DrawerKeys}).
+     */
     static List<TaskbarMenu.Entry> entries(View icon, String pkg, UserHandle user) {
         List<TaskbarMenu.Entry> entries = new ArrayList<>();
         try {
+            if (ZuiFocus.byKeys() && Cfg.gamepadMenus()) {
+                return entries;
+            }
             if (icon == null || icon.getDisplay() == null
                     || icon.getDisplay().getDisplayId() != android.view.Display.DEFAULT_DISPLAY) {
                 return entries;

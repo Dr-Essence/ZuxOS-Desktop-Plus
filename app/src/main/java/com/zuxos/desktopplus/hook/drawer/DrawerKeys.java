@@ -9,13 +9,12 @@ import com.zuxos.desktopplus.core.Health;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.hook.IconInfo;
-import com.zuxos.desktopplus.hook.Mirror;
 import com.zuxos.desktopplus.hook.ZuiFocus;
 import com.zuxos.desktopplus.hook.ZuiMenu;
 import com.zuxos.desktopplus.model.Item;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.List;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -36,7 +35,8 @@ import de.robv.android.xposed.XposedBridge;
  *   <li>{@code TaskbarPopupController.showForIcon} for an app in the taskbar's drawer;</li>
  *   <li>our folder menu ({@link DrawerHold#menuEntries}) for a folder there.</li>
  * </ul>
- * Its press and release are always taken, whatever is focused, so no click ever follows.
+ * Its press and release are always taken, whatever is focused, so no click ever follows. A menu
+ * it opens has no floating window or split screen ({@link #hookWindowOptions}).
  *
  * <p>In an open menu the arrows are kept to its rows, each marked as focused ({@link ZuiFocus}).
  * A picks a row (the controller's centre key), and B (back) or Triangle again closes the popup.
@@ -75,6 +75,11 @@ public final class DrawerKeys {
             } catch (Throwable t) {
                 L.w("drawer keys: " + name + " not watched (" + t + ")");
             }
+        }
+        try {
+            hooked += hookWindowOptions(loader);
+        } catch (Throwable t) {
+            L.w("drawer keys: a controller's menus keep ZUI's window options (" + t + ")");
         }
         Health.hooked("drawer: controller's Triangle and menus", hooked, Cfg::gamepadMenus);
         L.i("drawer keys: Triangle opens menus, menus follow the controller x" + hooked);
@@ -132,11 +137,12 @@ public final class DrawerKeys {
                 continue;
             }
             String what = folder != null ? folder.label : anyFolder ? "a folder of ZUI's" : pkg;
+            View icon = v;
             try {
-                boolean shown = folder != null
-                        ? home && showForIcon(v)
-                        || ZuiMenu.show(v, DrawerHold.menuEntries(v, folder))
-                        : home ? showForIcon(v) : showOnTaskbar(v, activity);
+                boolean shown = ZuiFocus.byKeys(() -> folder != null
+                        ? home && showForIcon(icon)
+                        || ZuiMenu.show(icon, DrawerHold.menuEntries(icon, folder))
+                        : home ? showForIcon(icon) : ZuiFocus.showOnTaskbar(icon, activity));
                 Object popup = ZuiFocus.openPopup(layer, activity);
                 // Opened by a key, the popup may hold the focus itself rather than a row.
                 ZuiFocus.focusFirst(popup);
@@ -168,25 +174,65 @@ public final class DrawerKeys {
                 .getMethod("showForIcon", View.class).invoke(null, icon) != null;
     }
 
+    // --- no window options in a menu opened by a key ----------------------
+
     /**
-     * The taskbar's own popup for an app of its drawer ({@code TaskbarPopupController}, reached
-     * through the drawer's drag controller, which holds the bar's controllers).
+     * ZUI's floating window and split screen, as its menus get them: {@code FloatOpen} from
+     * {@code ZuiSystemShortcuts.FLOAT_OPEN} (the home screen's, the drawers' and the bar's), and
+     * one {@code SplitShortcut} per side ({@code QuickstepSystemShortcut} in ZUX Home,
+     * {@code TaskbarSplitShortcut} on the bar). All of them reach ZUI's popup in one list
+     * ({@code ZuiPopupContainerWithArrow.populateAndShowRowsZui}), which a menu opened by a key
+     * gets without them ({@link ZuiFocus#byKeys()}). Our bar's own menus leave out their copies
+     * of them the same way ({@code ZuiWindows}).
      */
-    private static boolean showOnTaskbar(View icon, Object activity) throws Exception {
-        Object drags = Reflect.call(activity, "getDragController");
-        Object controllers = null;
-        for (Field f : drags == null ? new ArrayList<Field>() : Mirror.fields(drags.getClass())) {
-            if (f.getType().getName().endsWith(".TaskbarControllers")) {
-                controllers = Mirror.get(f, drags);
-                break;
+    private static final String[] WINDOW_OPTIONS = {
+            "com.zui.launcher.uiextend.ZuiSystemShortcuts$FloatOpen",
+            "com.android.launcher3.splitscreen.SplitShortcut",
+    };
+    private static final List<Class<?>> WINDOWS = new ArrayList<>();
+    private static boolean sSaidWindows;
+
+    private static int hookWindowOptions(ClassLoader loader) {
+        for (String name : WINDOW_OPTIONS) {
+            Class<?> option = Reflect.findClass(name, loader);
+            if (option != null) {
+                WINDOWS.add(option);
             }
         }
-        Object popups = controllers == null ? null
-                : Reflect.field(controllers, "taskbarPopupController");
-        if (popups == null) {
-            return false;
+        Class<?> popup = Reflect.findClass("com.zui.launcher.views.ZuiPopupContainerWithArrow",
+                loader);
+        if (popup == null || WINDOWS.isEmpty()) {
+            L.w("drawer keys: ZUI's popup or its window options not found - a controller's"
+                    + " menus keep them");
+            return 0;
         }
-        return popups.getClass().getMethod("showForIcon", View.class).invoke(popups, icon)
-                != null;
+        return XposedBridge.hookAllMethods(popup, "populateAndShowRowsZui", new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                if (ZuiFocus.byKeys() && Cfg.gamepadMenus() && param.args.length == 4
+                        && param.args[3] instanceof List) {
+                    param.args[3] = withoutWindows((List<?>) param.args[3]);
+                }
+            }
+        }).size();
+    }
+
+    private static List<Object> withoutWindows(List<?> zui) {
+        List<Object> kept = new ArrayList<>();
+        for (Object shortcut : zui) {
+            boolean window = false;
+            for (Class<?> option : WINDOWS) {
+                window |= option.isInstance(shortcut);
+            }
+            if (!window) {
+                kept.add(shortcut);
+            }
+        }
+        if (!sSaidWindows && kept.size() < zui.size()) {
+            sSaidWindows = true;
+            L.i("drawer keys: a menu opened by the controller, without ZUI's "
+                    + (zui.size() - kept.size()) + " window option(s)");
+        }
+        return kept;
     }
 }

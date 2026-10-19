@@ -134,6 +134,10 @@ public final class Const {
     public static final String KEY_GAMEPAD_MENUS = "gamepad_menus";
     /** A game controller's D-pad goes down onto the tablet's taskbar and moves along it. */
     public static final String KEY_GAMEPAD_BAR = "gamepad_bar";
+    /** A game controller's L1 and R1 move along the tablet's taskbar, but in full-screen apps. */
+    public static final String KEY_GAMEPAD_SHOULDERS = "gamepad_shoulders";
+    /** A game controller's right stick scrolls the drawers. */
+    public static final String KEY_GAMEPAD_STICK = "gamepad_stick";
     /** An app or folder dragged from ZUI's home screen onto the taskbar moves there. */
     public static final String KEY_HOME_TO_BAR = "home_to_bar";
     /** ZUI's loader waits a second at most for an idle home screen before loading the app list. */

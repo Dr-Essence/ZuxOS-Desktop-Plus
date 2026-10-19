@@ -258,20 +258,30 @@ public class MainActivity extends Activity {
                 Const.KEY_DRAWER_TAPS, true);
         addSwitch("Game controller's Home button opens the drawer",
                 "Press it to open or close the app drawer, then move with the stick or D-pad, "
-                        + "A to open, B to go back. Folders are reached too. Takes the button "
-                        + "from Android, which otherwise goes home with it. Applies after a "
-                        + "restart of the tablet",
+                        + "A to open, B to go back. Folders are reached too. Hold it to go to "
+                        + "the home screen. Off, the button is Android's again from its next "
+                        + "press",
                 Const.KEY_GAMEPAD_DRAWER, true);
         addSwitch("Game controller's Triangle opens menus",
-                "In the drawers, Triangle opens the menu of the app or folder the controller is "
-                        + "on, as a hold does; in any menu the D-pad moves between its rows and "
+                "In the drawers and on the home screen, Triangle opens the menu of the app or "
+                        + "folder the controller is on, as a hold does, without floating window "
+                        + "and split screen; in any menu the D-pad moves between its rows and "
                         + "stays in it, A picks a row and B closes it",
                 Const.KEY_GAMEPAD_MENUS, true);
         addSwitch("Game controller on the taskbar",
                 "From the bottom row of the home screen or a drawer, D-pad down goes onto the "
                         + "taskbar: left and right move along it, A opens, Triangle gives the "
-                        + "menu, B or up goes back. A touch hands the bar back to touch",
+                        + "menu - in an open folder, the menu of the app it is on - B or up "
+                        + "goes back. A touch hands the bar back to touch",
                 Const.KEY_GAMEPAD_BAR, true);
+        addSwitch("Game controller's L1 and R1 on the taskbar",
+                "From anywhere, L1 and R1 take the controller onto the taskbar and move it "
+                        + "along. A full-screen app - a game, a video - keeps them for itself",
+                Const.KEY_GAMEPAD_SHOULDERS, true);
+        addSwitch("Game controller's right stick scrolls the drawers",
+                "Tilt it to scroll either app drawer, faster the further it goes; the icon the "
+                        + "controller is on stays in view",
+                Const.KEY_GAMEPAD_STICK, true);
         addSwitch("Navigation keys at the bar's right edge",
                 "On the tablet the back, home and recents keys sit flush with the bar's right "
                         + "edge; ZUI's room there comes back while it has a button to show in it",

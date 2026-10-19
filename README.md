@@ -42,6 +42,18 @@ The work now is making every feature run through ZUI's own code - its folders, m
 - **Monitor:** after a replug, its touchscreen and pen stay on the monitor.
 - **Home screen uses the dock's space:** the strip ZUX Home keeps for its dock above the taskbar is home screen.
 
+**New in 0.0.283, awaiting the owner's test:**
+
+- **App info closes the taskbar's drawer**, so Settings is no longer hidden behind it.
+- **Game controller:**
+  - Menus it opens leave out floating window and split screen. Opened by touch, stylus or mouse, they keep them.
+  - On the taskbar, the focus ring stays inside the icon, so it is never cut off at the start button or at either end of the row. The ring no longer spreads across the whole bar.
+  - Back from a menu or folder on the taskbar returns the ring to the icon it came from.
+  - Triangle opens the menu of an app inside a folder on the taskbar.
+  - **L1 and R1** move onto the taskbar and along it from anywhere, except in a full-screen game or video. This has its own switch.
+  - **Home:** a press opens the drawer; holding it goes to the home screen. With its switch off, the button is Android's again.
+  - **The right stick scrolls both drawers**, faster the further you tilt it, and the icon you are on stays in view. This has its own switch.
+
 **New in 0.0.282, awaiting the owner's test:**
 
 - **The see-through box is gone** in recents, during drags and where ZUI's home button was: it was the dock's blur, left behind when we hid the dock.
@@ -55,7 +67,7 @@ The work now is making every feature run through ZUI's own code - its folders, m
 **New in 0.0.280, awaiting the owner's test:**
 
 - **A held drawer folder is picked up at its own size with ZUI's small lift**: it was lifted three times over.
-- **Game controller on the taskbar:** from the bottom row of the home screen or a drawer, press down to move onto the taskbar. Left and right move across the start button, apps and folders, each lifting with ZUI's focus ring. A opens, Triangle gives the menu, B or up goes back. A touch hands the bar back to touch. It has its own switch.
+- **Game controller on the taskbar:** from the bottom row of the home screen or a drawer, press down to move onto the taskbar. Left and right move across the start button, apps and folders, each with ZUI's focus ring. A opens, Triangle gives the menu, B or up goes back. A touch hands the bar back to touch. It has its own switch.
 - **Every option in the menus shows the controller's mark**, the small buttons (floating window, app info…) included.
 
 **New in 0.0.279** (seen working by the owner: folder marks, row marks, Triangle):

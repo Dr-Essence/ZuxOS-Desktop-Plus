@@ -574,6 +574,14 @@ public final class Cfg {
         return getBool(Const.KEY_GAMEPAD_BAR, true);
     }
 
+    public static boolean gamepadShoulders() {
+        return getBool(Const.KEY_GAMEPAD_SHOULDERS, true);
+    }
+
+    public static boolean gamepadStick() {
+        return getBool(Const.KEY_GAMEPAD_STICK, true);
+    }
+
     public static boolean homeToBar() {
         return getBool(Const.KEY_HOME_TO_BAR, true);
     }

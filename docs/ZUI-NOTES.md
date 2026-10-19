@@ -881,6 +881,59 @@ For 0.0.280, from ZUX Home 18.2.0.0375 decompiled.
 - **Popup icon buttons:** the `PopupItemIconOnly` ripple (`selectableItemBackgroundBorderless`,
   `colorControlHighlight` `popupColorTertiary`) shows no visible focus on this build.
 
+## App info, window options, the bar's focus and the controller's buttons (read 2026-10-19)
+
+For 0.0.283, from ZUX Home 18.2.0.0375 and `services.jar` 16 decompiled.
+
+- **App info closes ZUX Home's drawer only.** `SystemShortcut.AppInfo.onClick`:
+  - in tablet desktop mode, on the bar (`TaskbarActivityContext.isInDesktopMode`), dismisses
+    its menu after 500 ms, else at once (`dismissTaskMenuView`);
+  - starts Settings (`PackageManagerHelper.startDetailsActivityForInfo`);
+  - for a `Launcher` target in `ALL_APPS` or `OVERVIEW`, sets the rest state to `NORMAL` and
+    calls `returnToHomescreen`.
+
+  The taskbar's drawer (`TaskbarOverlayContext` target) is left open, and its window is above
+  every app. `TaskbarOverlayController`'s task-stack listener, which in AOSP hides the drawer
+  when a task changes, is empty here.
+- **Floating window and split screen in ZUI's menus:**
+  - ZUX Home: `QuickstepLauncher.getSupportedShortcuts` puts `ZuiSystemShortcuts.FLOAT_OPEN`
+    first, then one `QuickstepSystemShortcut.getSplitSelectShortcutByPosition` factory per side
+    (`n5`, tablets only). That factory makes a `SplitSelectSystemShortcut` (a `SplitShortcut`),
+    and none in OV desktop mode or for apps in `QSS_NO_SPLIT`.
+  - The bar (`TaskbarPopupController.s`): out of desktop mode `FLOAT_OPEN` (its `E` makes a
+    `ZuiSystemShortcuts.FloatOpen` for an app that can float), then
+    `TaskbarUIController.d` (`TaskbarSplitShortcut`, a `SplitShortcut`).
+  - Both `showForIcon`s map the factories to a list and hand it to
+    `ZuiPopupContainerWithArrow.populateAndShowRowsZui(View, int, List, List)`.
+- **The bar's window on a popup or folder:**
+  - `onPopupVisibilityChanged(b)` calls `setTaskbarWindowFocusable(true, true)` while a folder
+    is open (`getOpenView(this, 1)`), else `(b, false)`. The popup's close posts
+    `onPopupVisibilityChanged(false)` to the drag layer.
+  - A folder's state listener (`TaskbarActivityContext.c`) calls `(true, true)` when it is
+    open (state 2), and posts `setTaskbarWindowFocusableForIme(false)` when it is closed
+    (state 0). That calls `(false, true)` unless a folder is still open.
+  - A view removed with the focus in it hands the focus to the window's first focusable view.
+- **Folders' names take the focus.** `Folder`'s name is an `ExtendedEditText`, and its focus
+  starts the rename.
+- **Full screen, in the system:**
+  - `DisplayPolicy.topAppHidesSystemBar(int type)` is false with no top full-screen opaque
+    window, or when the type is shown by force. With ZUI's OV freeform on the default display
+    it reads the top non-freeform window. Otherwise it is whether the top window asks the bar
+    hidden.
+  - `PhoneWindowManager` keeps `mDefaultDisplayPolicy`, `mTopFocusedDisplayId` (volatile) and
+    `isKeyguardShowingAndNotOccluded()`, all public.
+- **Home:**
+  - The bar's Home key runs `TaskbarNavButtonController.l` (navigateHome): ZUI's
+    learning-launcher overlay, `closeSystemWindowsAsync(homekey)`, the callbacks'
+    `onNavigateHome` and ZUI's `onHomeClick`.
+  - `BaseActivityInterface.closeOverlay` hides the taskbar's drawer (`hideOverlayWindow`).
+  - The system's `launchHomeFromHotKey(display)` starts home without any of that.
+- **Joystick events:** no view of ZUX Home handles one (`onGenericMotionEvent` in
+  `BubbleTextView`, `PagedView` and `Folder` reads pointers only). ZUI sets
+  `OnGenericMotionListener`s on items and nav buttons, never on a window's root.
+  `ActivityAllAppsContainerView.onAttachedToWindow` is declared there, and
+  `getActiveRecyclerView` gives the list shown.
+
 ## ZUI's sidebar and its AI service (read 2026-10-15, from the owner's ANR traces)
 
 - `com.zui.freeform.sidebar` listens to every drag (`FloatingOnDragListener.onDrag`) and on its
@@ -973,6 +1026,11 @@ Every class and method the module hooks by name is present in this version:
 - 0.0.282: `ZuiHotseat.getBlurAreaData` (its result replaced while the dock's drawing is held
   back), `keyboard.FocusedItemDecorator.onDrawOver` (clipped), `Launcher.getBlurAreaProvider`
   read by the probe.
+- 0.0.283: `popup.SystemShortcut$AppInfo.onClick` (after: its `mTarget` read),
+  `ZuiPopupContainerWithArrow.populateAndShowRowsZui` (a key-opened menu's list without
+  `ZuiSystemShortcuts$FloatOpen` and `splitscreen.SplitShortcut`),
+  `ActivityAllAppsContainerView.onAttachedToWindow` and `getActiveRecyclerView`, `Folder.getOpen`,
+  `TaskbarPopupController.showForIcon` from the bar's `mControllers`.
 
 Class names like these survive ZUI's R8 pass; fields and most private methods are renamed in
 every build, which is why the module finds those by type and shape, not by name.
@@ -1000,6 +1058,7 @@ Checked 2026-10-09. Every hook below matches by name and parameters, unless mark
 | New window | `ActivityStarter.setInitialState(...)`, fields `mIntent`, `mLaunchMode`, `mLaunchFlags` | found |
 | New window | `ActivityStarter.getReusableTask` | **missing**: it is `resolveReusableTask(boolean)` here. The owner's log says "task reuse x0". The hook is gone; `setInitialState` alone does the job, confirmed on 1.0.91 |
 | Drag | `DragState.isValidDropTarget(WindowState, boolean, boolean)`, fields `mFlags`, `mUid`; `WindowState.getOwningUid()` | found |
+| Controller | `PhoneWindowManager.interceptKeyBeforeDispatching(IBinder, KeyEvent, int)`; fields `mTopFocusedDisplayId`, `mDefaultDisplayPolicy`; `isKeyguardShowingAndNotOccluded()`, `DisplayPolicy.topAppHidesSystemBar(int)` (0.0.283, read on L1/R1) | found |
 | Trace | `WindowOrganizerController.applyTransaction`, `applySyncTransaction`, `startTransition` | found. `startLegacyTransition` is not, which only drops one traced name. From 1.0.165 the overloads taking an `ActionChain` are left out: they are the system's own step inside a call, under its own uid. The shell's `startNewTransition` goes through `startTransition(int, IBinder, …)`, so its type is in the line |
 
 ## The roadmap rows against ZUI's code

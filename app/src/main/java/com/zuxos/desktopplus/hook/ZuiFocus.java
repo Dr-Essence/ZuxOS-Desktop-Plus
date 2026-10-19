@@ -8,8 +8,14 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
+import android.widget.EditText;
 
 import com.zuxos.desktopplus.core.L;
+import com.zuxos.desktopplus.core.Reflect;
+
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A keyboard's or a game controller's focus among ZUI's views, for the drawers and the taskbar
@@ -18,18 +24,46 @@ import com.zuxos.desktopplus.core.L;
  * <p>ZUI's popups ask for the focus as they open, which one opened by touch never gets: Android
  * keeps no focus in touch mode. While a popup is open, an arrow pressed with the focus outside it
  * puts the focus on its first row, and an arrow that would leave it is kept ({@link #keepIn});
- * every row shows ZUI's focus mark ({@link #markRows}).
+ * every row shows ZUI's focus mark ({@link #markRows}). A menu a key opens is marked as such
+ * while it is made ({@link #byKeys}), for what it leaves out.
  */
 public final class ZuiFocus {
 
     private static final String POPUP = "com.android.launcher3.popup.PopupContainerWithArrow";
     private static final String CONTEXT = "com.android.launcher3.views.ActivityContext";
+    private static final String CONTROLLERS = ".TaskbarControllers";
 
     /** A popup whose rows carry the focus mark. */
     private static final int TAG_MARKED = 0x7A000501;
     private static boolean sSaidMarked;
+    /** A menu being opened by a key, for the length of the call. Main thread. */
+    private static boolean sByKeys;
 
     private ZuiFocus() {
+    }
+
+    /** What opens a menu, telling whether one showed. */
+    public interface Opening {
+        boolean open() throws Exception;
+    }
+
+    /**
+     * A menu opened by a key: while it is made, ZUI's floating window and split screen are left
+     * out of it ({@link #byKeys()}) - a controller has no use for them (owner on 0.0.282). A
+     * menu opened by touch, a stylus or a mouse keeps them.
+     */
+    public static boolean byKeys(Opening opening) throws Exception {
+        sByKeys = true;
+        try {
+            return opening.open();
+        } finally {
+            sByKeys = false;
+        }
+    }
+
+    /** Whether the menu being made now was asked for by a key. */
+    public static boolean byKeys() {
+        return sByKeys;
     }
 
     /** The focus direction of a D-pad key, or 0 for any other key. */
@@ -84,15 +118,23 @@ public final class ZuiFocus {
         if (!(popup instanceof ViewGroup)) {
             return false;
         }
-        ViewGroup group = (ViewGroup) popup;
-        markRows(group);
+        markRows(popup);
+        return keepWithin(layer, (ViewGroup) popup, direction);
+    }
+
+    /**
+     * An arrow kept inside {@code group}, a popup or an open folder: with the focus outside it,
+     * the focus goes to its first row; one that would leave it, or reach a text field, is kept.
+     * A folder's name is one, and taking the focus starts ZUI's rename of the folder.
+     */
+    public static boolean keepWithin(View layer, ViewGroup group, int direction) {
         View focused = layer.findFocus();
         if (focused == null || !within(focused, group)) {
             View first = firstRow(group);
             return first != null && first.requestFocus();
         }
         View next = focused.focusSearch(direction);
-        return next == null || !within(next, group);
+        return next == null || !within(next, group) || next instanceof EditText;
     }
 
     /** The popup's first row takes the focus when the popup kept it for itself. */
@@ -110,14 +152,46 @@ public final class ZuiFocus {
         }
     }
 
-    /** The first row of a popup that can take the focus, or null. */
-    private static View firstRow(ViewGroup popup) {
+    /** The first row of a popup or folder that can take the focus, never a text field; or null. */
+    public static View firstRow(ViewGroup popup) {
         for (View v : popup.getFocusables(View.FOCUS_DOWN)) {
-            if (v != popup) {
+            if (v != popup && !(v instanceof EditText)) {
                 return v;
             }
         }
         return null;
+    }
+
+    /**
+     * The taskbar's own popup for an icon ({@code TaskbarPopupController.showForIcon}), from the
+     * bar's context or its drawer's: the bar's holds its controllers, the drawer's reaches them
+     * through its drag controller.
+     */
+    public static boolean showOnTaskbar(View icon, Object activity) throws Exception {
+        Object controllers = Reflect.field(activity, "mControllers");
+        if (!isControllers(controllers)) {
+            controllers = null;
+            Object drags = Reflect.call(activity, "getDragController");
+            List<Field> fields = drags == null ? new ArrayList<>()
+                    : Mirror.fields(drags.getClass());
+            for (Field f : fields) {
+                if (f.getType().getName().endsWith(CONTROLLERS)) {
+                    controllers = Mirror.get(f, drags);
+                    break;
+                }
+            }
+        }
+        Object popups = controllers == null ? null
+                : Reflect.field(controllers, "taskbarPopupController");
+        if (popups == null) {
+            return false;
+        }
+        return popups.getClass().getMethod("showForIcon", View.class).invoke(popups, icon)
+                != null;
+    }
+
+    private static boolean isControllers(Object o) {
+        return o != null && o.getClass().getName().endsWith(CONTROLLERS);
     }
 
     /** Whether {@code v} is {@code group} or inside it. */

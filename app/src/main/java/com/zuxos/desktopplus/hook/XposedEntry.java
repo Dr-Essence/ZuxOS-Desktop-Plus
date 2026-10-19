@@ -7,6 +7,7 @@ import com.zuxos.desktopplus.core.ModuleStatus;
 import com.zuxos.desktopplus.hook.drawer.DrawerFromTop;
 import com.zuxos.desktopplus.hook.drawer.DrawerKeys;
 import com.zuxos.desktopplus.hook.drawer.DrawerRetro;
+import com.zuxos.desktopplus.hook.drawer.DrawerStick;
 import com.zuxos.desktopplus.hook.drawer.DrawerTaps;
 import com.zuxos.desktopplus.hook.drawer.NativeDrawerHooks;
 import com.zuxos.desktopplus.hook.home.ActivityWatcher;
@@ -117,6 +118,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
             DrawerRetro.install(lpparam.classLoader);
             DrawerTaps.install(lpparam.classLoader);
             DrawerKeys.install(lpparam.classLoader);
+            DrawerStick.install(lpparam.classLoader);
             DrawerFromTop.install(lpparam.classLoader);
             RecentsRoute.install(lpparam.classLoader);
             DetachGuard.install();

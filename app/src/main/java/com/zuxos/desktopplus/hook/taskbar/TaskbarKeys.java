@@ -6,13 +6,12 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.widget.EditText;
 
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.Health;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
-import com.zuxos.desktopplus.core.motion.Hover;
-import com.zuxos.desktopplus.core.theme.Theme;
 import com.zuxos.desktopplus.hook.ZuiFocus;
 import com.zuxos.desktopplus.hook.drawer.ZuiFolders;
 
@@ -24,8 +23,9 @@ import de.robv.android.xposed.XposedBridge;
 
 /**
  * A game controller on the tablet's taskbar: the D-pad goes down onto the bar from the home
- * screen or a drawer, moves across the start button, the apps and the folders, A opens, Triangle
- * gives the icon's menu, and B or up goes back.
+ * screen or a drawer, and L1 or R1 from anywhere but a full-screen app ({@link #shoulder}); it
+ * moves across the start button, the apps and the folders, A opens, Triangle gives the icon's
+ * menu - or, in a folder open on the bar, the menu of the app it is on - and B or up goes back.
  *
  * <p>The bar's window takes no keys: ZUI makes it focusable only while its own popup or folder is
  * open ({@code TaskbarActivityContext.setTaskbarWindowFocusable}, from
@@ -36,11 +36,12 @@ import de.robv.android.xposed.XposedBridge;
  * from the bar, and whenever the bar's window loses the focus - to the drawer, an app, the lock
  * screen. Nothing polls and nothing ticks; every step is a key, a touch or a focus change.
  *
- * <p>The icon the controller is on lifts as under the mouse ({@link Hover}) and carries ZUI's own
- * focus mark ({@link ZuiFocus#mark}). The way down onto the bar is a D-pad down that moves the
- * focus nowhere: the bottom row of the home screen or of a drawer, with no menu or folder open.
- * From the taskbar's drawer, in a window of its own above the bar, the drawer closes first, as
- * the start button closes it.
+ * <p>The icon the controller is on carries ZUI's own focus mark ({@link ZuiFocus#mark}), inside
+ * its edges, and only our bar's icons ever carry it. The way down onto the bar is a D-pad down
+ * that moves the focus nowhere: the bottom row of the home screen or of a drawer, with no menu or
+ * folder open. From the taskbar's drawer, in a window of its own above the bar, the drawer closes
+ * first, as the start button closes it. When ZUI's menu or folder on the bar closes, the
+ * controller goes back to the icon it was opened from ({@link #settle}).
  */
 public final class TaskbarKeys {
 
@@ -52,13 +53,20 @@ public final class TaskbarKeys {
     private static final float BAR_MARK_CORNER = 0.28f;
     /** A bar layer whose window's focus is watched. */
     private static final int TAG_WATCHED = 0x7A000504;
+    /** One of our bar's icons: the only views the controller's mark goes on. */
+    private static final int TAG_ICON = 0x7A000505;
 
     private static final String FLOATING = "com.android.launcher3.AbstractFloatingView";
+    private static final String FOLDER = "com.android.launcher3.folder.Folder";
 
     /** The tablet bar's layer while the controller is on it; null otherwise. Main thread. */
     private static WeakReference<ViewGroup> sOn;
     /** The icon the controller was last on, to come back to. */
     private static WeakReference<View> sLast;
+    /** The view a menu was opened from on the bar - an icon, or an app in a folder. */
+    private static WeakReference<View> sMenuOf;
+    /** The bar's folder icon whose folder is open. */
+    private static WeakReference<View> sFolderOf;
     private static boolean sSaidOn;
     private static boolean sSaidNoBar;
 
@@ -159,7 +167,10 @@ public final class TaskbarKeys {
             // the key (ViewRootImpl.performFocusNavigation), in the same message.
             layer.post(() -> {
                 if (layer.findFocus() == before && before.isAttachedToWindow()) {
-                    enter(layer);
+                    // The taskbar's drawer is a window above the bar, which would keep the
+                    // focus: it closes, as the start button closes it.
+                    enter(layer.getClass().getName().endsWith("TaskbarOverlayDragLayer"),
+                            layer.getClass().getSimpleName());
                 }
             });
         } catch (Throwable t) {
@@ -176,8 +187,42 @@ public final class TaskbarKeys {
         return false;
     }
 
-    /** The controller onto the tablet's bar, from {@code from}. */
-    private static void enter(View from) {
+    /**
+     * L1 or R1 on a controller, taken in the system wherever no full-screen app has the screen
+     * ({@code SystemGamepad}): the controller onto the bar - its drawer closed first, as the way
+     * down closes it - or one icon along it. Nothing while ZUI's menu or folder is open on it.
+     */
+    static void shoulder(int step) {
+        try {
+            if (!Cfg.gamepadBar()) {
+                return;
+            }
+            ViewGroup bar = on();
+            if (bar == null) {
+                enter(TaskbarStart.drawerOpen(Display.DEFAULT_DISPLAY), step < 0 ? "L1" : "R1");
+                return;
+            }
+            Object context = ZuiFocus.lookup(bar.getContext());
+            if (context == null || ZuiFocus.openPopup(bar, context) != null
+                    || topOpen(context) != null) {
+                return;
+            }
+            View focused = bar.findFocus();
+            if (focused == null || !isIcon(focused)) {
+                focusLast(bar);
+                return;
+            }
+            View next = focused.focusSearch(step < 0 ? View.FOCUS_LEFT : View.FOCUS_RIGHT);
+            if (next != null && isIcon(next) && ZuiFocus.within(next, bar)) {
+                next.requestFocus();
+            }
+        } catch (Throwable t) {
+            L.d("taskbar keys: L1/R1 left (" + t + ")");
+        }
+    }
+
+    /** The controller onto the tablet's bar, from {@code from}; the taskbar's drawer closed. */
+    private static void enter(boolean drawerUp, String from) {
         View button = TaskbarStart.shownOn(Display.DEFAULT_DISPLAY);
         ViewGroup bar = button != null && button.getParent() instanceof ViewGroup
                 ? (ViewGroup) button.getParent() : null;
@@ -189,9 +234,7 @@ public final class TaskbarKeys {
             }
             return;
         }
-        if (from.getClass().getName().endsWith("TaskbarOverlayDragLayer")) {
-            // The taskbar's drawer is a window above the bar, which would keep the focus: it
-            // closes, as the start button closes it.
+        if (drawerUp) {
             TaskbarStart.toggleDrawer(Display.DEFAULT_DISPLAY);
         }
         sOn = new WeakReference<>(bar);
@@ -208,8 +251,7 @@ public final class TaskbarKeys {
         }
         if (!sSaidOn) {
             sSaidOn = true;
-            L.i("taskbar keys: the controller on the bar, from "
-                    + from.getClass().getSimpleName());
+            L.i("taskbar keys: the controller on the bar, from " + from);
         }
     }
 
@@ -226,14 +268,77 @@ public final class TaskbarKeys {
         }
     }
 
-    /** While the controller is on the bar, ZUI's own "not focusable" keeps it focusable. */
+    /**
+     * While the controller is on the bar, ZUI's own "not focusable" keeps it focusable. ZUI asks
+     * as its popup or folder on the bar opens and closes, and the controller settles after it.
+     */
     private static void keepFocusable(Object context, Object[] args) {
         ViewGroup bar = on();
-        if (bar != null && args.length == 2 && Boolean.FALSE.equals(args[0])
-                && context == ZuiFocus.lookup(bar.getContext())) {
+        if (bar == null || args.length != 2 || context != ZuiFocus.lookup(bar.getContext())) {
+            return;
+        }
+        if (Boolean.FALSE.equals(args[0])) {
             args[0] = Boolean.TRUE;
             args[1] = Boolean.TRUE;
         }
+        bar.post(() -> settle(bar));
+    }
+
+    /**
+     * The controller kept where it can be seen once ZUI's popup or folder on the bar opened or
+     * closed. A closing popup took the focus with it, and Android handed it to whatever view of
+     * the bar's window came first, which carries no mark: after B the controller seemed gone
+     * from the bar (owner on 0.0.282). With a popup open its rows have the focus; with a folder
+     * open, the app it was on inside it, or its first; with neither, the icon the menu or the
+     * folder was opened from.
+     */
+    private static void settle(ViewGroup bar) {
+        try {
+            Object context = on() == bar ? ZuiFocus.lookup(bar.getContext()) : null;
+            if (context == null || ZuiFocus.openPopup(bar, context) != null) {
+                return;
+            }
+            View focused = bar.findFocus();
+            View menuOf = sMenuOf != null ? sMenuOf.get() : null;
+            Object open = topOpen(context);
+            if (isFolder(open)) {
+                ViewGroup folder = (ViewGroup) open;
+                if (focused == null || !ZuiFocus.within(focused, folder)
+                        || focused instanceof EditText) {
+                    View in = menuOf != null && menuOf.isShown()
+                            && ZuiFocus.within(menuOf, folder) ? menuOf
+                            : ZuiFocus.firstRow(folder);
+                    if (in != null) {
+                        in.requestFocus();
+                    }
+                }
+                return;
+            }
+            View folderOf = sFolderOf != null ? sFolderOf.get() : null;
+            sMenuOf = null;
+            sFolderOf = null;
+            View back = menuOf != null && menuOf.isShown() && isIcon(menuOf) ? menuOf
+                    : folderOf != null && folderOf.isShown() ? folderOf : null;
+            if (back != null && back != focused) {
+                back.requestFocus();
+            }
+            focusLast(bar);
+        } catch (Throwable t) {
+            L.d("taskbar keys: the controller not settled (" + t + ")");
+        }
+    }
+
+    private static boolean isFolder(Object open) {
+        for (Class<?> c = open != null ? open.getClass() : null; c != null; c = c.getSuperclass()) {
+            if (c.getName().equals(FOLDER)) {
+                return open instanceof ViewGroup;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isIcon(View v) {
+        return v.getTag(TAG_ICON) != null;
     }
 
     /** The bar's window focus watched once per bar: it got it, or lost it. */
@@ -262,10 +367,15 @@ public final class TaskbarKeys {
         return sOn != null ? sOn.get() : null;
     }
 
-    /** The icon the controller was last on, or the start button, takes the focus. */
+    /**
+     * The icon the controller was last on, or the start button, takes the focus - unless one of
+     * our icons has it already. Whatever else of the bar's window held the focus is no place for
+     * the controller: kept, ZUI's whole icon row took the mark and the lift, and a ring wider
+     * than the screen swung across it (owner's video on 0.0.282, 23:21:06).
+     */
     private static void focusLast(ViewGroup bar) {
         View focused = bar.findFocus();
-        if (focused != null && focused != bar) {
+        if (focused != null && isIcon(focused)) {
             look(focused, true);
             return;
         }
@@ -277,7 +387,7 @@ public final class TaskbarKeys {
             }
         }
         View now = bar.findFocus();
-        if (now != null) {
+        if (now != null && isIcon(now)) {
             look(now, true);
         }
     }
@@ -287,19 +397,26 @@ public final class TaskbarKeys {
     /** A key on the bar's layer while the controller is on the bar; true when it was ours. */
     private static boolean onBar(ViewGroup layer, KeyEvent event) {
         try {
-            if (on() != layer) {
+            if (on() != layer || event.isCanceled()) {
+                // A cancelled key is no press: the release of a back already taken.
                 return false;
             }
             int code = event.getKeyCode();
             boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
             Object context = ZuiFocus.lookup(layer.getContext());
             Object popup = context == null ? null : ZuiFocus.openPopup(layer, context);
+            Object open = popup == null ? topOpen(context) : popup;
+            View focused = layer.findFocus();
             if (code == KeyEvent.KEYCODE_BUTTON_Y) {
                 if (down && event.getRepeatCount() == 0) {
                     if (popup != null) {
                         Reflect.call(popup, "close", true);
-                    } else if (topOpen(context) == null) {
-                        menu(layer.findFocus());
+                    } else if (open == null) {
+                        menu(focused, null);
+                    } else if (isFolder(open) && focused != null
+                            && ZuiFocus.within(focused, (ViewGroup) open)) {
+                        // An app in a folder open on the bar: the bar's own popup for it.
+                        menu(focused, context);
                     }
                 }
                 return true;
@@ -308,13 +425,23 @@ public final class TaskbarKeys {
                     && !down) {
                 // A (its fallback, the centre key): clicked as ZUI clicks it, then the
                 // controller follows whatever opened.
-                opened(layer, layer.findFocus());
+                opened(layer, focused);
                 return false;
             }
-            if (popup != null || topOpen(context) != null) {
-                // ZUI's popup or folder over the bar: its own keys and back, kept to its rows.
-                int direction = ZuiFocus.direction(code);
-                return direction != 0 && down && ZuiFocus.keepIn(layer, direction);
+            int direction = ZuiFocus.direction(code);
+            if (open != null) {
+                // ZUI's popup or folder over the bar: its own keys and back, the arrows kept
+                // inside it.
+                return direction != 0 && down && (popup != null
+                        ? ZuiFocus.keepIn(layer, direction)
+                        : isFolder(open) && ZuiFocus.keepWithin(layer, (ViewGroup) open,
+                        direction));
+            }
+            if (down && focused != null && isIcon(focused)
+                    && (direction == View.FOCUS_LEFT || direction == View.FOCUS_RIGHT)) {
+                // Along our icons only: a view of ZUI's beyond them would carry no mark.
+                View next = focused.focusSearch(direction);
+                return next == null || !isIcon(next);
             }
             switch (code) {
                 case KeyEvent.KEYCODE_DPAD_UP:
@@ -334,7 +461,7 @@ public final class TaskbarKeys {
                     // Nothing below the bar.
                     return true;
                 default:
-                    if (ZuiFocus.direction(code) != 0 && layer.findFocus() == null) {
+                    if (direction != 0 && (focused == null || !isIcon(focused))) {
                         focusLast(layer);
                         return true;
                     }
@@ -365,16 +492,30 @@ public final class TaskbarKeys {
         return null;
     }
 
-    /** The icon's hold menu, as a hold gives it: our pins' own, or the view's long click. */
-    private static void menu(View icon) {
-        if (icon == null) {
+    /**
+     * The icon's hold menu, as a hold gives it: our pins' own, or the view's long click; for an
+     * app in a folder open on the bar ({@code bar} given), the bar's own popup for it. Opened by
+     * a key, without the window options ({@link ZuiFocus#byKeys}).
+     */
+    private static void menu(View icon, Object bar) {
+        if (icon == null || (bar == null && !isIcon(icon))) {
             return;
         }
-        Object menu = icon.getTag(TAG_MENU);
-        if (menu instanceof Runnable) {
-            ((Runnable) menu).run();
-        } else {
-            icon.performLongClick();
+        sMenuOf = new WeakReference<>(icon);
+        try {
+            ZuiFocus.byKeys(() -> {
+                if (bar != null) {
+                    return ZuiFocus.showOnTaskbar(icon, bar);
+                }
+                Object menu = icon.getTag(TAG_MENU);
+                if (menu instanceof Runnable) {
+                    ((Runnable) menu).run();
+                    return true;
+                }
+                return icon.performLongClick();
+            });
+        } catch (Throwable t) {
+            L.d("taskbar keys: no menu (" + t + ")");
         }
     }
 
@@ -385,8 +526,11 @@ public final class TaskbarKeys {
      * gives the bar back itself, before its drawer opens ({@link #release}).
      */
     private static void opened(ViewGroup layer, View icon) {
-        if (icon == null || ZuiFolders.isZuiFolder(icon)
-                || icon instanceof TaskbarStart.StartButton) {
+        if (icon == null || icon instanceof TaskbarStart.StartButton) {
+            return;
+        }
+        if (ZuiFolders.isZuiFolder(icon)) {
+            sFolderOf = new WeakReference<>(icon);
             return;
         }
         layer.post(() -> leave("an app opened"));
@@ -436,10 +580,12 @@ public final class TaskbarKeys {
             return;
         }
         View focused = bar.findFocus();
-        if (focused != null) {
+        if (focused != null && isIcon(focused)) {
             sLast = new WeakReference<>(focused);
             look(focused, false);
         }
+        sMenuOf = null;
+        sFolderOf = null;
         Object context = ZuiFocus.lookup(bar.getContext());
         if (context == null) {
             return;
@@ -458,14 +604,15 @@ public final class TaskbarKeys {
 
     /**
      * A bar icon the controller can be on: focusable (nothing in touch mode), and while the
-     * controller is on the bar the icon it is on lifts and carries ZUI's mark. A listener the
-     * icon already had is still told first. The tablet's bar only.
+     * controller is on the bar the icon it is on carries ZUI's mark. A listener the icon already
+     * had is still told first. The tablet's bar only.
      */
     static void focusable(View icon, int displayId) {
         if (icon == null || displayId != Display.DEFAULT_DISPLAY) {
             return;
         }
         icon.setFocusable(true);
+        icon.setTag(TAG_ICON, Boolean.TRUE);
         View.OnFocusChangeListener before = icon.getOnFocusChangeListener();
         icon.setOnFocusChangeListener((v, has) -> {
             if (before != null) {
@@ -478,7 +625,11 @@ public final class TaskbarKeys {
         });
     }
 
-    /** The lift and ZUI's mark on an icon, or both taken off again. */
+    /**
+     * ZUI's mark on an icon, or taken off again. The mark alone, as ZUI's drawers show it, inside
+     * the icon's edges: with the mouse's lift (x1.14 and a turn) it ran off the screen's edge at
+     * the start button and past the row's ends at its first and last icons (owner on 0.0.282).
+     */
     private static void look(View icon, boolean on) {
         Object mark = icon.getTag(TAG_MARK);
         if (on) {
@@ -492,14 +643,8 @@ public final class TaskbarKeys {
             if (icon.getForeground() == null || icon.getForeground() == mark) {
                 icon.setForeground((android.graphics.drawable.Drawable) mark);
             }
-            if (!Theme.of(icon).retro()) {
-                Hover.enter(icon);
-            }
-        } else {
-            if (mark != null && icon.getForeground() == mark) {
-                icon.setForeground(null);
-            }
-            Hover.exit(icon);
+        } else if (mark != null && icon.getForeground() == mark) {
+            icon.setForeground(null);
         }
     }
 }

@@ -199,6 +199,58 @@ public final class NativeDrawerHooks {
         } catch (Throwable t) {
             L.e("native drawer: could not intercept long presses", t);
         }
+        hookAppInfo(loader);
+    }
+
+    /**
+     * App info chosen in a menu of the taskbar's drawer: the drawer goes as Settings opens.
+     *
+     * <p>ZUI's {@code SystemShortcut.AppInfo.onClick} sends ZUX Home's own drawer back to the
+     * home screen ({@code returnToHomescreen}), and leaves the taskbar's drawer, a window above
+     * every app, open in front of Settings (owner on 0.0.282, 23:19:15). Its menu there has App
+     * info because we hand ZUI's own to it ({@code ZuiAppRows}). It is closed as after a launch
+     * from it ({@link #closeTaskbarDrawer}), once Settings is on its way.
+     */
+    private static void hookAppInfo(ClassLoader loader) {
+        try {
+            Class<?> info = Reflect.findClass("com.android.launcher3.popup.SystemShortcut$AppInfo",
+                    loader);
+            if (info == null) {
+                L.w("native drawer: ZUI's App info not found - the taskbar's drawer stays open"
+                        + " over Settings");
+                return;
+            }
+            int hooked = XposedBridge.hookAllMethods(info, "onClick", new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    if (param.args.length == 1 && param.args[0] instanceof View) {
+                        closeAfterAppInfo(param.thisObject, (View) param.args[0]);
+                    }
+                }
+            }).size();
+            Health.hooked("drawer: App info closes the taskbar's drawer", hooked);
+        } catch (Throwable t) {
+            L.w("native drawer: App info not watched (" + t + ")");
+        }
+    }
+
+    private static void closeAfterAppInfo(Object shortcut, View row) {
+        try {
+            Object target = Reflect.field(shortcut, "mTarget");
+            if (target == null || row.getDisplay() == null
+                    || !target.getClass().getName().endsWith(".TaskbarOverlayContext")) {
+                // ZUX Home's own drawer, which ZUI sends home itself, or the bar's menus.
+                return;
+            }
+            int display = row.getDisplay().getDisplayId();
+            row.getRootView().postDelayed(() -> closeTaskbarDrawer(target, display),
+                    CLOSE_AFTER_LAUNCH_MS);
+            if (SAID_CLOSE.add("app info")) {
+                L.i("native drawer: App info chosen in the taskbar's drawer - the drawer goes");
+            }
+        } catch (Throwable t) {
+            L.d("native drawer: the taskbar's drawer left open after App info (" + t + ")");
+        }
     }
 
     private static int hookUpTheHierarchy(Class<?> clazz, String name, XC_MethodHook callback) {
