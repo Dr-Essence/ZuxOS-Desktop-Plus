@@ -22,7 +22,7 @@ mode along the way.
 | Launcher | `com.zui.launcher`, desktop activity `SecondaryDisplayLauncher` |
 | Needs | Root, LSPosed, and the module scoped to the home app |
 
-**Status (2026-10-19, build 0.0.282)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
+**Status (2026-10-19, build 0.0.283)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
 
 The work now is making every feature run through ZUI's own code - its folders, menus, drag, animations and grids - so it looks and moves like ZUI itself.
 
@@ -246,6 +246,40 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
 - **No status bar on the monitor.** ZUI's bar there only shows icons; the tray does its job, and
   apps get the strip back. Maximised windows keep their buttons. Needs System UI ticked in
   LSPosed, which also keeps windows clear of the taskbar wherever it is.
+
+### Game controller (tablet)
+
+A gamepad, such as a DualSense, DualShock or Xbox pad, works the home screen, both drawers, menus and the
+taskbar through ZUI's own focus. ZUI's own focus mark shows where you are. Each part has its own switch
+under the controller settings.
+
+- **Home button:**
+  - A press opens or closes the app drawer, ZUI's own, as the start button does.
+  - Holding it goes to the home screen through the bar's own Home key, which also puts the
+    taskbar's drawer away.
+  - Switched off, it is Android's Home again.
+- **Moving:**
+  - The left stick or the D-pad moves between apps and folders; A opens, B goes back.
+  - The mark is on folders as soon as a drawer opens, and a row reached at the top or bottom
+    scrolls fully into view.
+- **Right stick:** scrolls either drawer, faster the further you tilt it. The icon you are on
+  stays in view.
+- **Triangle (Y):** opens the menu of the app or folder you are on, as a hold does, never the app
+  itself.
+  - Works in both drawers, on the home screen, and inside folders, including folders on the
+    taskbar.
+  - Menus opened this way leave out floating window and split screen; touch, stylus and mouse
+    keep them.
+  - In a menu the D-pad moves between its rows and stays in it, every row and small button
+    showing the mark. A picks, and B or Triangle closes it.
+- **Taskbar:**
+  - Press down from the bottom row of the home screen or a drawer, or **L1 / R1** from anywhere,
+    to go onto the bar. L1 and R1 are left to a full-screen app such as a game or a video.
+  - Left and right, or L1 and R1, move across the start button, pins, open apps and folders.
+  - A opens, Triangle gives the menu, B or up goes back.
+  - Back out of a bar menu or folder returns you to its icon.
+  - A touch hands the bar back to touch.
+- **Back** closes only what is on top: a menu, then a folder, then the drawer.
 
 ### Liquid glass
 
