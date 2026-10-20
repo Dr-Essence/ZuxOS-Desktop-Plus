@@ -13,7 +13,8 @@ Then [`docs/ZUI-NOTES.md`](docs/ZUI-NOTES.md): what ZUI's own apps do, read from
 code - which app runs which mode, the settings that switch them, ZUI's heat and app-killing
 policy, and where each of our hooks lands. Read it before hooking anything of ZUI's.
 
-ZUI's firmware and its decompiled code are in the owner's private repo `Tiimoo-debug/Test`:
+ZUI's firmware and its decompiled code are in the owner's private repo `Dr-Essence/Test`
+(the owner's GitHub name was `Tiimoo-debug` until 2026-10-20):
 releases for the APKs and jars, `decompiled/` for the sources. Clone it into the session; never
 ask the owner for them again, and never copy any of it into this public repository.
 

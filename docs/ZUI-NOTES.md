@@ -4,8 +4,9 @@ What ZUI's own apps do, read from the owner's firmware (decompiled 2026-10-09). 
 hooking anything of ZUI's. It records facts - class roles, settings keys, behaviour - never ZUI's
 code; the decompiled sources stay outside the repo.
 
-**Where the firmware is:** the owner's private repo `Tiimoo-debug/Test`. Its releases (tags `Test`
-and `Test1`) hold the APKs and jars as pulled from the tablet - ZUX Home is `default.apk` - and its
+**Where the firmware is:** the owner's private repo `Dr-Essence/Test` (`Tiimoo-debug/Test` before
+the owner's GitHub rename on 2026-10-20). Its releases (tags `Test` and `Test1`) hold the APKs and
+jars as pulled from the tablet - ZUX Home is `default.apk` - and its
 `decompiled/` folder holds each one decompiled with jadx 1.5.1 (sources and text resources,
 2026-10-18). A new session clones that repo (or downloads a release asset through the GitHub API
 with the session's token) instead of asking the owner. It stays private: nothing of it is ever
