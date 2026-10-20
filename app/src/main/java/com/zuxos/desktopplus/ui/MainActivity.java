@@ -276,7 +276,8 @@ public class MainActivity extends Activity {
                 Const.KEY_GAMEPAD_BAR, true);
         addSwitch("Game controller's L1 and R1 on the taskbar",
                 "From anywhere, L1 and R1 take the controller onto the taskbar and move it "
-                        + "along. A full-screen app - a game, a video - keeps them for itself",
+                        + "along. A full-screen app - a game, a video - keeps them for itself, "
+                        + "and so does an open keyboard",
                 Const.KEY_GAMEPAD_SHOULDERS, true);
         addSwitch("Game controller's right stick scrolls the drawers",
                 "Tilt it to scroll either app drawer, faster the further it goes; the icon the "
@@ -285,8 +286,8 @@ public class MainActivity extends Activity {
         addSwitch("Game controller types on HeliBoard",
                 "With HeliBoard ticked for this module in LSPosed: the D-pad moves over its "
                         + "keys and up to its suggestions, A presses (hold for accents), X "
-                        + "deletes, Y is space, Start is Enter, L2 and R2 move the cursor, B "
-                        + "closes it",
+                        + "deletes, Y is space, Start is Enter, L1 and R1 move the cursor, L2 "
+                        + "is shift, R2 is caps lock, B closes it",
                 Const.KEY_GAMEPAD_KEYBOARD, true);
         addSwitch("Navigation keys at the bar's right edge",
                 "On the tablet the back, home and recents keys sit flush with the bar's right "

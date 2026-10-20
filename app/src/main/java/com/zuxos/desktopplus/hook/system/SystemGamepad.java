@@ -36,9 +36,10 @@ import de.robv.android.xposed.XposedBridge;
  * stick and D-pad as arrow keys, A as select, B as Back ({@code Generic.kcm}).
  *
  * <p>L1 and R1 are taken the same way, and ZUX Home told ({@link #ACTION_BAR}), only while the
- * tablet's screen has the focus, with no lock screen, and the app in front does not hide the
- * navigation bar ({@code DisplayPolicy.topAppHidesSystemBar}): a full-screen game or video keeps
- * them. Each release goes the way its press went.
+ * tablet's screen has the focus, with no lock screen and no keyboard up, and the app in front
+ * does not hide the navigation bar ({@code DisplayPolicy.topAppHidesSystemBar}): a full-screen
+ * game or video keeps them, and an open keyboard moves its cursor with them. Each release goes
+ * the way its press went.
  *
  * <p>The hook runs on the input dispatcher's thread: a key test there and nothing else; the
  * messages, the hold's timer and the settings go to a thread of our own. The settings are read
@@ -83,6 +84,10 @@ public final class SystemGamepad {
     private static Field sDisplayPolicy;
     private static Method sKeyguard;
     private static Method sHidesBar;
+    /** The keyboard's window on the tablet, read on L1 and R1 too. */
+    private static Field sDisplayContent;
+    private static Field sImeWindow;
+    private static Method sImeVisible;
 
     /** Home's hold: its timer, and whether it went off. Our thread. */
     private static Runnable sHold;
@@ -247,12 +252,40 @@ public final class SystemGamepad {
                 return false;
             }
             Object display = sDisplayPolicy.get(policy);
-            return display != null && !Boolean.TRUE.equals(
+            return display != null && !keyboardUp(display) && !Boolean.TRUE.equals(
                     sHidesBar.invoke(display, WindowInsets.Type.navigationBars()));
         } catch (Throwable t) {
             if (sErrors++ < 3) {
                 L.w("system gamepad: L1 and R1 left to the app (" + t + ")");
             }
+            return false;
+        }
+    }
+
+    /**
+     * Whether the tablet's keyboard is up ({@code DisplayPolicy.mDisplayContent
+     * .mInputMethodWindow.isVisible()}): L1 and R1 are then the keyboard's, which moves the
+     * cursor with them. Read as not up when any of it cannot be read.
+     */
+    private static boolean keyboardUp(Object displayPolicy) {
+        try {
+            if (sImeWindow == null) {
+                Field content = field(displayPolicy.getClass(), "mDisplayContent");
+                Object displayContent = content == null ? null : content.get(displayPolicy);
+                sDisplayContent = content;
+                sImeWindow = displayContent == null ? null
+                        : field(displayContent.getClass(), "mInputMethodWindow");
+            }
+            Object content = sDisplayContent == null ? null : sDisplayContent.get(displayPolicy);
+            Object ime = content == null || sImeWindow == null ? null : sImeWindow.get(content);
+            if (ime == null) {
+                return false;
+            }
+            if (sImeVisible == null) {
+                sImeVisible = method(ime.getClass(), "isVisible");
+            }
+            return sImeVisible != null && Boolean.TRUE.equals(sImeVisible.invoke(ime));
+        } catch (Throwable t) {
             return false;
         }
     }

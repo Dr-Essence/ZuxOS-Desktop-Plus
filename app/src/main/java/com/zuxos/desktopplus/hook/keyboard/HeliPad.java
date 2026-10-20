@@ -41,8 +41,10 @@ import de.robv.android.xposed.XposedBridge;
  *       popup open, the D-pad picks among the popup's keys, and the release types the one
  *       picked. On the strip, a tap clicks and a hold long-clicks, as a finger's;</li>
  *   <li>X, Y and Start press its delete, space and action keys the same way, where they sit on
- *       the layout;</li>
- *   <li>L2 and R2 move the text cursor with its own arrow codes, as its toolbar does;</li>
+ *       the layout, and L2 its shift key - held, it chords, as a held finger does;</li>
+ *   <li>R2 locks and unlocks capitals, as its caps lock key does;</li>
+ *   <li>L1 and R1 move the text cursor with its own arrow codes, as its toolbar does; the
+ *       system leaves them to the keyboard while it is up ({@code SystemGamepad});</li>
  *   <li>B is left to Android, whose Back closes the keyboard.</li>
  * </ul>
  * The ring is HeliBoard's accent, in its window's overlay, and glides from key to key; a touch
@@ -68,6 +70,8 @@ public final class HeliPad {
     private static final int CODE_ENTER = '\n';
     private static final int CODE_LEFT = -21;
     private static final int CODE_RIGHT = -22;
+    private static final int CODE_SHIFT = -11;
+    private static final int CODE_CAPS_LOCK = -13;
     private static final int NO_COORDINATE = -1;
     /** HeliBoard's {@code Key.BACKGROUND_TYPE_ACTION}: its action key, Enter's place. */
     private static final int BACKGROUND_ACTION = 3;
@@ -76,6 +80,8 @@ public final class HeliPad {
     private static final int ID_X = 8;
     private static final int ID_Y = 7;
     private static final int ID_START = 6;
+    private static final int ID_SHIFT = 5;
+    private static final int ID_CAPS = 4;
     /** The ring's stroke, and how far it stands out from the key, in dp. */
     private static final float RING_DP = 2f;
     private static final int FALLBACK_ACCENT = 0xFF4D8EFF;
@@ -253,11 +259,18 @@ public final class HeliPad {
                     return pressCode(first, code, ID_Y, keys, input, ime, CODE_SPACE);
                 case KeyEvent.KEYCODE_BUTTON_START:
                     return pressCode(first, code, ID_START, keys, input, ime, CODE_ENTER);
-                case KeyEvent.KEYCODE_BUTTON_L2:
+                case KeyEvent.KEYCODE_BUTTON_L1:
                     codeInput(ime, CODE_LEFT);
                     return true;
-                case KeyEvent.KEYCODE_BUTTON_R2:
+                case KeyEvent.KEYCODE_BUTTON_R1:
                     codeInput(ime, CODE_RIGHT);
+                    return true;
+                case KeyEvent.KEYCODE_BUTTON_L2:
+                    return pressCode(first, code, ID_SHIFT, keys, input, ime, CODE_SHIFT);
+                case KeyEvent.KEYCODE_BUTTON_R2:
+                    if (first) {
+                        capsLock(code, keys, input, ime);
+                    }
                     return true;
                 default:
                     return false;
@@ -281,6 +294,8 @@ public final class HeliPad {
             case KeyEvent.KEYCODE_BUTTON_X:
             case KeyEvent.KEYCODE_BUTTON_Y:
             case KeyEvent.KEYCODE_BUTTON_START:
+            case KeyEvent.KEYCODE_BUTTON_L1:
+            case KeyEvent.KEYCODE_BUTTON_R1:
             case KeyEvent.KEYCODE_BUTTON_L2:
             case KeyEvent.KEYCODE_BUTTON_R2:
                 return true;
@@ -351,6 +366,16 @@ public final class HeliPad {
         if (!first) {
             return true;
         }
+        Target found = keyWith(code, keys, input, ime);
+        if (found != null) {
+            touch(button, id, keys, found.x, found.y);
+        }
+        // None on this layout: the button does nothing rather than reach the app.
+        return true;
+    }
+
+    /** The key of the shown layout that sends {@code code}; for Enter, its action key. */
+    private static Target keyWith(int code, View keys, ViewGroup input, Object ime) {
         Target found = null;
         for (Target t : targets(keys, input, ime)) {
             if (t.key == null) {
@@ -359,18 +384,70 @@ public final class HeliPad {
             if (code == CODE_ENTER && intOf(t.key, "getBackgroundType", "mBackgroundType")
                     == BACKGROUND_ACTION) {
                 // The action key, whatever it sends: Enter, a shifted Enter, Go, Search, Next.
-                found = t;
-                break;
+                return t;
             }
             if (found == null && t.code == code) {
                 found = t;
             }
         }
-        if (found != null) {
-            touch(button, id, keys, found.x, found.y);
+        return found;
+    }
+
+    /**
+     * R2: caps lock on or off. A caps lock key of the layout is pressed where it sits; with none,
+     * which is usual, the press goes to HeliBoard's own listener as {@code PointerTracker} sends
+     * a key's - {@code onPressKey}, {@code onCodeInput}, {@code onReleaseKey} - and its
+     * {@code KeyboardState} locks or unlocks the shift on the release.
+     */
+    private static void capsLock(int button, View keys, ViewGroup input, Object ime) {
+        Target key = keyWith(CODE_CAPS_LOCK, keys, input, ime);
+        if (key != null) {
+            touch(button, ID_CAPS, keys, key.x, key.y);
+            return;
         }
-        // None on this layout: the button does nothing rather than reach the app.
-        return true;
+        Object listener = Reflect.field(ime, "mKeyboardActionListener");
+        Method press = null;
+        Method input4 = null;
+        Method release = null;
+        for (Method m : listener == null ? new Method[0] : listener.getClass().getMethods()) {
+            if (m.getName().equals("onPressKey") && m.getParameterCount() == 4) {
+                press = m;
+            } else if (m.getName().equals("onCodeInput") && m.getParameterCount() == 4) {
+                input4 = m;
+            } else if (m.getName().equals("onReleaseKey") && m.getParameterCount() == 2) {
+                release = m;
+            }
+        }
+        if (release == null) {
+            said("HeliBoard's key release not found - R2 does nothing");
+            return;
+        }
+        try {
+            if (press != null) {
+                press.invoke(listener, CODE_CAPS_LOCK, 0, 1, keyPress(press));
+            }
+            if (input4 != null) {
+                input4.invoke(listener, CODE_CAPS_LOCK, NO_COORDINATE, NO_COORDINATE, false);
+            }
+            release.invoke(listener, CODE_CAPS_LOCK, false);
+        } catch (Throwable t) {
+            L.d("heli pad: caps lock not toggled (" + t + ")");
+        }
+    }
+
+    /** HeliBoard's {@code HapticEvent.KEY_PRESS}, the last argument of its key press. */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static Object keyPress(Method press) {
+        Class<?> type = press.getParameterTypes()[3];
+        if (!type.isEnum()) {
+            return null;
+        }
+        try {
+            return Enum.valueOf((Class<? extends Enum>) type, "KEY_PRESS");
+        } catch (IllegalArgumentException renamed) {
+            Object[] all = type.getEnumConstants();
+            return all.length > 0 ? all[0] : null;
+        }
     }
 
     /** A finger down at {@code x, y} of the main keyboard, held for {@code button}. */
@@ -502,11 +579,11 @@ public final class HeliPad {
         }
     }
 
-    /** L2 or R2: HeliBoard's own cursor arrow, as its toolbar sends it. */
+    /** L1 or R1: HeliBoard's own cursor arrow, as its toolbar sends it. */
     private static void codeInput(Object ime, int code) {
         Object listener = Reflect.field(ime, "mKeyboardActionListener");
         if (listener == null) {
-            said("HeliBoard's key listener not found - L2 and R2 do nothing");
+            said("HeliBoard's key listener not found - L1 and R1 do nothing");
             return;
         }
         for (Method m : listener.getClass().getMethods()) {

@@ -973,6 +973,15 @@ For 0.0.285, from HeliBoard's public source (`Helium314/HeliBoard`, main at 2026
   - The toolbar sends codes through `KeyboardActionListener.onCodeInput(code, x, y, repeat)`.
 - **Colours:** `Settings.getValues().mColors.get(ColorType.X)`; `ACTION_KEY_BACKGROUND` is the
   theme's accent.
+- **Shift and caps lock:**
+  - Shift (`KeyCode.SHIFT`, -11) is a key of its layouts. `KeyboardState` makes a tap shift
+    once, a double tap lock, and a held shift chord with the next keys.
+  - Caps lock (`KeyCode.CAPS_LOCK`, -13) is seldom on a layout; `KeyboardState.onReleaseKey`
+    toggles the lock.
+  - A key reaches the listener as `onPressKey(code, repeat, pointers, HapticEvent)`, then
+    `onCodeInput(code, x, y, repeat)`, then `onReleaseKey(code, sliding)`.
+- **Is the keyboard up, from the system:** `DisplayPolicy.mDisplayContent` (public final),
+  `DisplayContent.mInputMethodWindow` (a public `WindowState`), and `WindowState.isVisible()`.
 
 ## ZUI's sidebar and its AI service (read 2026-10-15, from the owner's ANR traces)
 
@@ -1074,6 +1083,9 @@ Every class and method the module hooks by name is present in this version:
 - 0.0.285, in HeliBoard's process: `LatinIME.onKeyDown`, `onKeyUp`, `onFinishInputView`,
   `onWindowHidden`; `MainKeyboardView.setKeyboard` and `processMotionEvent` (called);
   `InputView.onInterceptTouchEvent`; `PointerTracker.getPointerTracker` and `mPopupKeysPanel`.
+- 0.0.287: HeliBoard's `KeyboardActionListener.onPressKey`, `onCodeInput`, `onReleaseKey` (caps
+  lock); in the system, `DisplayPolicy.mDisplayContent`, `DisplayContent.mInputMethodWindow`,
+  `WindowState.isVisible()` (read on L1/R1).
 
 Class names like these survive ZUI's R8 pass; fields and most private methods are renamed in
 every build, which is why the module finds those by type and shape, not by name.
