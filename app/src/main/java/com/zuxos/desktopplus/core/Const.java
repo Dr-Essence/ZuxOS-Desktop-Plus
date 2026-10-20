@@ -138,6 +138,8 @@ public final class Const {
     public static final String KEY_GAMEPAD_SHOULDERS = "gamepad_shoulders";
     /** A game controller's right stick scrolls the drawers. */
     public static final String KEY_GAMEPAD_STICK = "gamepad_stick";
+    /** A game controller types on HeliBoard, the keyboard, once it is ticked in LSPosed. */
+    public static final String KEY_GAMEPAD_KEYBOARD = "gamepad_keyboard";
     /** An app or folder dragged from ZUI's home screen onto the taskbar moves there. */
     public static final String KEY_HOME_TO_BAR = "home_to_bar";
     /** ZUI's loader waits a second at most for an idle home screen before loading the app list. */

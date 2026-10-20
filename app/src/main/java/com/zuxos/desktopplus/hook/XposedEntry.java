@@ -21,6 +21,7 @@ import com.zuxos.desktopplus.hook.home.LoaderWait;
 import com.zuxos.desktopplus.hook.home.PinRequestHooks;
 import com.zuxos.desktopplus.hook.home.SettingsRestart;
 import com.zuxos.desktopplus.hook.home.StockUnlockHooks;
+import com.zuxos.desktopplus.hook.keyboard.HeliPad;
 import com.zuxos.desktopplus.hook.recents.RecentsRoute;
 import com.zuxos.desktopplus.hook.sidebar.SidebarAiWait;
 import com.zuxos.desktopplus.hook.system.SystemBridge;
@@ -50,6 +51,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
 
     private static final String SYSTEMUI = "com.android.systemui";
     private static final String SIDEBAR = "com.zui.freeform.sidebar";
+    private static final String HELIBOARD = "helium314.keyboard";
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
@@ -69,9 +71,8 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     SystemFullscreen.install(lpparam.classLoader);
                     SystemDrag.install(lpparam.classLoader);
                     SystemTrace.install(lpparam.classLoader);
-                    if (Cfg.gamepadDrawer()) {
-                        SystemGamepad.install(lpparam.classLoader);
-                    }
+                    // Its switches are read as the buttons come: Home's, and L1 and R1's.
+                    SystemGamepad.install(lpparam.classLoader);
                     TouchScreens.install(lpparam.classLoader);
                 }
                 return;
@@ -88,6 +89,15 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     ClosedWindowInfo.install(lpparam.classLoader);
                     CaptionFollow.install(lpparam.classLoader);
                     ShellDropBar.install(lpparam.classLoader);
+                }
+                return;
+            }
+            if (HELIBOARD.equals(lpparam.packageName)) {
+                // HeliBoard, the owner's keyboard - ticked in LSPosed: the controller on its keys.
+                Cfg.reload();
+                if (HELIBOARD.equals(lpparam.processName) && Cfg.enabled()
+                        && Cfg.gamepadKeyboard()) {
+                    HeliPad.install(lpparam.classLoader);
                 }
                 return;
             }

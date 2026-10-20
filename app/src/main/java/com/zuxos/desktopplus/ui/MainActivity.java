@@ -282,6 +282,12 @@ public class MainActivity extends Activity {
                 "Tilt it to scroll either app drawer, faster the further it goes; the icon the "
                         + "controller is on stays in view",
                 Const.KEY_GAMEPAD_STICK, true);
+        addSwitch("Game controller types on HeliBoard",
+                "With HeliBoard ticked for this module in LSPosed: the D-pad moves over its "
+                        + "keys and up to its suggestions, A presses (hold for accents), X "
+                        + "deletes, Y is space, Start is Enter, L2 and R2 move the cursor, B "
+                        + "closes it",
+                Const.KEY_GAMEPAD_KEYBOARD, true);
         addSwitch("Navigation keys at the bar's right edge",
                 "On the tablet the back, home and recents keys sit flush with the bar's right "
                         + "edge; ZUI's room there comes back while it has a button to show in it",

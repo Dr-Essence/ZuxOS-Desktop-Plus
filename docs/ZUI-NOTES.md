@@ -934,6 +934,45 @@ For 0.0.283, from ZUX Home 18.2.0.0375 and `services.jar` 16 decompiled.
   `ActivityAllAppsContainerView.onAttachedToWindow` is declared there, and
   `getActiveRecyclerView` gives the list shown.
 
+## HeliBoard, the owner's keyboard (read 2026-10-19)
+
+For 0.0.285, from HeliBoard's public source (`Helium314/HeliBoard`, main at 2026-10-18,
+4.3-beta1, GPL; read only, nothing copied). It is the keyboard in use on the tablet
+(`helium314.keyboard/.latin.LatinIME`) and ZUI's `desktop_ime_default`.
+
+- **Release builds** shrink with R8 (`proguard-android-optimize`) but `-dontobfuscate`: class,
+  method and field names are kept. A small getter can still be inlined away, so each read falls
+  back to its field: `Key.mX`, `mY`, `mWidth`, `mHeight`, `mCode`, `mBackgroundType`;
+  `KeyboardView.mKeyboard`; `Keyboard.mSortedKeys`; `KeyboardSwitcher.mKeyboardView`;
+  `Settings.sInstance.mSettingsValues`.
+- **Keys reach it first.**
+  - While a keyboard is up, every key goes to it before the app (`ImeInputStage`), the left
+    stick's synthesized arrows included.
+  - `LatinIME.onKeyDown` and `onKeyUp` hand them to `KeyboardActionListenerImpl`, which decodes
+    only hardware keyboards (`mEnableHardwareKeyboard`).
+  - Back, the fallback of a controller's B, closes the keyboard (`InputMethodService`).
+- **Touch:**
+  - `MainKeyboardView.onTouchEvent` passes to `processMotionEvent(MotionEvent)`, which hands each
+    pointer id to its `PointerTracker` (`getPointerTracker(id)`, made on demand).
+  - The tracker does the press, the preview, long-press popup keys (`mPopupKeysPanel`, a
+    `PopupKeysKeyboardView` laid at `mOriginX`/`mOriginY`, which the same pointer's moves pick
+    in) and repeats.
+  - Its `KeyDetector` takes the view's padding off, and adds back `getVerticalCorrection`.
+  - A down within `mTouchNoiseThresholdTime` of the last up, close by, is dropped as noise.
+- **Keys:**
+  - `Keyboard.getSortedKeys` lists them top-left to bottom-right, with `Key.Spacer`s among them.
+  - `Key.getX/getY/getWidth/getHeight` are in the keyboard's coordinates.
+  - The action key's code is Enter only for a plain Enter (`KeyLabel.getActionKeyCode`); its
+    background type is always `Key.BACKGROUND_TYPE_ACTION` (3).
+  - Codes: delete -7, the cursor arrows -21 and -22, space ' ', Enter '\n'.
+- **The rest of its window:**
+  - `LatinIME.mInputView` (an `InputView`, whose `onInterceptTouchEvent` sees every finger) holds
+    `mSuggestionStripView` (word `TextView`s and toolbar `ImageButton`s, its own click and long
+    click).
+  - The toolbar sends codes through `KeyboardActionListener.onCodeInput(code, x, y, repeat)`.
+- **Colours:** `Settings.getValues().mColors.get(ColorType.X)`; `ACTION_KEY_BACKGROUND` is the
+  theme's accent.
+
 ## ZUI's sidebar and its AI service (read 2026-10-15, from the owner's ANR traces)
 
 - `com.zui.freeform.sidebar` listens to every drag (`FloatingOnDragListener.onDrag`) and on its
@@ -1031,6 +1070,9 @@ Every class and method the module hooks by name is present in this version:
   `ZuiSystemShortcuts$FloatOpen` and `splitscreen.SplitShortcut`),
   `ActivityAllAppsContainerView.onAttachedToWindow` and `getActiveRecyclerView`, `Folder.getOpen`,
   `TaskbarPopupController.showForIcon` from the bar's `mControllers`.
+- 0.0.285, in HeliBoard's process: `LatinIME.onKeyDown`, `onKeyUp`, `onFinishInputView`,
+  `onWindowHidden`; `MainKeyboardView.setKeyboard` and `processMotionEvent` (called);
+  `InputView.onInterceptTouchEvent`; `PointerTracker.getPointerTracker` and `mPopupKeysPanel`.
 
 Class names like these survive ZUI's R8 pass; fields and most private methods are renamed in
 every build, which is why the module finds those by type and shape, not by name.

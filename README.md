@@ -22,7 +22,7 @@ mode along the way.
 | Launcher | `com.zui.launcher`, desktop activity `SecondaryDisplayLauncher` |
 | Needs | Root, LSPosed, and the module scoped to the home app |
 
-**Status (2026-10-19, build 0.0.283)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
+**Status (2026-10-20, build 0.0.285)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
 
 The work now is making every feature run through ZUI's own code - its folders, menus, drag, animations and grids - so it looks and moves like ZUI itself.
 
@@ -41,6 +41,15 @@ The work now is making every feature run through ZUI's own code - its folders, m
 - **Tablet bar:** open apps stop at the navigation keys, which sit flush with the right edge; pinned folders are ZUI's own.
 - **Monitor:** after a replug, its touchscreen and pen stay on the monitor.
 - **Home screen uses the dock's space:** the strip ZUX Home keeps for its dock above the taskbar is home screen.
+
+**New in 0.0.285, awaiting the owner's test:**
+
+- **The game controller types on HeliBoard**, once HeliBoard is ticked for this module in LSPosed:
+  - The D-pad or left stick moves a ring over the keys and up to the suggestions.
+  - A presses the key; hold it for accents and pick one with the D-pad.
+  - X deletes, Y is space, Start is Enter (or Go, Search), and L2/R2 move the cursor. B closes the keyboard.
+  - It has its own switch.
+- **L1 and R1 work with the Home switch off**: the system part now always loads and follows each switch.
 
 **New in 0.0.283, awaiting the owner's test:**
 
@@ -280,6 +289,13 @@ under the controller settings.
   - Back out of a bar menu or folder returns you to its icon.
   - A touch hands the bar back to touch.
 - **Back** closes only what is on top: a menu, then a folder, then the drawer.
+- **Typing on HeliBoard** (with HeliBoard ticked for this module in LSPosed):
+  - The D-pad or left stick moves a ring in HeliBoard's own accent colour over its keys, and up to
+    the suggestions and toolbar.
+  - A presses the key exactly as a finger does, so key previews, shift, sounds and repeat all
+    behave as usual. Hold A for the accents, and pick one with the D-pad.
+  - X is delete, Y is space, Start is the Enter/Go/Search key, and L2/R2 move the text cursor.
+  - B closes the keyboard. A touch puts the ring away.
 
 ### Liquid glass
 

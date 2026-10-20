@@ -582,6 +582,10 @@ public final class Cfg {
         return getBool(Const.KEY_GAMEPAD_STICK, true);
     }
 
+    public static boolean gamepadKeyboard() {
+        return getBool(Const.KEY_GAMEPAD_KEYBOARD, true);
+    }
+
     public static boolean homeToBar() {
         return getBool(Const.KEY_HOME_TO_BAR, true);
     }
