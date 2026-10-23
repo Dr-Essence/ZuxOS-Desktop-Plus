@@ -17,7 +17,7 @@ import com.zuxos.desktopplus.hook.IconInfo;
 import com.zuxos.desktopplus.hook.ZuiLook;
 import com.zuxos.desktopplus.hook.ZuiShortcuts;
 import com.zuxos.desktopplus.hook.drawer.DrawerSelect;
-import com.zuxos.desktopplus.hook.drawer.ZuiFolders;
+import com.zuxos.desktopplus.hook.drawer.ZuiFolderModel;
 import com.zuxos.desktopplus.hook.home.HomeFolderRemove;
 import com.zuxos.desktopplus.hook.home.HomeSelect;
 import com.zuxos.desktopplus.logic.PinList;
@@ -187,7 +187,7 @@ final class ZuiAppRows {
                 return;
             }
             Object info = icon.getTag();
-            Item folder = ZuiFolders.folderOfIcon(icon);
+            Item folder = ZuiFolderModel.folderOfIcon(icon);
             if (folder != null && !hasOurs(zui)) {
                 param.args[3] = withFolderRows(zui, folder, info, icon,
                         ((View) param.thisObject).getContext());
@@ -259,7 +259,7 @@ final class ZuiAppRows {
 
     /**
      * ZUI's menu for one of our folders - its Rename; never its Enlarge, which our folders do
-     * not offer ({@link ZuiFolders}) - with pin or unpin to the taskbar as one of its own.
+     * not offer ({@code ZuiFolders}) - with pin or unpin to the taskbar as one of its own.
      */
     private static List<Object> withFolderRows(List<Object> zui, Item folder, Object info,
             View icon, Context popup) throws Exception {
@@ -323,10 +323,10 @@ final class ZuiAppRows {
             }));
         }
         // Inside one of our drawer folders: out of it again.
-        Runnable remove = ZuiFolders.removeAction(info);
+        Runnable remove = ZuiFolderModel.removeAction(info);
         if (remove != null) {
             rows.add(new Row("Remove from folder", "ic_remove_zui", remove));
-            Runnable uninstall = ZuiFolders.uninstallAction(info);
+            Runnable uninstall = ZuiFolderModel.uninstallAction(info);
             if (uninstall != null) {
                 rows.add(new Row(zuiString(ctx, "uninstall_item_title", "Uninstall"),
                         "ic_delete_zui", uninstall));

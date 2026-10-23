@@ -282,7 +282,7 @@ final class DrawerSession {
     private boolean asDrawerDrag() {
         try {
             Object stand = Reflect.field(drag, "dragInfo");
-            Item child = ZuiFolders.childOf(stand);
+            Item child = ZuiFolderModel.childOf(stand);
             Object app = child == null || child.pkg == null || child.cls == null ? null
                     : ZuiApps.appInfo(activity, new android.content.ComponentName(child.pkg,
                     child.cls), IconInfo.userOf(stand));
@@ -294,7 +294,7 @@ final class DrawerSession {
             setField(drag, "dragInfo", app);
             setField(drag, "dragSource", apps);
             mCopiedOut = true;
-            ZuiFolders.closeOpenFolders();
+            ZuiFolderModel.closeOpenFolders();
             return true;
         } catch (Throwable t) {
             L.w("drawer rearrange: the drag of " + key + " stays in the drawer (" + t + ")");
@@ -499,7 +499,7 @@ final class DrawerSession {
             }
         }
         boolean pinned = item != null && TaskbarDrop.pinAt(display, item, lastX);
-        Runnable out = pinned && mInFolder != null ? ZuiFolders.removeAction(info) : null;
+        Runnable out = pinned && mInFolder != null ? ZuiFolderModel.removeAction(info) : null;
         if (out != null) {
             // Out of its folder onto the bar, as ZUI's drawer drag out of a folder pinned there
             // moves it (ZuiBarDrop.pinned); ZUI's folder, told the drop was taken, does not put
@@ -524,8 +524,8 @@ final class DrawerSession {
         Object sprung = mSprung;
         mSprung = null;
         // ZUI's folder took the dragged app: the apps chosen with it go in after it.
-        int carriedIn = folderOpened && ZuiFolders.sLastFiled != null && sprung != null
-                && !dropped && !carried.isEmpty() ? ZuiFolders.fileCarried(sprung, carried) : 0;
+        int carriedIn = folderOpened && ZuiFolderModel.sLastFiled != null && sprung != null
+                && !dropped && !carried.isEmpty() ? ZuiFolderModel.fileCarried(sprung, carried) : 0;
         if (mFlight != null) {
             if (carriedIn > 0) {
                 // Into the folder's icon, as ZUI's multi-drag flies its chosen apps.
@@ -576,10 +576,10 @@ final class DrawerSession {
             // folder is shown again from our model. Left as ZUI had it, the app was missing until
             // the taskbar's drawer was opened again, and for good in ZUX Home's drawer, which keeps
             // its icons.
-            ZuiFolders.rebuild(from);
+            ZuiFolderModel.rebuild(from);
         }
-        String filed = ZuiFolders.sLastFiled;
-        ZuiFolders.sLastFiled = null;
+        String filed = ZuiFolderModel.sLastFiled;
+        ZuiFolderModel.sLastFiled = null;
         String outcome = mOutcome != null ? mOutcome
                 : dropped ? reorder.outcome()
                 : folderOpened && filed != null ? "placed in a folder, where it was let go"
@@ -703,9 +703,9 @@ final class DrawerSession {
 
     /** The icon drawn in a drawer cell: the app's own, or the folder icon in our cell. */
     private static View iconIn(View cell) {
-        if (ZuiFolders.folderOfIcon(cell) == null && cell instanceof ViewGroup
+        if (ZuiFolderModel.folderOfIcon(cell) == null && cell instanceof ViewGroup
                 && ((ViewGroup) cell).getChildCount() > 0
-                && ZuiFolders.folderOfIcon(((ViewGroup) cell).getChildAt(0)) != null) {
+                && ZuiFolderModel.folderOfIcon(((ViewGroup) cell).getChildAt(0)) != null) {
             return ((ViewGroup) cell).getChildAt(0);
         }
         return cell;

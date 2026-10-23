@@ -6,7 +6,7 @@ import android.view.View;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.hook.drawer.NativeDrawerHooks;
-import com.zuxos.desktopplus.hook.drawer.ZuiFolders;
+import com.zuxos.desktopplus.hook.drawer.ZuiFolderCells;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -24,7 +24,7 @@ import de.robv.android.xposed.XposedBridge;
  * listeners it tells ({@code ThemeChangeListener.onThemeChanged}), and reloads its model. A ZUI
  * icon theme comes through {@code LauncherModel.onZuiThemeChanged}. Either way every icon we made
  * is dropped, and our rows are built again once ZUI's reload hands its new apps over
- * ({@link ZuiFolders#forgetIcons}).</li>
+ * ({@link ZuiFolderCells#forgetIcons}).</li>
  * <li>Night mode, the bar's resources, ZUI's drawer button and recent apps switches reach its bar
  * as calls on its context ({@code onUiModeChange}, {@code onAssetsPathChange},
  * {@code allAppsEnableChange}, {@code onTbRecentUsedAppEnableChange}); after each, our parts of
@@ -116,7 +116,7 @@ final class ZuiThemeFollow {
     private static void iconsChanged(String what) {
         try {
             NativeDrawerHooks.forgetIcons();
-            ZuiFolders.forgetIcons();
+            ZuiFolderCells.forgetIcons();
             L.i("zui theme follow: " + what + " changed - our icons are made again");
         } catch (Throwable t) {
             L.d("zui theme follow: icons not made again (" + t + ")");

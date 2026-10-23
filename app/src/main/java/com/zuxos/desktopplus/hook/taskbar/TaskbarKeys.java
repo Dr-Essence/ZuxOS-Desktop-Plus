@@ -13,7 +13,7 @@ import com.zuxos.desktopplus.core.Health;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.hook.ZuiFocus;
-import com.zuxos.desktopplus.hook.drawer.ZuiFolders;
+import com.zuxos.desktopplus.hook.drawer.ZuiFolderBar;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
@@ -524,7 +524,7 @@ public final class TaskbarKeys {
         if (icon == null || icon instanceof TaskbarStart.StartButton) {
             return;
         }
-        if (ZuiFolders.isZuiFolder(icon)) {
+        if (ZuiFolderBar.isZuiFolder(icon)) {
             sFolderOf = new WeakReference<>(icon);
             return;
         }

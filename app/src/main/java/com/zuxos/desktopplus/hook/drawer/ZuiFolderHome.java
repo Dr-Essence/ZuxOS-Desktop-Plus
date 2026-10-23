@@ -68,7 +68,7 @@ final class ZuiFolderHome {
      * {@code pre_drag_view_scale} (6 dp) in 150 ms ({@code LauncherDragController.startDrag};
      * {@code DragView}: from the start scale to {@code (width + growth) / width}). Our drawer
      * folders are drawn larger than their picture (scaled to the drawer's icons,
-     * {@code ZuiFolders.align}), so the end is taken relative to the size shown: without it the
+     * {@code ZuiFolderCells.align}), so the end is taken relative to the size shown: without it the
      * picture "grew" to about the size it had - no pickup. The growth is ZUI's 6 dp on the folder
      * as shown, as on its home screen: multiplied by the shown scale, it was ×1.53 in portrait, a
      * folder held "too big".

@@ -500,7 +500,7 @@ final class DrawerRearrange {
             ViewGroup grid = list instanceof ViewGroup ? (ViewGroup) list : null;
             DrawerReorder reorder = grid == null ? null : DrawerReorder.over(grid, key);
             if (apps == null || !(layer instanceof View) || reorder == null) {
-                if (ZuiFolders.folderOfIcon(original) != null || folder != null) {
+                if (ZuiFolderModel.folderOfIcon(original) != null || folder != null) {
                     // A folder has no system drag of ZUI's, and an app from one goes back into
                     // it: it stays in the drawer, and goes back.
                     sResetDisallow = controller;
@@ -517,7 +517,7 @@ final class DrawerRearrange {
             DrawerSession session = new DrawerSession(true, activity, apps,
                     sheet instanceof View ? (View) sheet : apps, (View) layer, grid, controller,
                     reorder, key, drag, 0);
-            session.folderDragged = ZuiFolders.folderOfIcon(original);
+            session.folderDragged = ZuiFolderModel.folderOfIcon(original);
             if (Cfg.drawerFolderSpring()) {
                 reorder.springFolders(session::springOpen);
             }
@@ -534,7 +534,7 @@ final class DrawerRearrange {
             Object drag = Reflect.field(controller, "mDragObject");
             Object original = drag == null ? null : Reflect.field(drag, "originalView");
             if (folder != null || (original instanceof View
-                    && ZuiFolders.folderOfIcon((View) original) != null)) {
+                    && ZuiFolderModel.folderOfIcon((View) original) != null)) {
                 // A folder has no system drag of ZUI's, and an app from one goes back into it:
                 // it stays in the drawer, and goes back.
                 sResetDisallow = controller;
@@ -550,7 +550,7 @@ final class DrawerRearrange {
      * all the same: ZUI's system drag is for apps only ({@code o0} reads an app from the icon).
      */
     private static void keepFolderAnyway(Object controller, View view) {
-        if (view != null && ZuiFolders.folderOfIcon(view) != null) {
+        if (view != null && ZuiFolderModel.folderOfIcon(view) != null) {
             Reflect.call(controller, "setDisallowGlobalDrag", true);
             sResetDisallow = controller;
         }
@@ -558,11 +558,11 @@ final class DrawerRearrange {
 
     /** What the drag is of: our folder, an app of the drawer, or an app in one of our folders. */
     private static String keyFor(View view, Object info) {
-        Item folder = view == null ? null : ZuiFolders.folderOfIcon(view);
+        Item folder = view == null ? null : ZuiFolderModel.folderOfIcon(view);
         if (folder != null) {
             return folder.key();
         }
-        Item child = ZuiFolders.childOf(info);
+        Item child = ZuiFolderModel.childOf(info);
         return child != null ? child.key() : NativeDrawerHooks.keyOfEntry(info);
     }
 

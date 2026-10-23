@@ -259,10 +259,10 @@ final class DrawerHold {
         if (item.type == Item.TYPE_FOLDER) {
             // ZUI's own folder icon: ZUI's folder menu, Rename (its Enlarge never offered); our
             // entry opens with our window.
-            TaskbarMenu.Entry rename = ZuiFolders.folderOfIcon(source) != null
+            TaskbarMenu.Entry rename = ZuiFolderModel.folderOfIcon(source) != null
                     ? renameAsZui(source) : null;
             entries.add(rename != null ? rename : new TaskbarMenu.Entry("Open folder", () -> {
-                if (ZuiFolders.folderOfIcon(source) != null) {
+                if (ZuiFolderModel.folderOfIcon(source) != null) {
                     source.performClick();
                 } else {
                     NativeDrawerHooks.openFolderFor(source);

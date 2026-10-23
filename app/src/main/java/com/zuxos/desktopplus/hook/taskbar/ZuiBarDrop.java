@@ -15,7 +15,7 @@ import com.zuxos.desktopplus.core.Health;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.hook.IconInfo;
-import com.zuxos.desktopplus.hook.drawer.ZuiFolders;
+import com.zuxos.desktopplus.hook.drawer.ZuiFolderModel;
 import com.zuxos.desktopplus.model.Item;
 
 import java.lang.reflect.Method;
@@ -520,7 +520,7 @@ final class ZuiBarDrop {
         if (source == null || root == null || TaskbarTray.dragLayerOf(root) == null) {
             return;
         }
-        Runnable out = ZuiFolders.removeAction(source.getTag());
+        Runnable out = ZuiFolderModel.removeAction(source.getTag());
         if (out != null) {
             // Once the drop is handled: ZUI's drag still holds the folder's icon until its end.
             root.post(out);

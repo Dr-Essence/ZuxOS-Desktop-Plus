@@ -105,12 +105,12 @@ public final class NativeDrawerHooks {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 customise(param.thisObject);
-                ZuiFolders.building(param.thisObject);
+                ZuiFolderCells.building(param.thisObject);
             }
 
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
-                ZuiFolders.built();
+                ZuiFolderCells.built();
             }
         });
         int hookedUpdates = hookUpTheHierarchy(listCls, "onAppsUpdated", new XC_MethodHook() {
@@ -332,7 +332,7 @@ public final class NativeDrawerHooks {
                 }
                 kept.add(app);
             }
-            ZuiFolders.remember(inStore);
+            ZuiFolderCells.remember(inStore);
             if (kept.isEmpty()) {
                 note("refusing to empty the drawer - no entries survived filtering");
                 return false;
@@ -794,7 +794,7 @@ public final class NativeDrawerHooks {
             return null;
         }
         Item folder = folderOfEntry(view.getTag());
-        return folder != null ? folder : ZuiFolders.folderOfIcon(view);
+        return folder != null ? folder : ZuiFolderModel.folderOfIcon(view);
     }
 
     /** Our folder behind one of our entries in ZUI's list, or null for anything else. */
@@ -856,7 +856,7 @@ public final class NativeDrawerHooks {
         }
         boolean entry = sAppInfoCls != null && sAppInfoCls.isInstance(tag)
                 && folderIdOf(tag) == null && IconInfo.packageOf(tag) != null;
-        if (!entry && ZuiFolders.childOf(tag) == null) {
+        if (!entry && ZuiFolderModel.childOf(tag) == null) {
             return;
         }
         int display = view.getDisplay().getDisplayId();

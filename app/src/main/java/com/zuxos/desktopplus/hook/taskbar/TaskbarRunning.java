@@ -30,7 +30,8 @@ import com.zuxos.desktopplus.hook.Tasks;
 import com.zuxos.desktopplus.hook.Windows;
 import com.zuxos.desktopplus.hook.drawer.DrawerFolderWindow;
 import com.zuxos.desktopplus.hook.drawer.NativeDrawerHooks;
-import com.zuxos.desktopplus.hook.drawer.ZuiFolders;
+import com.zuxos.desktopplus.hook.drawer.ZuiFolderBar;
+import com.zuxos.desktopplus.hook.drawer.ZuiFolderCells;
 import com.zuxos.desktopplus.hook.panel.QuickTiles;
 import com.zuxos.desktopplus.hook.recents.TaskOverview;
 import com.zuxos.desktopplus.logic.PinList;
@@ -1721,14 +1722,14 @@ public final class TaskbarRunning {
     /**
      * A folder pinned to the bar.
      *
-     * <p>On the tablet's bar it is ZUI's own folder ({@link ZuiFolders#barIcon}). On the monitor,
+     * <p>On the tablet's bar it is ZUI's own folder ({@link ZuiFolderBar#barIcon}). On the monitor,
      * or should ZUI's not be had, it is drawn the way folders are drawn everywhere else here and
      * opens in the window the monitor's drawer folders use.
      */
     private static View folderIcon(Context ctx, Item folder, int size, int displayId) {
         if (displayId == android.view.Display.DEFAULT_DISPLAY) {
             // The tablet's bar: ZUI's own folder, opened as ZUI's bar opens its folders.
-            View zui = ZuiFolders.barIcon(ctx, folder);
+            View zui = ZuiFolderBar.barIcon(ctx, folder);
             if (zui != null) {
                 TaskbarPreview.attachHover(zui);
                 TaskbarKeys.focusable(zui, displayId);
@@ -1765,8 +1766,8 @@ public final class TaskbarRunning {
     }
 
     private static void openFolder(Context ctx, View icon, Item folder, int displayId) {
-        if (ZuiFolders.isZuiFolder(icon)) {
-            ZuiFolders.openOnBar(icon);
+        if (ZuiFolderBar.isZuiFolder(icon)) {
+            ZuiFolderBar.openOnBar(icon);
             return;
         }
         try {
@@ -1976,7 +1977,7 @@ public final class TaskbarRunning {
 
     /** Our row's part in ZUI's own folders, and in ZUI's icon changes. */
     static void install() {
-        ZuiFolders.onAppsKnown(TaskbarRunning::rebuildPins);
+        ZuiFolderCells.onAppsKnown(TaskbarRunning::rebuildPins);
     }
 
     /**

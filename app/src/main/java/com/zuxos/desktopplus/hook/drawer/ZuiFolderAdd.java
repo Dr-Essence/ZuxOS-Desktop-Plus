@@ -194,7 +194,7 @@ final class ZuiFolderAdd {
             if (!(id instanceof Integer) || (Integer) id > ZuiFolders.ID_BASE) {
                 return false;
             }
-            Item folder = ZuiFolders.folderOfId((Integer) id);
+            Item folder = ZuiFolderModel.folderOfId((Integer) id);
             Context ctx = AppCtx.get();
             if (folder == null || ctx == null) {
                 // Ours, but not one we can save to: ZUI's OK would move apps to the home screen.
@@ -221,7 +221,7 @@ final class ZuiFolderAdd {
                     Object shown = item.getClass().getConstructor(item.getClass())
                             .newInstance(item);
                     setInt(shown, "container", (Integer) id);
-                    ZuiFolders.noteChild(shown, app);
+                    ZuiFolderModel.noteChild(shown, app);
                     added.add(shown);
                 } else if ((Integer) status == DELETE) {
                     folder.children.removeIf(child -> child.key().equals(app.key()));
@@ -238,7 +238,7 @@ final class ZuiFolderAdd {
                 store.folders().remove(folder);
                 store.save();
                 close(args);
-                ZuiFolders.closeOpenFolders();
+                ZuiFolderModel.closeOpenFolders();
                 NativeDrawerHooks.refreshList();
                 return true;
             }
@@ -259,7 +259,7 @@ final class ZuiFolderAdd {
             }
             // Shown already by ZUI's folder: saved without rebuilding it, the list around it
             // brought up to date.
-            ZuiFolders.saveKeepingIcons(ctx, folder);
+            ZuiFolderModel.saveKeepingIcons(ctx, folder);
             close(args);
             NativeDrawerHooks.refreshList();
             L.i("zui folder add: " + added.size() + " in, " + removed.size() + " out of "
@@ -301,7 +301,7 @@ final class ZuiFolderAdd {
             return null;
         }
         for (Object item : (List<?>) contents) {
-            Item child = ZuiFolders.childOf(item);
+            Item child = ZuiFolderModel.childOf(item);
             if (child != null && child.key().equals(app.key())) {
                 return item;
             }

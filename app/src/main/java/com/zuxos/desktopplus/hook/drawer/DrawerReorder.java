@@ -659,7 +659,7 @@ final class DrawerReorder {
         }
         String key = NativeDrawerHooks.keyOfIcon(cell);
         if (key == null && child != null) {
-            Item folder = ZuiFolders.folderOfIcon(child);
+            Item folder = ZuiFolderModel.folderOfIcon(child);
             key = folder != null ? folder.key() : null;
         }
         // Only a key found is kept: one not known yet (a folder still being registered) is

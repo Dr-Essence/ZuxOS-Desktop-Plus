@@ -126,8 +126,8 @@ public final class DrawerKeys {
         }
         boolean home = ZuiFolders.isLauncher(activity);
         for (View v = focused; v != null && v != layer; v = ZuiFocus.parentOf(v)) {
-            boolean anyFolder = ZuiFolders.isZuiFolder(v);
-            Item folder = anyFolder ? ZuiFolders.folderOfIcon(v) : null;
+            boolean anyFolder = ZuiFolderBar.isZuiFolder(v);
+            Item folder = anyFolder ? ZuiFolderModel.folderOfIcon(v) : null;
             String pkg = anyFolder ? null : IconInfo.packageOf(v.getTag());
             if (!anyFolder && pkg == null) {
                 continue;

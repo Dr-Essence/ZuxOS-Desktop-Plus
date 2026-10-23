@@ -22,7 +22,7 @@ import com.zuxos.desktopplus.core.motion.Motion;
 import com.zuxos.desktopplus.hook.IconInfo;
 import com.zuxos.desktopplus.hook.Tasks;
 import com.zuxos.desktopplus.hook.ZuiApps;
-import com.zuxos.desktopplus.hook.drawer.ZuiFolders;
+import com.zuxos.desktopplus.hook.drawer.ZuiFolderModel;
 import com.zuxos.desktopplus.model.Item;
 
 import java.lang.reflect.Method;
@@ -448,7 +448,7 @@ final class ZuiHomeDrop {
         if (icon == null || icon.getWidth() <= 0 || !(launcher instanceof Context)) {
             return null;
         }
-        Object info = ZuiFolders.forHome((Context) launcher, pin);
+        Object info = ZuiFolderModel.forHome((Context) launcher, pin);
         if (info == null) {
             return null;
         }
