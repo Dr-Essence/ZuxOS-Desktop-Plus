@@ -47,8 +47,6 @@ final class ZuiFolderHome {
     private static View sMade;
     /** The drawer's icon held for the drag under way, shown again at its end. Main thread. */
     private static java.lang.ref.WeakReference<View> sHeld;
-    private static boolean sSaidShown;
-    private static boolean sSaidTaskbar;
 
     private ZuiFolderHome() {
     }
@@ -57,7 +55,6 @@ final class ZuiFolderHome {
     private static boolean sHolding;
     /** A drag picture already given its lift. */
     private static final int TAG_LIFTED = 0x7A000601;
-    private static boolean sSaidPickup;
 
     /** ZUI's drag picture of a held drawer folder is being made, in either drawer. */
     static void holding(boolean holding) {
@@ -100,8 +97,7 @@ final class ZuiFolderHome {
                     picture.setTag(TAG_LIFTED, Boolean.TRUE);
                     float endX = liftField(param.thisObject, "g", shown);
                     float endY = liftField(param.thisObject, "D", shown);
-                    if (!sSaidPickup) {
-                        sSaidPickup = true;
+                    if (L.once("ZuiFolderHome.pickup")) {
                         L.i("zui folder home: a held folder picked up at x" + shown + " to x"
                                 + endX + "/" + endY + ", as ZUI's home folders are");
                     }
@@ -195,8 +191,7 @@ final class ZuiFolderHome {
             // The launcher whose drawer holds the icon - ZUX Home's, not the taskbar's.
             Object launcher = ZuiFolders.lookup(ctx);
             if (!ZuiFolders.isLauncher(launcher)) {
-                if (!sSaidTaskbar) {
-                    sSaidTaskbar = true;
+                if (L.once("ZuiFolderHome.taskbar")) {
                     L.i("zui folder home: " + folder.label + " held in the taskbar's drawer "
                             + "(" + (launcher != null ? launcher.getClass().getSimpleName()
                             : "no context") + ") - our menu");
@@ -345,8 +340,7 @@ final class ZuiFolderHome {
             return;
         }
         icon.setVisibility(View.VISIBLE);
-        if (!sSaidShown) {
-            sSaidShown = true;
+        if (L.once("ZuiFolderHome.shown")) {
             L.i("zui folder home: a held folder shown again after its drag - ZUI hides it for "
                     + "the drag");
         }

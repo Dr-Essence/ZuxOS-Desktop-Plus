@@ -189,14 +189,11 @@ public class GlassSurface extends FrameLayout {
             // its content against that edge.
             mGlass.layout(0, 0, r - l, b - t);
         }
-        if (mGlass != null && !sSaidSize && getWidth() > 0) {
-            sSaidSize = true;
+        if (mGlass != null && getWidth() > 0 && L.once("GlassSurface.size")) {
             L.d("glass: surface " + getWidth() + "x" + getHeight() + ", backdrop "
                     + mGlass.getWidth() + "x" + mGlass.getHeight());
         }
     }
-
-    private static boolean sSaidSize;
 
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {

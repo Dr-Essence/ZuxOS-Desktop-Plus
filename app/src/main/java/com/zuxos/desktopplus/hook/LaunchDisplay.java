@@ -42,7 +42,6 @@ final class LaunchDisplay {
     private static volatile long sTapAt;
     private static String sKey;
     private static boolean sLookedForKey;
-    private static boolean sSaid;
 
     private LaunchDisplay() {
     }
@@ -198,8 +197,7 @@ final class LaunchDisplay {
         }
         Bundle out = options == null ? new Bundle() : new Bundle(options);
         out.putInt(key, display);
-        if (!sSaid) {
-            sSaid = true;
+        if (L.once("LaunchDisplay")) {
             L.i("launch display: apps will open on the screen they were tapped on (key " + key
                     + ")");
         }

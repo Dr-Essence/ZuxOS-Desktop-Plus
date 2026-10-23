@@ -69,7 +69,6 @@ final class ZuiAppRows {
     };
 
     private static Method sLookup;
-    private static boolean sSaid;
     private static Class<?> sTaskbarContext;
     private static Method sGetShortcut;
     private static Constructor<?> sAppInfo;
@@ -231,8 +230,7 @@ final class ZuiAppRows {
                         target, info, icon));
             }
             param.args[3] = all;
-            if (!sSaid) {
-                sSaid = true;
+            if (L.once("ZuiAppRows")) {
                 L.i("zui app rows: " + (all.size() - zuis) + " of ours beside ZUI's "
                         + zui.size() + " (" + (zuis - zui.size()) + " more of ZUI's own) for "
                         + pkg);

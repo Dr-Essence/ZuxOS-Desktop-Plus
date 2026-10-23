@@ -46,7 +46,6 @@ import java.util.Set;
 public final class TaskbarNav {
 
     private static boolean sInjectRefused;
-    private static boolean sSaidRoot;
 
     private TaskbarNav() {
     }
@@ -301,8 +300,7 @@ public final class TaskbarNav {
         if (!sInjectRefused && inject(ctx, keyCode, display)) {
             return "key sent in-process";
         }
-        if (!sSaidRoot) {
-            sSaidRoot = true;
+        if (L.once("TaskbarNav.root")) {
             L.i("taskbar nav: the launcher may not send keys itself, so the keys go through root");
         }
         KeyShell.send(display, keyCode, onFail);

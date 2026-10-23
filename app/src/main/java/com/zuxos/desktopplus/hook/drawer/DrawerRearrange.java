@@ -251,9 +251,6 @@ final class DrawerRearrange {
         return hooked;
     }
 
-    private static boolean sSaidQuiet;
-    private static boolean sSaidLanding;
-
     /**
      * A drop into one of our folders in the taskbar's drawer lands at once, as that drawer's
      * drops do, not on ZUX Home's own layer. ZUI's folder lands a dropped icon through its
@@ -303,8 +300,7 @@ final class DrawerRearrange {
             if (param.args[1] instanceof View) {
                 ((View) param.args[1]).setVisibility(View.VISIBLE);
             }
-            if (!sSaidLanding) {
-                sSaidLanding = true;
+            if (L.once("DrawerRearrange.landing")) {
                 L.i("drawer rearrange: a drop from another window lands at once, not on ZUX"
                         + " Home's layer");
             }
@@ -330,8 +326,7 @@ final class DrawerRearrange {
                 return;
             }
             DrawerSession.setField(args[0], "stateAnnouncer", null);
-            if (!sSaidQuiet) {
-                sSaidQuiet = true;
+            if (L.once("DrawerRearrange.quiet")) {
                 L.i("drawer rearrange: a drop into a folder outside ZUX Home's window goes"
                         + " without ZUI's spoken announcement, which needs ZUX Home's activity");
             }

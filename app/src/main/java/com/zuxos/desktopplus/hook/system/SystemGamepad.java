@@ -64,10 +64,6 @@ public final class SystemGamepad {
     private static Handler sHandler;
     /** {@code InputEvent.getDisplayId}, looked up once; null if this build has none. */
     private static Method sDisplayId;
-    private static boolean sSaidKey;
-    private static boolean sSaidHome;
-    private static boolean sSaidHeld;
-    private static boolean sSaidBar;
     private static int sErrors;
 
     /** The switches as last read. */
@@ -154,8 +150,7 @@ public final class SystemGamepad {
                 if (event == null || !fromController(event) || sHandler == null) {
                     return;
                 }
-                if (!sSaidKey) {
-                    sSaidKey = true;
+                if (L.once("SystemGamepad.key")) {
                     L.i("system gamepad: first controller key seen - "
                             + KeyEvent.keyCodeToString(event.getKeyCode()));
                 }
@@ -356,8 +351,7 @@ public final class SystemGamepad {
         sHold = () -> {
             sHeld = true;
             send(new Intent(ACTION_HOME).putExtra(EXTRA_DISPLAY, display));
-            if (!sSaidHeld) {
-                sSaidHeld = true;
+            if (L.once("SystemGamepad.held")) {
                 L.i("system gamepad: Home held on a controller - ZUX Home told to go home on"
                         + " display " + display);
             }
@@ -395,8 +389,7 @@ public final class SystemGamepad {
     /** ZUX Home told to open or close its drawer. */
     private static void tell(int display) {
         send(new Intent(ACTION_DRAWER).putExtra(EXTRA_DISPLAY, display));
-        if (!sSaidHome) {
-            sSaidHome = true;
+        if (L.once("SystemGamepad.home")) {
             L.i("system gamepad: Home pressed on a controller - ZUX Home told to toggle its"
                     + " drawer on display " + display);
         }
@@ -405,8 +398,7 @@ public final class SystemGamepad {
     /** ZUX Home told to take the controller onto its bar, or one icon along it. */
     private static void bar(int step) {
         send(new Intent(ACTION_BAR).putExtra(EXTRA_STEP, step));
-        if (!sSaidBar) {
-            sSaidBar = true;
+        if (L.once("SystemGamepad.bar")) {
             L.i("system gamepad: " + (step < 0 ? "L1" : "R1") + " on a controller - ZUX Home"
                     + " told to move along its taskbar");
         }

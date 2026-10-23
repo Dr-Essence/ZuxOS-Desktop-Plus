@@ -276,7 +276,7 @@ public final class TaskbarApps {
             if (current == ROW_MENU) {
                 continue;
             }
-            if (current != null && SAID_FOREIGN.add(current.getClass().getName())) {
+            if (current != null && L.once("TaskbarApps.foreign " + current.getClass().getName())) {
                 L.i("taskbar apps: replacing the launcher's own hold listener "
                         + current.getClass().getName() + " on " + IconInfo.packageOf(icon.getTag()));
             }
@@ -290,8 +290,6 @@ public final class TaskbarApps {
         String pkg = IconInfo.packageOf(info);
         return pkg != null && showMenu(v, pkg, IconInfo.userOf(info), TaskbarTray.displayIdOf(v));
     };
-
-    private static final java.util.Set<String> SAID_FOREIGN = new java.util.HashSet<>();
 
     private static Object clickListenerOf(View view) {
         Object info = Reflect.field(view, "mListenerInfo");
@@ -464,7 +462,7 @@ public final class TaskbarApps {
         } catch (Throwable t) {
             L.d("taskbar apps: no icon for shortcut " + shortcut.getId() + " (" + t + ")");
         }
-        if (SAID_NO_ICON.add(shortcut.getPackage())) {
+        if (L.once("TaskbarApps.noIcon " + shortcut.getPackage())) {
             L.i("taskbar apps: " + shortcut.getPackage() + "'s shortcuts have no icon of their"
                     + " own - the app's icon instead");
         }
@@ -475,7 +473,6 @@ public final class TaskbarApps {
         }
     }
 
-    private static final java.util.Set<String> SAID_NO_ICON = new java.util.HashSet<>();
     private static Method sZuiShortcutIcon;
     private static boolean sNoZuiShortcutIcon;
 

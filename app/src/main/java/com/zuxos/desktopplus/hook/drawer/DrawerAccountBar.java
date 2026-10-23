@@ -80,7 +80,6 @@ public final class DrawerAccountBar {
 
     private static final Map<View, Boolean> WATCHED = new WeakHashMap<>();
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
-    private static boolean sSaidAttached;
     /** Android's name for this user as root read it; "" once asked. Main thread only. */
     private static String sRootName;
 
@@ -141,8 +140,7 @@ public final class DrawerAccountBar {
                     return true;
                 }
             });
-            if (!sSaidAttached) {
-                sSaidAttached = true;
+            if (L.once("DrawerAccountBar.attached")) {
                 L.i("account bar: on the drawer of display " + TaskbarTray.displayIdOf(window)
                         + " (in " + container.getClass().getSimpleName() + ")");
             }

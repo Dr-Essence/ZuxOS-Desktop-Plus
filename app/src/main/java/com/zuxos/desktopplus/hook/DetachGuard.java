@@ -4,9 +4,6 @@ import android.view.ViewGroup;
 
 import com.zuxos.desktopplus.core.L;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 
@@ -20,8 +17,6 @@ import de.robv.android.xposed.XposedBridge;
  * view group it was is written to the log, so the real cause can be fixed rather than guarded.
  */
 final class DetachGuard {
-
-    private static final Set<String> SAID = new HashSet<>();
 
     private DetachGuard() {
     }
@@ -40,7 +35,7 @@ final class DetachGuard {
                             param.setThrowable(null);
                             ViewGroup group = (ViewGroup) param.thisObject;
                             String name = group.getClass().getName();
-                            if (SAID.add(name)) {
+                            if (L.once("DetachGuard." + name)) {
                                 StringBuilder kids = new StringBuilder();
                                 for (int i = 0; i < group.getChildCount(); i++) {
                                     if (group.getChildAt(i) != null) {

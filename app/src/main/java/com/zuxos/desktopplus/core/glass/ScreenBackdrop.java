@@ -93,7 +93,6 @@ public final class ScreenBackdrop {
     /** Longest a pane's first frame waits for its own capture. */
     private static final long PRIME_WAIT_MS = 40L;
     private static boolean sPrimeOk = true;
-    private static boolean sSaidPrimed;
 
     /** Every running session, so an event that changes the screen can wake them all. */
     private static final java.util.Set<Session> SESSIONS =
@@ -406,8 +405,7 @@ public final class ScreenBackdrop {
                 }
                 return;
             }
-            if (!sSaidPrimed) {
-                sSaidPrimed = true;
+            if (L.once("ScreenBackdrop.primed")) {
                 L.i("liquid glass: first frame captured before drawing (" + took + "ms)");
             }
             mCurrent = frame;

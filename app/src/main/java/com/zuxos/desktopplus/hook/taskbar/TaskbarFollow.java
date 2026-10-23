@@ -41,7 +41,6 @@ final class TaskbarFollow {
     private static Field sTouchableInsets;
     private static Field sTouchableRegion;
     private static boolean sInsetsUnavailable;
-    private static boolean sSaidFollow;
     private static final Map<View, Boolean> TOUCH_SAID = new WeakHashMap<>();
 
     /** {@code InternalInsetsInfo.TOUCHABLE_INSETS_REGION}. */
@@ -205,8 +204,7 @@ final class TaskbarFollow {
                 return true;
             };
             observer.addOnPreDrawListener(state.preDraw);
-            if (!sSaidFollow) {
-                sSaidFollow = true;
+            if (L.once("TaskbarFollow.follow")) {
                 L.i("taskbar follow: ours hide, stash and come back with the tablet's own bar");
             }
         }

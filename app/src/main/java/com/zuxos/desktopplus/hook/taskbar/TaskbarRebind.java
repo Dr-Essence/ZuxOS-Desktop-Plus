@@ -108,8 +108,6 @@ public final class TaskbarRebind {
      */
     static volatile boolean sAppsAtSource;
 
-    private static boolean sSaidEmpty;
-
     /**
      * ZUI's row, built without apps: with "Only open apps" on, every app on the bar is ours.
      *
@@ -131,8 +129,7 @@ public final class TaskbarRebind {
                 param.args[i] = new java.util.ArrayList<>();
             }
         }
-        if (!sSaidEmpty) {
-            sSaidEmpty = true;
+        if (L.once("TaskbarRebind.empty")) {
             L.i("taskbar rebind: ZUI builds its row without apps - ours shows the open ones");
         }
     }
@@ -212,7 +209,6 @@ public final class TaskbarRebind {
 
     private static final String MODEL_CALLBACKS =
             "com.android.launcher3.taskbar.TaskbarModelCallbacks";
-    private static boolean sSaidBlocked;
 
     /**
      * ZUI's recent and recommended apps, refused at the door.
@@ -241,8 +237,7 @@ public final class TaskbarRebind {
                             // This call is how the bar used to hear that an app opened or
                             // closed; skipping it must not also skip finding out.
                             TaskbarRunning.soon();
-                            if (!sSaidBlocked) {
-                                sSaidBlocked = true;
+                            if (L.once("TaskbarRebind.blocked")) {
                                 L.i("taskbar rebind: the launcher's recent and recommended apps "
                                         + "are kept off the bar");
                             }

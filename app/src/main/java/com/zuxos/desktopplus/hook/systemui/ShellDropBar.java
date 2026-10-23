@@ -39,7 +39,6 @@ public final class ShellDropBar {
 
     /** The shell's window we left a region of for the drag under way; null with none. */
     private static AttachedSurfaceControl sNarrowed;
-    private static boolean sSaidNoClip;
 
     private ShellDropBar() {
     }
@@ -165,8 +164,7 @@ public final class ShellDropBar {
         Intent intent = clip == null || clip.getItemCount() == 0 ? null
                 : clip.getItemAt(0).getIntent();
         if (intent == null) {
-            if (!sSaidNoClip) {
-                sSaidNoClip = true;
+            if (L.once("ShellDropBar.noClip")) {
                 L.i("shell drop bar: a drag with no intent at its start, the window left whole");
             }
             return;

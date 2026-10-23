@@ -31,8 +31,6 @@ final class DrawerAboveBar {
             "com.android.launcher3.taskbar.allapps.TaskbarAllAppsSlideInView";
     private static final String LIST = "com.android.launcher3.allapps.AllAppsRecyclerView";
 
-    private static boolean sSaid;
-
     private DrawerAboveBar() {
     }
 
@@ -67,8 +65,7 @@ final class DrawerAboveBar {
                 return;
             }
             int clipped = clipIn(sheet, list);
-            if (!sSaid) {
-                sSaid = true;
+            if (L.once("DrawerAboveBar")) {
                 L.i("drawer above bar: " + clipped + " list(s) clipped to the bar");
             }
         } catch (Throwable t) {

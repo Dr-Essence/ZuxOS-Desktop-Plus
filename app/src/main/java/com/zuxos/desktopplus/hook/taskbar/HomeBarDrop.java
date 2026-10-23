@@ -46,7 +46,6 @@ final class HomeBarDrop {
     /** The drag from the home screen under way, or null. Main thread. */
     private static Drag sDrag;
     private static Method sLookup;
-    private static boolean sSaidGroup;
 
     private HomeBarDrop() {
     }
@@ -137,8 +136,7 @@ final class HomeBarDrop {
             Object multi = Reflect.field(drag, "multiDragSupport");
             Object chosen = multi == null ? null : Reflect.field(multi, "selectedViews");
             if (chosen instanceof List && !((List<?>) chosen).isEmpty()) {
-                if (!sSaidGroup) {
-                    sSaidGroup = true;
+                if (L.once("HomeBarDrop.group")) {
                     L.i("home bar drop: a group from the home screen stays ZUI's - one at a time"
                             + " onto the bar");
                 }

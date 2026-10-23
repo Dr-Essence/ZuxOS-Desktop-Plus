@@ -245,7 +245,7 @@ public final class NativeDrawerHooks {
             int display = row.getDisplay().getDisplayId();
             row.getRootView().postDelayed(() -> closeTaskbarDrawer(target, display),
                     CLOSE_AFTER_LAUNCH_MS);
-            if (SAID_CLOSE.add("app info")) {
+            if (L.once("NativeDrawerHooks.appInfo")) {
                 L.i("native drawer: App info chosen in the taskbar's drawer - the drawer goes");
             }
         } catch (Throwable t) {
@@ -875,8 +875,6 @@ public final class NativeDrawerHooks {
         }
     }
 
-    private static final java.util.Set<String> SAID_CLOSE = new java.util.HashSet<>();
-
     /** The taskbar's drawer hidden as ZUI hides it; our own close where that is not there. */
     private static void closeTaskbarDrawer(Object overlay, int display) {
         String how;
@@ -887,7 +885,7 @@ public final class NativeDrawerHooks {
             how = TaskbarBridge.closeStockDrawer(display) ? "its sheet's close" : "nothing ("
                     + t + ")";
         }
-        if (SAID_CLOSE.add("taskbar " + how)) {
+        if (L.once("NativeDrawerHooks.taskbar " + how)) {
             L.i("native drawer: the taskbar drawer closed after a launch, through " + how);
         }
     }
@@ -905,7 +903,7 @@ public final class NativeDrawerHooks {
             for (java.lang.reflect.Method m : states.getClass().getMethods()) {
                 if (m.getName().equals("goToState") && m.getParameterCount() == 1) {
                     m.invoke(states, normal);
-                    if (SAID_CLOSE.add("home")) {
+                    if (L.once("NativeDrawerHooks.home")) {
                         L.i("native drawer: ZUX Home's drawer closed after a launch, through "
                                 + "its state manager");
                     }

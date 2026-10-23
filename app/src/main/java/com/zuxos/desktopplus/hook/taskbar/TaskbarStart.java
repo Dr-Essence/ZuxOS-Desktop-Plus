@@ -54,10 +54,6 @@ final class TaskbarStart {
     /** When our button was last pressed, per display: the drawer is on its way. */
     private static final android.util.SparseLongArray PRESSED = new android.util.SparseLongArray();
 
-    private static boolean sSaid;
-    private static final java.util.Set<String> SAID_PRESS = new java.util.HashSet<>();
-    private static final java.util.Set<String> SAID_TOUCH = new java.util.HashSet<>();
-
     /** Every start button made, so ZUI's drawer opening or closing reaches its display's. */
     private static final Map<StartButton, Boolean> BUTTONS = new WeakHashMap<>();
     /** ZUI's drawer sheets that are up, by the display each came up on. Main thread only. */
@@ -524,8 +520,7 @@ final class TaskbarStart {
         dragLayer.addView(button, lp);
         TaskbarKeys.focusable(button, TaskbarTray.displayIdOf(dragLayer));
         GamepadButtons.listen(dragLayer.getContext());
-        if (!sSaid) {
-            sSaid = true;
+        if (L.once("TaskbarStart")) {
             L.i("taskbar start: our own start button beside the navigation keys; ZUI's is "
                     + "pressed through it");
         }
@@ -792,7 +787,7 @@ final class TaskbarStart {
             View.OnTouchListener press = new TaskbarRunning.Press();
             setOnTouchListener((v, e) -> {
                 if (e.getActionMasked() == MotionEvent.ACTION_DOWN
-                        && SAID_TOUCH.add(TaskbarScope.label(v))) {
+                        && L.once("TaskbarStart.touch " + TaskbarScope.label(v))) {
                     // Once per bar: a touch that arrives and no press after it says the press
                     // is lost on the way; no touch at all says the bar never handed it over.
                     L.i("start button: touched on " + TaskbarScope.label(v));
@@ -943,7 +938,7 @@ final class TaskbarStart {
         void press() {
             TaskbarKeys.release("the start button");
             int display = TaskbarTray.displayIdOf(this);
-            if (SAID_PRESS.add(TaskbarScope.label(this))) {
+            if (L.once("TaskbarStart.press " + TaskbarScope.label(this))) {
                 // Once per bar - the tablet has two on one screen: proof the press reached it.
                 L.i("start button: pressed on " + TaskbarScope.label(this) + ", ZUI's button "
                         + (mZui == null ? "not found" : mZui.getClass().getSimpleName()

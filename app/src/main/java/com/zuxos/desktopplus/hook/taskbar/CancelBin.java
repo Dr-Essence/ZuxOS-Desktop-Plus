@@ -28,8 +28,6 @@ import com.zuxos.desktopplus.core.L;
  */
 final class CancelBin {
 
-    private static boolean sSaidMissing;
-
     private CancelBin() {
     }
 
@@ -45,8 +43,7 @@ final class CancelBin {
             int iconId = res.getIdentifier("ic_remove_target", "drawable", pkg);
             int backId = res.getIdentifier("ic_drop_target_bg", "drawable", pkg);
             if (sizeId == 0 || iconId == 0 || backId == 0) {
-                if (!sSaidMissing) {
-                    sSaidMissing = true;
+                if (L.once("CancelBin.missing")) {
                     L.w("cancel bin: ZUI's Cancel target's parts not found - no bin");
                 }
                 return null;

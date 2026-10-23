@@ -25,8 +25,6 @@ public final class ClosedWindowInfo {
             "com.android.wm.shell.windowdecor.DesktopModeWindowDecoration$$ExternalSyntheticLambda0";
     private static final String GONE = "non-existent decoration";
 
-    private static boolean sSaid;
-
     private ClosedWindowInfo() {
     }
 
@@ -45,8 +43,7 @@ public final class ClosedWindowInfo {
                         if (t instanceof IllegalStateException && t.getMessage() != null
                                 && t.getMessage().contains(GONE)) {
                             param.setResult(null);
-                            if (!sSaid) {
-                                sSaid = true;
+                            if (L.once("ClosedWindowInfo")) {
                                 L.i("closed window info: a closed title bar's name and icon "
                                         + "not loaded, as ZUI does for its veil");
                             }

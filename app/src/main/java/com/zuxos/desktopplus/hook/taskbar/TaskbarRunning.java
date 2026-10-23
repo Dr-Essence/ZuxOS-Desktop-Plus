@@ -1479,7 +1479,7 @@ public final class TaskbarRunning {
                 // something other than what it is named after on this build. A bar of every task
                 // here is wrong; an empty one is worse. Other screens' tasks never count - that
                 // filled the monitor's bar with the tablet's apps.
-                if (sSaidUnfiltered.add("")) {
+                if (L.once("TaskbarRunning.unfiltered")) {
                     L.i("taskbar running: nothing on this screen survived the open test, so every "
                             + "task on it counts");
                 }
@@ -1490,8 +1490,6 @@ public final class TaskbarRunning {
         }
         return out;
     }
-
-    private static final Set<String> sSaidUnfiltered = new LinkedHashSet<>();
 
     /** Per display: the package of the task in front, as of the last read of the task list. */
     private static final Map<Integer, String> FRONT =
@@ -1555,14 +1553,12 @@ public final class TaskbarRunning {
             out.add(pkg + WINDOW_MARK + ids.get(i));
         }
     }
-    private static boolean sSaidFields;
 
     /** Which of the task list's unpublished fields this build actually lets us read. */
     private static void describeTaskFields(Object task) {
-        if (sSaidFields) {
+        if (!L.once("TaskbarRunning.fields")) {
             return;
         }
-        sSaidFields = true;
         L.i("taskbar running: the task list says isRunning="
                 + Reflect.field(task, "isRunning") + ", isVisible="
                 + Reflect.field(task, "isVisible") + ", displayId="

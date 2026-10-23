@@ -94,8 +94,6 @@ public final class HomeBand {
         }
     }
 
-    private static boolean sSaid;
-
     /** After ZUI laid the home screen out over its profile: the dock's part of the band goes. */
     private static void give(Object dp, Context ctx, Class<?> utilities) {
         try {
@@ -124,16 +122,13 @@ public final class HomeBand {
             c.getField("hotseatAreaHeight").setInt(dp, bar);
             padding.bottom = Math.max(0, padding.bottom - dockPart);
             sApplied = true;
-            if (!sSaid) {
-                sSaid = true;
+            if (L.once("HomeBand")) {
                 L.i("home band: " + dockPart + " px of the dock's band given to the home screen");
             }
         } catch (Throwable t) {
             L.d("home band: the band kept (" + t + ")");
         }
     }
-
-    private static boolean sSaidEdges;
 
     /**
      * The bands at the home screen's top and bottom become home screen too: the page dots' band,
@@ -164,8 +159,7 @@ public final class HomeBand {
         Rect cell = (Rect) c.getField("cellLayoutPaddingPx").get(dp);
         int top = cell.top;
         cell.top = Math.min(cell.top, cell.left);
-        if (!sSaidEdges) {
-            sSaidEdges = true;
+        if (L.once("HomeBand.edges")) {
             L.i("home band: the home screen takes the page dots' " + dots + " px and its top "
                     + (top - cell.top) + " px");
         }

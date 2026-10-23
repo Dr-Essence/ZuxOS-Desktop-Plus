@@ -37,7 +37,6 @@ public final class WindowCaptions {
     };
 
     private static Field sStatusBarVisible;
-    private static boolean sSaid;
 
     private WindowCaptions() {
     }
@@ -101,8 +100,7 @@ public final class WindowCaptions {
             return;
         }
         sStatusBarVisible.setBoolean(param.thisObject, showing);
-        if (showing && !sSaid) {
-            sSaid = true;
+        if (showing && L.once("WindowCaptions")) {
             L.i("window captions: buttons kept on display " + display
                     + " - no status bar there, and the app did not ask to hide it");
         }

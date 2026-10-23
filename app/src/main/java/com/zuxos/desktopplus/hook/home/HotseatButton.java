@@ -28,7 +28,6 @@ public final class HotseatButton {
     private static final String HOTSEAT = "com.zui.launcher.uiextend.ZuiHotseat";
 
     private static boolean sInstalled;
-    private static boolean sSaid;
 
     private HotseatButton() {
     }
@@ -375,8 +374,7 @@ public final class HotseatButton {
                         && (ours || child.getTag(TAG_HIDDEN) != null)) {
                     child.setVisibility(want);
                     child.setTag(TAG_HIDDEN, ours ? Boolean.TRUE : null);
-                    if (ours && !sSaid) {
-                        sSaid = true;
+                    if (ours && L.once("HotseatButton")) {
                         L.i("zux home: drawer button and its pill hidden - the start button opens "
                                 + "the drawer");
                     }

@@ -114,7 +114,6 @@ public final class ZuiFolders {
     private static Field sItemView;
     private static Method sInflate;
     private static boolean sOff;
-    private static boolean sSaidIcon;
 
     private ZuiFolders() {
     }
@@ -329,7 +328,7 @@ public final class ZuiFolders {
             }
         }
         if (zuiHas < known) {
-            if (SAID_KEPT.add(key)) {
+            if (L.once("ZuiFolders.kept " + key)) {
                 L.i("zui folders: " + folder.label + " kept - ZUI's folder shows " + zuiHas
                         + " of its " + known + " apps while one is dragged");
             }
@@ -340,13 +339,11 @@ public final class ZuiFolders {
                 DrawerArrange.breakUp(order, folders, key));
         if (broke) {
             closeOpenFolders();
-        } else if (SAID_KEPT.add(key)) {
+        } else if (L.once("ZuiFolders.kept " + key)) {
             // Already taken apart by the drop that emptied it, or a folder of the bar.
             L.d("zui folders: " + folder.label + " not broken - not a folder of the drawer now");
         }
     }
-
-    private static final java.util.Set<String> SAID_KEPT = new java.util.HashSet<>();
 
     /**
      * The picture ZUI drags of one of our drawer folders is drawn at its natural size, with its
@@ -411,8 +408,6 @@ public final class ZuiFolders {
         }).size();
     }
 
-    private static boolean sSaidBlurry;
-
     /**
      * ZUI's drag picture of a folder ({@code small}) drawn again {@code scale} times as large by
      * ZUI's own {@code drawDragView}, at ZUI's size; null, and ZUI's kept, when it cannot be.
@@ -434,8 +429,7 @@ public final class ZuiFolders {
             picture.endRecording();
             return new SharpPicture(Bitmap.createBitmap(picture), w, h);
         } catch (Throwable t) {
-            if (!sSaidBlurry) {
-                sSaidBlurry = true;
+            if (L.once("ZuiFolders.blurry")) {
                 L.w("zui folders: a held folder keeps ZUI's picture of its natural size (" + t
                         + ")");
             }
@@ -1472,8 +1466,6 @@ public final class ZuiFolders {
 
     // --- the tablet's bar ----------------------------------------------------
 
-    private static boolean sSaidBar;
-
     /**
      * One of our folders pinned to the tablet's bar, as ZUI's own folder icon there: built as
      * ZUI's {@code TaskbarView} builds its folders ({@code inflateFolderAndIcon} in the bar's
@@ -1522,8 +1514,7 @@ public final class ZuiFolders {
                 ((ViewGroup) icon.getParent()).removeView(icon);
             }
             icon.setOnClickListener(ZuiFolders::openOnBar);
-            if (!sSaidBar) {
-                sSaidBar = true;
+            if (L.once("ZuiFolders.bar")) {
                 L.i("zui folders: the bar's pinned folders are ZUI's own folder icons");
             }
             return icon;
@@ -1623,8 +1614,6 @@ public final class ZuiFolders {
                 child -> sFiled.get(child.key()), CHILDREN);
     }
 
-    private static final java.util.Set<String> SAID_EMPTY = new java.util.HashSet<>();
-
     private static Object folderInfo(Context activity, Item folder, int id,
             java.util.function.Function<Item, Object> appOf, Map<Object, Item> children)
             throws Exception {
@@ -1650,7 +1639,7 @@ public final class ZuiFolders {
             add.invoke(info, made);
             children.put(made, child);
         }
-        if (rank == 0 && SAID_EMPTY.add(folder.id)) {
+        if (rank == 0 && L.once("ZuiFolders.empty " + folder.id)) {
             L.w("zui folders: folder " + folder.label + " - none of its "
                     + folder.children.size() + " apps in ZUI's app store");
         }
@@ -2198,10 +2187,9 @@ public final class ZuiFolders {
 
     /** Once: ZUI's folder icon beside the drawer's own icons, to compare their sizes. */
     private static void describeOnce(View icon) {
-        if (sSaidIcon) {
+        if (!L.once("ZuiFolders.icon")) {
             return;
         }
-        sSaidIcon = true;
         icon.post(() -> {
             View neighbour = null;
             ViewGroup list = icon.getParent() != null && icon.getParent().getParent()

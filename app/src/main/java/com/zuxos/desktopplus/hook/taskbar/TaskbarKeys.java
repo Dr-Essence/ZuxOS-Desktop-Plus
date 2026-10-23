@@ -67,8 +67,6 @@ public final class TaskbarKeys {
     private static WeakReference<View> sMenuOf;
     /** The bar's folder icon whose folder is open. */
     private static WeakReference<View> sFolderOf;
-    private static boolean sSaidOn;
-    private static boolean sSaidNoBar;
 
     private TaskbarKeys() {
     }
@@ -228,8 +226,7 @@ public final class TaskbarKeys {
                 ? (ViewGroup) button.getParent() : null;
         Object context = bar == null ? null : ZuiFocus.lookup(bar.getContext());
         if (context == null) {
-            if (!sSaidNoBar) {
-                sSaidNoBar = true;
+            if (L.once("TaskbarKeys.noBar")) {
                 L.i("taskbar keys: no bar with our start button shown - the controller stays");
             }
             return;
@@ -249,8 +246,7 @@ public final class TaskbarKeys {
         if (bar.hasWindowFocus()) {
             focusLast(bar);
         }
-        if (!sSaidOn) {
-            sSaidOn = true;
+        if (L.once("TaskbarKeys.on")) {
             L.i("taskbar keys: the controller on the bar, from " + from);
         }
     }

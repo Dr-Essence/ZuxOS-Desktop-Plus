@@ -6,9 +6,6 @@ import android.view.View;
 
 import com.zuxos.desktopplus.core.L;
 
-import java.util.HashSet;
-import java.util.Set;
-
 /**
  * Which of ZUI's three bars a taskbar is.
  *
@@ -26,8 +23,6 @@ import java.util.Set;
  */
 public final class TaskbarScope {
 
-    private static final Set<String> SAID = new HashSet<>();
-
     private TaskbarScope() {
     }
 
@@ -37,7 +32,7 @@ public final class TaskbarScope {
             return false;
         }
         String mode = mode(view);
-        if (SAID.add(mode)) {
+        if (L.once("TaskbarScope." + mode)) {
             L.i("taskbar scope: a bar on the tablet's screen - " + mode + ", made by "
                     + className(view.getContext()));
         }

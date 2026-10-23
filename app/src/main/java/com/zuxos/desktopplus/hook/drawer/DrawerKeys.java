@@ -45,9 +45,6 @@ public final class DrawerKeys {
 
     private static final String POPUP = "com.android.launcher3.popup.PopupContainerWithArrow";
 
-    private static boolean sSaid;
-    private static boolean sSaidFailed;
-
     private DrawerKeys() {
     }
 
@@ -156,12 +153,7 @@ public final class DrawerKeys {
 
     /** The first menu opened, and the first that could not be, each told once. */
     private static void say(String what, boolean shown, Throwable why) {
-        if (shown ? !sSaid : !sSaidFailed) {
-            if (shown) {
-                sSaid = true;
-            } else {
-                sSaidFailed = true;
-            }
+        if (L.once(shown ? "DrawerKeys.shown" : "DrawerKeys.failed")) {
             L.i("drawer keys: Triangle - " + what + (shown ? " opened" : " not opened"
                     + (why != null ? " (" + why + ")" : "")));
         }
@@ -189,7 +181,6 @@ public final class DrawerKeys {
             "com.android.launcher3.splitscreen.SplitShortcut",
     };
     private static final List<Class<?>> WINDOWS = new ArrayList<>();
-    private static boolean sSaidWindows;
 
     private static int hookWindowOptions(ClassLoader loader) {
         for (String name : WINDOW_OPTIONS) {
@@ -227,8 +218,7 @@ public final class DrawerKeys {
                 kept.add(shortcut);
             }
         }
-        if (!sSaidWindows && kept.size() < zui.size()) {
-            sSaidWindows = true;
+        if (kept.size() < zui.size() && L.once("DrawerKeys.windows")) {
             L.i("drawer keys: a menu opened by the controller, without ZUI's "
                     + (zui.size() - kept.size()) + " window option(s)");
         }

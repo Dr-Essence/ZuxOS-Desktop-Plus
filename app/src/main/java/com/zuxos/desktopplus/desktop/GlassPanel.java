@@ -46,7 +46,6 @@ public class GlassPanel extends FrameLayout {
     private final List<View> mSources = new ArrayList<>(2);
     private boolean mRealBlur;
     private boolean mRetro;
-    private static boolean sSaidPath;
 
     public GlassPanel(Context ctx, float radiusPx, int tint) {
         this(ctx, radiusPx, tint, LiquidGlass.MENU);
@@ -159,8 +158,7 @@ public class GlassPanel extends FrameLayout {
         mPictured[2] = getWidth();
         mPictured[3] = getHeight();
         mBackdrop.setWindowLayer(windowPicture(live, origin));
-        if (!sSaidPath) {
-            sSaidPath = true;
+        if (L.once("GlassPanel.path")) {
             L.i("glass: panels use the liquid glass shaders, "
                     + (live ? "with the live screen behind them" : "over the in-window picture only"));
         }

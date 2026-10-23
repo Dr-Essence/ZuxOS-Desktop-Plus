@@ -35,7 +35,6 @@ public final class CaptionFollow {
     private static Method sDestroy;
     private static Method sCreate;
     private static Method sShows;
-    private static boolean sSaid;
 
     private CaptionFollow() {
     }
@@ -123,8 +122,7 @@ public final class CaptionFollow {
             }
             // Closed as it was: SystemUI's input bookkeeping is by the screen it was on.
             sDestroy.invoke(model, had);
-            if (!sSaid) {
-                sSaid = true;
+            if (L.once("CaptionFollow")) {
                 L.i("caption follow: window " + taskId + " moved from display " + was + " to "
                         + now + " - its title bar made again there");
             }

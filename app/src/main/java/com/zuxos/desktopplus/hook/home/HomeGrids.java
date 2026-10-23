@@ -44,8 +44,6 @@ public final class HomeGrids {
     private static final String PREFS = "zux_desktop_plus_grid";
     private static final String HANDED = "handed_over";
 
-    private static boolean sSaid;
-
     private HomeGrids() {
     }
 
@@ -168,8 +166,7 @@ public final class HomeGrids {
                 resize(grid, size);
             }
             param.setResult(options);
-            if (!sSaid) {
-                sSaid = true;
+            if (L.once("HomeGrids")) {
                 L.i("home grids: ZUX Home's home screen on " + name);
             }
         } catch (Throwable t) {

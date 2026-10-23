@@ -140,8 +140,6 @@ public final class HeliPad {
     private static boolean sStripLonged;
     private static Method sProcess;
     private static boolean sNoProcess;
-    private static boolean sSaidFirst;
-    private static final java.util.Set<String> SAID = new java.util.HashSet<>();
     private static int sErrors;
 
     private HeliPad() {
@@ -231,8 +229,7 @@ public final class HeliPad {
                 return false;
             }
             ViewGroup input = (ViewGroup) root;
-            if (!sSaidFirst) {
-                sSaidFirst = true;
+            if (L.once("HeliPad.first")) {
                 L.i("heli pad: first controller key on HeliBoard - "
                         + KeyEvent.keyCodeToString(code));
             }
@@ -954,7 +951,7 @@ public final class HeliPad {
 
     /** Each thing not found told once. */
     private static void said(String what) {
-        if (SAID.add(what)) {
+        if (L.once("HeliPad." + what)) {
             L.i("heli pad: " + what);
         }
     }

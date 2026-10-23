@@ -10,8 +10,6 @@ import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 
 import java.lang.reflect.Method;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -36,8 +34,6 @@ import de.robv.android.xposed.XposedBridge;
 public final class StableBounds {
 
     private static final String LAYOUT = "com.android.wm.shell.common.DisplayLayout";
-
-    private static final Set<String> SAID = ConcurrentHashMap.newKeySet();
 
     private StableBounds() {
     }
@@ -105,7 +101,7 @@ public final class StableBounds {
             }
         }
         String what = before + " -> " + stable;
-        if (!before.equals(stable) && SAID.add(what)) {
+        if (!before.equals(stable) && L.once("StableBounds." + what)) {
             L.i("stable bounds: insets " + what + " (taskbar " + nav + ", status bar "
                     + (statusBar ? "shown" : "none") + ")");
         }

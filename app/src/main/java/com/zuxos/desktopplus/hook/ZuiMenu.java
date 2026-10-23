@@ -45,8 +45,6 @@ public final class ZuiMenu {
     private static final String OPEN = "com.android.launcher3.popup.PopupContainerWithArrow";
     private static final String CONTEXT = "com.android.launcher3.views.ActivityContext";
 
-    private static boolean sSaidShow;
-
     private ZuiMenu() {
     }
 
@@ -188,8 +186,7 @@ public final class ZuiMenu {
                         .invoke(popup, closed);
             }
             focusOverTheBar(activity, popup, dragLayer);
-            if (!sSaidShow) {
-                sSaidShow = true;
+            if (L.once("ZuiMenu.show")) {
                 L.i("zui menu: ZUI's own compact popup with our rows");
             }
             return true;

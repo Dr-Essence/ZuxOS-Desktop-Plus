@@ -254,15 +254,13 @@ public final class TaskbarGlass {
 
     /** Bars waiting for their first layout before the glass goes on. */
     private static final Map<View, Boolean> WAITING = new java.util.WeakHashMap<>();
-    private static boolean sSaidWaiting;
 
     private static void waitForGeometry(ViewGroup dragLayer, View reference) {
         if (WAITING.containsKey(dragLayer)) {
             return;
         }
         WAITING.put(dragLayer, Boolean.TRUE);
-        if (!sSaidWaiting) {
-            sSaidWaiting = true;
+        if (L.once("TaskbarGlass.waiting")) {
             L.d("taskbar glass: the bar's geometry is not known yet - waiting for its layout");
         }
         View watched = reference != null ? reference : dragLayer;
@@ -671,7 +669,6 @@ public final class TaskbarGlass {
         private boolean mBlurred;
         private boolean mLive;
         private GlassBackdrop mGlass;
-        private static boolean sSaid;
 
         BarView(Context ctx, boolean retro, boolean top) {
             super(ctx);
@@ -712,8 +709,7 @@ public final class TaskbarGlass {
                     systemBlur();
                     invalidate();
                 });
-                if (!sSaid) {
-                    sSaid = true;
+                if (L.once("TaskbarGlass")) {
                     L.i("taskbar glass: liquid glass over the live screen");
                 }
                 return;

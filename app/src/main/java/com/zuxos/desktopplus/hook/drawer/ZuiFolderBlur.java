@@ -33,8 +33,6 @@ final class ZuiFolderBlur {
     /** ZUI's render blur behind an open home folder ({@code FolderBlurBgAnim}: 0 to 70). */
     private static final float ZUI_BLUR = 70f;
 
-    private static boolean sSaid;
-
     private ZuiFolderBlur() {
     }
 
@@ -88,8 +86,7 @@ final class ZuiFolderBlur {
                             Shader.TileMode.CLAMP) : null);
                 }
             }
-            if (on && !sSaid) {
-                sSaid = true;
+            if (on && L.once("ZuiFolderBlur")) {
                 L.i("zui folder blur: the drawer blurred behind our folder as it opens");
             }
         } catch (Throwable t) {

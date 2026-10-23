@@ -563,8 +563,7 @@ final class DrawerSession {
             // onDropCompleted, so a folder ZUI closed itself is not touched, nor one a new drag has
             // started in.
             Reflect.call(mInFolder, "close", true);
-            if (!sSaidLeftOpen) {
-                sSaidLeftOpen = true;
+            if (L.once("DrawerSession.leftOpen")) {
                 L.i("drawer rearrange: " + key + " left its folder, still open at the drag's end"
                         + " in the " + (taskbar ? "taskbar's drawer" : "drawer") + " - closed");
             }
@@ -611,12 +610,8 @@ final class DrawerSession {
         }
     }
 
-    private static boolean sSaidNoLanding;
-    private static boolean sSaidLeftOpen;
-
     private static void noLanding(String why) {
-        if (!sSaidNoLanding) {
-            sSaidNoLanding = true;
+        if (L.once("DrawerSession.noLanding")) {
             L.w("drawer rearrange: a drop lands at once - " + why);
         }
     }

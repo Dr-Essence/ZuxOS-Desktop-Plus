@@ -47,7 +47,6 @@ public final class DrawerFromTop {
     private static Method sRange;
     private static Field sBackground;
     private static Method sDpMode;
-    private static boolean sSaid;
 
     private DrawerFromTop() {
     }
@@ -100,8 +99,7 @@ public final class DrawerFromTop {
                                         - shift * ((Number) sRange.invoke(view)).floatValue());
                                 view.invalidate();
                                 param.setResult(null);
-                                if (!sSaid) {
-                                    sSaid = true;
+                                if (L.once("DrawerFromTop")) {
                                     L.i("drawer from top: ZUI's drawer drops down from the "
                                             + "monitor's bar at the top");
                                 }

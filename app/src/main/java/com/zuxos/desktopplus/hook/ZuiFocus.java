@@ -35,7 +35,6 @@ public final class ZuiFocus {
 
     /** A popup whose rows carry the focus mark. */
     private static final int TAG_MARKED = 0x7A000501;
-    private static boolean sSaidMarked;
     /** A menu being opened by a key, for the length of the call. Main thread. */
     private static boolean sByKeys;
 
@@ -231,8 +230,7 @@ public final class ZuiFocus {
             v.setForeground(mark(group.getContext()));
             marked++;
         }
-        if (!sSaidMarked && marked > 0) {
-            sSaidMarked = true;
+        if (marked > 0 && L.once("ZuiFocus.marked")) {
             L.i("zui focus: ZUI's focus mark on " + marked + " row(s) of its menu");
         }
     }

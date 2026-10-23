@@ -7,9 +7,7 @@ import com.zuxos.desktopplus.core.Reflect;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -32,7 +30,6 @@ final class ZuiFolderWrites {
     private static Field sId;
     private static Field sContainer;
     private static Field sTitle;
-    private static final Set<String> SAID = new HashSet<>();
 
     private ZuiFolderWrites() {
     }
@@ -142,7 +139,7 @@ final class ZuiFolderWrites {
     }
 
     private static void say(String name) {
-        if (SAID.add(name)) {
+        if (L.once("ZuiFolderWrites." + name)) {
             L.i("zui folder writes: ZUI's " + name + " for our folder kept out of its database");
         }
     }

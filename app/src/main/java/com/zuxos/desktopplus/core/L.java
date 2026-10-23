@@ -2,6 +2,9 @@ package com.zuxos.desktopplus.core;
 
 import android.util.Log;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * Logging that works both in the settings app and inside a hooked process.
  *
@@ -12,6 +15,8 @@ public final class L {
 
     private static boolean sDebug;
     private static Boolean sXposedAvailable;
+    /** The keys of the lines already said once ({@link #once}), from any thread. */
+    private static final Set<String> ONCE = ConcurrentHashMap.newKeySet();
 
     private L() {
     }
@@ -36,6 +41,15 @@ public final class L {
     public static void w(String msg) {
         Log.w(Const.TAG, msg);
         xposed("[W] " + msg);
+    }
+
+    /**
+     * True the first time a key is asked for in this process, false every time after: for a line
+     * said once, {@code if (L.once("DrawerKeys.windows")) L.i(...)}. The line itself is only built
+     * the first time. Keys are the class's name, then what is said.
+     */
+    public static boolean once(String key) {
+        return ONCE.add(key);
     }
 
     public static void e(String msg, Throwable t) {

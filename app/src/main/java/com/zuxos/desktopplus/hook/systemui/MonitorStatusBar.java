@@ -32,7 +32,6 @@ public final class MonitorStatusBar {
 
     private static final String MANAGER = "com.android.systemui.dpmode.ZuiDpModeManager";
 
-    private static boolean sSaid;
     /**
      * The displays whose status bar ZUI was asked not to build. Written on SystemUI's main thread,
      * read on the window shell's own ({@link WindowCaptions}): a set safe for both.
@@ -62,8 +61,7 @@ public final class MonitorStatusBar {
                         if (display instanceof Display) {
                             HIDDEN.add(((Display) display).getDisplayId());
                         }
-                        if (!sSaid) {
-                            sSaid = true;
+                        if (L.once("MonitorStatusBar")) {
                             L.i("monitor status bar: not built, the setting is on");
                         }
                     } catch (Throwable t) {

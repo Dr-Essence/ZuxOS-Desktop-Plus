@@ -48,7 +48,6 @@ public final class DrawerStick {
     private static float sLean;
     private static long sLastFrame;
     private static float sCarry;
-    private static boolean sSaid;
 
     private DrawerStick() {
     }
@@ -112,8 +111,7 @@ public final class DrawerStick {
                 sLastFrame = 0L;
                 sCarry = 0f;
                 list.postOnAnimation(TICK);
-                if (!sSaid) {
-                    sSaid = true;
+                if (L.once("DrawerStick")) {
                     L.i("drawer stick: the right stick scrolls " + list.getClass().getSimpleName()
                             + " in " + root.getClass().getSimpleName());
                 }

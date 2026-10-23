@@ -38,7 +38,6 @@ public final class GridFit {
 
     /** The icon size and scale of the profile being made on this thread, for its dots. */
     private static final ThreadLocal<float[]> FITTING = new ThreadLocal<>();
-    private static boolean sSaid;
 
     private GridFit() {
     }
@@ -141,8 +140,7 @@ public final class GridFit {
             int icon = c.getField("iconSizePx").getInt(dp);
             if (icon != icon0) {
                 FITTING.set(new float[]{icon, icon / (float) icon0});
-                if (!sSaid) {
-                    sSaid = true;
+                if (L.once("GridFit")) {
                     L.i("grid fit: icons " + icon0 + " -> " + icon + " px to fit " + columns + "x"
                             + rows + "'s cells");
                 }

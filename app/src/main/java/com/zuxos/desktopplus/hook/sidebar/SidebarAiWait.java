@@ -37,7 +37,6 @@ public final class SidebarAiWait {
 
     /** Whether ZUI's AI service is missing, once known; null before the first drag. */
     private static Boolean sMissing;
-    private static boolean sSaid;
 
     private SidebarAiWait() {
     }
@@ -163,8 +162,7 @@ public final class SidebarAiWait {
     }
 
     private static void say(String what) {
-        if (!sSaid) {
-            sSaid = true;
+        if (L.once("SidebarAiWait")) {
             L.i("sidebar: " + what + " skipped - ZUI's AI service is missing");
         }
     }

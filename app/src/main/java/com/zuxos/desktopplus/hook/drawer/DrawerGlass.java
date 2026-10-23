@@ -284,8 +284,6 @@ public final class DrawerGlass {
     /** What the window's own blur-behind settings were, to put back. */
     private static final Map<View, int[]> BLUR_PARAMS = new WeakHashMap<>();
     private static boolean sBlurHooked;
-    private static boolean sSaidSurfaceBlur;
-    private static boolean sSaidOtherBlur;
 
     /**
      * Takes ZUI's blur off the drawer's whole window.
@@ -383,16 +381,14 @@ public final class DrawerGlass {
             if (own != null && sameSurface(own, target)) {
                 int asked = (Integer) param.args[1];
                 param.args[1] = 0;
-                if (!sSaidSurfaceBlur) {
-                    sSaidSurfaceBlur = true;
+                if (L.once("DrawerGlass.surfaceBlur")) {
                     L.i("drawer glass: took the launcher's surface blur (" + asked
                             + "px) off the drawer window - only the sheet blurs now");
                 }
                 return;
             }
         }
-        if (!sSaidOtherBlur) {
-            sSaidOtherBlur = true;
+        if (L.once("DrawerGlass.otherBlur")) {
             L.i("drawer glass: the launcher blurred another surface (" + param.args[1] + "px) "
                     + "from " + caller() + " - not the drawer's window, left alone");
         }
@@ -462,8 +458,6 @@ public final class DrawerGlass {
         }
     }
 
-    private static boolean sSaidClipped;
-
     private static void clipAboveTheBar(ViewGroup window) {
         try {
             android.view.Display display = window.getDisplay();
@@ -488,8 +482,7 @@ public final class DrawerGlass {
                 return;
             }
             window.setClipBounds(clip);
-            if (clip != null && !sSaidClipped) {
-                sSaidClipped = true;
+            if (clip != null && L.once("DrawerGlass.clipped")) {
                 L.i("drawer glass: the drawer now ends at the taskbar (" + under
                         + "px of it was under the bar)");
             }

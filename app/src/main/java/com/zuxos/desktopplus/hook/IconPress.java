@@ -17,8 +17,6 @@ import com.zuxos.desktopplus.core.L;
  */
 public final class IconPress {
 
-    private static boolean sSaid;
-
     private IconPress() {
     }
 
@@ -32,8 +30,7 @@ public final class IconPress {
             icon.getClass().getMethod("clearPressedBackground").invoke(icon);
             // And the picture's scale, as ZUI's click handler resets it after a launch.
             icon.getClass().getMethod("resetIconScale").invoke(icon);
-            if (!sSaid) {
-                sSaid = true;
+            if (L.once("IconPress")) {
                 L.i("icon press: let go as ZUI does (" + icon.getClass().getSimpleName() + ")");
             }
         } catch (NoSuchMethodException notZuis) {

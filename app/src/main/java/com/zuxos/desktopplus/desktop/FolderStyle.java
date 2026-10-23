@@ -252,7 +252,7 @@ public final class FolderStyle {
             r = new android.graphics.RectF((w - side) / 2f, (h - side) / 2f, (w + side) / 2f,
                     (h + side) / 2f);
         }
-        if (SAID.add(source.getClass().getName())) {
+        if (L.once("FolderStyle." + source.getClass().getName())) {
             L.i("folder motion: icon of "
                     + source.getClass().getSimpleName() + " " + (int) w + "x" + (int) h
                     + " is " + (int) r.width() + "x" + (int) r.height() + " at "
@@ -261,8 +261,6 @@ public final class FolderStyle {
         r.offset(at[0], at[1]);
         return r;
     }
-
-    private static final java.util.Set<String> SAID = new java.util.HashSet<>();
 
     /**
      * The picture in {@code view} or under it, in the coordinates of the view first asked

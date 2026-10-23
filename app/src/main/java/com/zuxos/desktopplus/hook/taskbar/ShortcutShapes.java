@@ -57,7 +57,6 @@ final class ShortcutShapes {
     private static Method sObtain;
     /** The factory's {@code createBadgedIconBitmap(Drawable)}, which app icons go through. */
     private static Method sShape;
-    private static boolean sSaid;
 
     private ShortcutShapes() {
     }
@@ -113,8 +112,7 @@ final class ShortcutShapes {
             factory = (AutoCloseable) sObtain.invoke(null, ctx);
             Object info = sShape.invoke(factory, raw);
             Object icon = info == null ? null : info.getClass().getField("icon").get(info);
-            if (!sSaid) {
-                sSaid = true;
+            if (L.once("ShortcutShapes")) {
                 L.i("shortcut shapes: " + shortcut.getPackage() + "'s "
                         + raw.getClass().getSimpleName() + " through ZUI's icon factory -> "
                         + (icon instanceof Bitmap ? ((Bitmap) icon).getWidth() + "px "
