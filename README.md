@@ -5,11 +5,29 @@ monitor and you get a home screen you can arrange, widgets, folders, a liquid-gl
 a taskbar of the apps that are actually open. It also fixes a handful of bugs in ZUI's own desktop
 mode along the way.
 
-> **Early alpha - experimental.** This module is under heavy development and changes several
-> times a day. Things break, behaviour changes without notice, and some features are half done.
-> There is no public release yet: one will come once it is fully stable on the developer's own
-> tablet. Until then, use it only if you are happy to test, and keep a way to disable LSPosed
-> modules from recovery.
+> **Early alpha - experimental, made for one tablet.** This module is built mainly for its
+> developer's own Lenovo Legion Tab Gen 5 and changes several times a day. Things break,
+> behaviour changes without notice, and some features are half done. Once it is fully stable and
+> clean on that tablet, it opens to alpha testers on every ZuxOS device: their logs and probes are
+> what will make it work there.
+
+## Who it is for
+
+For now, one tablet: the developer's Legion Tab Gen 5 on ZuxOS 2.0. Every hook is written against
+that firmware's ZUX Home, SystemUI and system, and tested only there.
+
+**Anyone else may try it, at their own risk.** On another device or firmware, parts of it may do
+nothing, look wrong or stop the home app. Before trying:
+- have a backup;
+- know how to turn LSPosed modules off from recovery or safe mode, in case the home app or the
+  system will not start;
+- remember that every feature has its own switch in the app, so a part that misbehaves can be
+  turned off alone.
+
+**Feedback is welcome, never required.** If you try it and want to help, send what
+[Reporting a problem](#reporting-a-problem) asks for - the LSPosed log, a probe, and a screenshot
+or video - with your device and firmware. That is exactly what the next step, alpha testing on
+other ZuxOS devices, will be built from.
 
 > **Tested on a real device.** Every build has run on a Lenovo Legion Tab Gen 5 with ZuxOS
 > 2.0.10.026 (Android 16), driving an external 2560×1440 display. Each fix here came from that
