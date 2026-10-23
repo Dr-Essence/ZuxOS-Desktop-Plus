@@ -134,6 +134,9 @@ public final class HeliPad {
     private static boolean sStripLonged;
     private static Method sProcess;
     private static boolean sNoProcess;
+    /** HeliBoard's key listener's methods, read once per listener class, not on every press. */
+    private static Class<?> sListenerClass;
+    private static Method[] sListenerMethods;
     private static int sErrors;
 
     private HeliPad() {
@@ -401,7 +404,7 @@ public final class HeliPad {
         Method press = null;
         Method input4 = null;
         Method release = null;
-        for (Method m : listener == null ? new Method[0] : listener.getClass().getMethods()) {
+        for (Method m : listener == null ? new Method[0] : listenerMethods(listener)) {
             if (m.getName().equals(HeliNames.ON_PRESS_KEY) && m.getParameterCount() == 4) {
                 press = m;
             } else if (m.getName().equals(HeliNames.ON_CODE_INPUT) && m.getParameterCount() == 4) {
@@ -425,6 +428,15 @@ public final class HeliPad {
         } catch (Throwable t) {
             L.d("heli pad: caps lock not toggled (" + t + ")");
         }
+    }
+
+    private static Method[] listenerMethods(Object listener) {
+        Class<?> c = listener.getClass();
+        if (c != sListenerClass) {
+            sListenerMethods = c.getMethods();
+            sListenerClass = c;
+        }
+        return sListenerMethods;
     }
 
     /** HeliBoard's {@code HapticEvent.KEY_PRESS}, the last argument of its key press. */
@@ -581,7 +593,7 @@ public final class HeliPad {
             said("HeliBoard's key listener not found - L1 and R1 do nothing");
             return;
         }
-        for (Method m : listener.getClass().getMethods()) {
+        for (Method m : listenerMethods(listener)) {
             if (m.getName().equals(HeliNames.ON_CODE_INPUT) && m.getParameterCount() == 4) {
                 try {
                     m.invoke(listener, code, NO_COORDINATE, NO_COORDINATE, false);

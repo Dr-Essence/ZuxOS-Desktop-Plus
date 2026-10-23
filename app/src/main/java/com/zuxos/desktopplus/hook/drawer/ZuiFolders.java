@@ -17,6 +17,7 @@ import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.Health;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
+import com.zuxos.desktopplus.hook.Detached;
 import com.zuxos.desktopplus.hook.IconPress;
 import com.zuxos.desktopplus.hook.Mirror;
 import com.zuxos.desktopplus.logic.DrawerArrange;
@@ -93,6 +94,25 @@ public final class ZuiFolders {
 
     /** Per ZUI context (ZUX Home's, the taskbar drawer's): its folders by our folder id. */
     static final Map<Object, Map<String, Built>> BUILT = new WeakHashMap<>();
+
+    /**
+     * A ZUI context's folders, empty the first time. They go with the context's window
+     * ({@link Detached}): each icon holds the context it was made in, so the weak map alone would
+     * never let go of it, and ZUI makes the taskbar's drawer a new context on every opening.
+     */
+    static Map<String, Built> builtFor(Context context) {
+        Map<String, Built> mine = BUILT.get(context);
+        if (mine == null) {
+            mine = new HashMap<>();
+            BUILT.put(context, mine);
+            Object layer = Reflect.call(context, "getDragLayer");
+            if (layer instanceof View) {
+                Detached.forget((View) layer, BUILT, context);
+            }
+        }
+        return mine;
+    }
+
     /** The drawer's own entries for the apps filed in folders, by our key, as last seen. */
     static Map<String, Object> sFiled = new HashMap<>();
 

@@ -10,7 +10,6 @@ import com.zuxos.desktopplus.hook.ZuiMenu;
 import com.zuxos.desktopplus.model.Item;
 
 import java.lang.reflect.Method;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -47,11 +46,7 @@ public final class ZuiFolderBar {
                 return null;
             }
             String content = ZuiFolders.contentOf(folder);
-            Map<String, ZuiFolders.Built> mine = ZuiFolders.BUILT.get(bar);
-            if (mine == null) {
-                mine = new HashMap<>();
-                ZuiFolders.BUILT.put(bar, mine);
-            }
+            Map<String, ZuiFolders.Built> mine = ZuiFolders.builtFor(bar);
             ZuiFolders.Built built = mine.get(folder.id);
             View icon;
             if (built != null && (built.content.equals(content) || ZuiFolders.isOpen(built))) {

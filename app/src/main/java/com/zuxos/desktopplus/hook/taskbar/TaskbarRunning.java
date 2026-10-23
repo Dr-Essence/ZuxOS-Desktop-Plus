@@ -802,8 +802,16 @@ public final class TaskbarRunning {
         if (WATCHING.containsKey(dragLayer)) {
             return;
         }
-        View.OnLayoutChangeListener again = (v, l, t, r, b, ol, ot, or, ob) ->
-                relayout(dragLayer);
+        // Weakly, as REREAD: the listener is also the value of a weak map keyed by this same view,
+        // and held strongly it would keep every bar ZUI ever built, a new one at each rebuild.
+        java.lang.ref.WeakReference<ViewGroup> layer = new java.lang.ref.WeakReference<>(
+                dragLayer);
+        View.OnLayoutChangeListener again = (v, l, t, r, b, ol, ot, or, ob) -> {
+            ViewGroup current = layer.get();
+            if (current != null) {
+                relayout(current);
+            }
+        };
         if (reference != null) {
             reference.addOnLayoutChangeListener(again);
         }

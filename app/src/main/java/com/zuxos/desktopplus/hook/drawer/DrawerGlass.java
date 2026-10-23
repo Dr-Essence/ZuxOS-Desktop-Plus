@@ -20,6 +20,7 @@ import com.zuxos.desktopplus.core.glass.GlassBackdrop;
 import com.zuxos.desktopplus.core.glass.LiquidGlass;
 import com.zuxos.desktopplus.core.theme.Bevel;
 import com.zuxos.desktopplus.core.theme.Theme;
+import com.zuxos.desktopplus.hook.Detached;
 import com.zuxos.desktopplus.hook.taskbar.BarEdge;
 import com.zuxos.desktopplus.logic.GlassPick;
 import com.zuxos.desktopplus.logic.ToneMath;
@@ -144,7 +145,7 @@ public final class DrawerGlass {
             try {
                 root.getViewTreeObserver().addOnGlobalLayoutListener(listener);
                 WATCHED.put(root, listener);
-                forgetOnDetach(root, WATCHED);
+                Detached.forget(root, WATCHED, root);
             } catch (Throwable t) {
                 L.d("drawer glass: could not watch this window (" + t + ")");
             }
@@ -232,25 +233,6 @@ public final class DrawerGlass {
     private static final Map<View, View.OnLayoutChangeListener> CLIPPED = new WeakHashMap<>();
 
     /**
-     * Drops a window's entry once the window is gone. The listener kept as the entry's value
-     * holds the window itself, so a weak map alone never let go of it: every drawer opened on
-     * the monitor - a new window each time - stayed in memory.
-     */
-    private static void forgetOnDetach(View window, Map<View, ?> map) {
-        window.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
-            @Override
-            public void onViewAttachedToWindow(View v) {
-            }
-
-            @Override
-            public void onViewDetachedFromWindow(View v) {
-                v.removeOnAttachStateChangeListener(this);
-                map.remove(v);
-            }
-        });
-    }
-
-    /**
      * Ends the drawer's drawing where the taskbar begins, on the desktop's screen.
      *
      * <p>ZUI's sheet, its scrim and the next row of its apps all carry on underneath the bar,
@@ -271,7 +253,7 @@ public final class DrawerGlass {
                 (v, l, t, r, b, ol, ot, or, ob) -> clipAboveTheBar(window);
         window.addOnLayoutChangeListener(listener);
         CLIPPED.put(window, listener);
-        forgetOnDetach(window, CLIPPED);
+        Detached.forget(window, CLIPPED, window);
         clipAboveTheBar(window);
         noWindowBlur(window);
     }

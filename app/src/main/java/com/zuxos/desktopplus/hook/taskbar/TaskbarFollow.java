@@ -8,6 +8,7 @@ import android.view.ViewTreeObserver;
 
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
+import com.zuxos.desktopplus.hook.Detached;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -218,6 +219,13 @@ final class TaskbarFollow {
             }
         }
         STATES.put(dragLayer, state);
+        // The state's listeners and ZUI's fade channels hold this bar: off, and forgotten, with
+        // its window, or every bar ZUI ever built would stay in memory.
+        State gone = state;
+        Detached.then(dragLayer, () -> {
+            detach(gone);
+            STATES.remove(dragLayer, gone);
+        });
     }
 
     private static void detach(State state) {

@@ -10,11 +10,11 @@ import android.widget.FrameLayout;
 
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
+import com.zuxos.desktopplus.hook.Detached;
 import com.zuxos.desktopplus.hook.Mirror;
 import com.zuxos.desktopplus.model.Item;
 
 import java.lang.reflect.Field;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -448,6 +448,11 @@ public final class ZuiFolderCells {
                     Look measured = new Look((android.widget.TextView) c,
                             art.getBounds().width(), list);
                     Look before = DRAWER_ICON.put(list, measured);
+                    if (before == null) {
+                        // ZUI's focus listener kept in the look holds the list: let go of it
+                        // with the list's window.
+                        Detached.forget(list, DRAWER_ICON, list);
+                    }
                     if (!measured.sameAs(before)) {
                         list.post(() -> realign(list));
                     }
@@ -475,11 +480,7 @@ public final class ZuiFolderCells {
     /** ZUI's folder icon for one of our folders in this context, built once per change. */
     private static View iconFor(Context activity, ViewGroup cell, Item folder) throws Exception {
         String content = ZuiFolders.contentOf(folder);
-        Map<String, ZuiFolders.Built> mine = ZuiFolders.BUILT.get(activity);
-        if (mine == null) {
-            mine = new HashMap<>();
-            ZuiFolders.BUILT.put(activity, mine);
-        }
+        Map<String, ZuiFolders.Built> mine = ZuiFolders.builtFor(activity);
         ZuiFolders.Built built = mine.get(folder.id);
         if (built != null && (built.content.equals(content) || ZuiFolders.isOpen(built))) {
             return built.icon;
