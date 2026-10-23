@@ -16,6 +16,7 @@ import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.core.motion.Motion;
+import com.zuxos.desktopplus.logic.KeyGrid;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
@@ -756,70 +757,41 @@ public final class HeliPad {
     }
 
     private static Target nearest(List<Target> all, int x, int y) {
-        Target best = null;
-        long bestD = Long.MAX_VALUE;
-        for (Target t : all) {
-            long dx = t.rect.centerX() - x;
-            long dy = t.rect.centerY() - y;
-            long d = dx * dx + dy * dy;
-            if (d < bestD) {
-                best = t;
-                bestD = d;
-            }
-        }
-        return best;
+        int[][] grid = grid(all);
+        int i = KeyGrid.nearest(grid[0], grid[1], x, y);
+        return i == KeyGrid.NONE ? null : all.get(i);
     }
 
     /**
-     * The next place that way. Left and right: the nearest in the same row. Up and down: the
-     * nearest row that way, and in it the place nearest the column the ring came down, so a
-     * walk through rows of different widths keeps its line, as TV keyboards do. Null at an edge.
+     * The next place that way ({@link KeyGrid#next}), keeping the column the ring came down when
+     * {@code column}; null at an edge.
      */
     private static Target next(List<Target> all, Target at, int code, boolean column) {
-        int cx = at.rect.centerX();
-        int cy = at.rect.centerY();
-        int half = Math.max(1, at.rect.height() / 2);
-        Target best = null;
-        if (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT) {
-            boolean right = code == KeyEvent.KEYCODE_DPAD_RIGHT;
-            for (Target t : all) {
-                int tx = t.rect.centerX();
-                if (t == at || Math.abs(t.rect.centerY() - cy) >= half
-                        || (right ? tx <= cx : tx >= cx)) {
-                    continue;
-                }
-                if (best == null || Math.abs(tx - cx) < Math.abs(best.rect.centerX() - cx)) {
-                    best = t;
-                }
-            }
-            if (best != null && column) {
-                sColumnX = best.rect.centerX();
-            }
-            return best;
-        }
-        boolean down = code == KeyEvent.KEYCODE_DPAD_DOWN;
-        int row = Integer.MIN_VALUE;
-        for (Target t : all) {
-            int ty = t.rect.centerY();
-            if ((down ? ty > cy + half : ty < cy - half)
-                    && (row == Integer.MIN_VALUE || Math.abs(ty - cy) < Math.abs(row - cy))) {
-                row = ty;
-            }
-        }
-        if (row == Integer.MIN_VALUE) {
+        int way = code == KeyEvent.KEYCODE_DPAD_LEFT ? KeyGrid.LEFT
+                : code == KeyEvent.KEYCODE_DPAD_RIGHT ? KeyGrid.RIGHT
+                : code == KeyEvent.KEYCODE_DPAD_DOWN ? KeyGrid.DOWN : KeyGrid.UP;
+        int[][] grid = grid(all);
+        int i = KeyGrid.next(grid[0], grid[1], grid[2], all.indexOf(at), way,
+                column ? sColumnX : -1);
+        if (i == KeyGrid.NONE) {
             return null;
         }
-        int line = column && sColumnX >= 0 ? sColumnX : cx;
-        for (Target t : all) {
-            if (Math.abs(t.rect.centerY() - row) >= Math.max(1, t.rect.height() / 2)) {
-                continue;
-            }
-            if (best == null || Math.abs(t.rect.centerX() - line)
-                    < Math.abs(best.rect.centerX() - line)) {
-                best = t;
-            }
+        if (column && (way == KeyGrid.LEFT || way == KeyGrid.RIGHT)) {
+            sColumnX = grid[0][i];
         }
-        return best;
+        return all.get(i);
+    }
+
+    /** The places' centres across and down, and their heights. */
+    private static int[][] grid(List<Target> all) {
+        int[][] grid = new int[3][all.size()];
+        for (int i = 0; i < all.size(); i++) {
+            Rect r = all.get(i).rect;
+            grid[0][i] = r.centerX();
+            grid[1][i] = r.centerY();
+            grid[2][i] = r.height();
+        }
+        return grid;
     }
 
     /** The layout changed under the ring - shift, symbols, another language: the ring stays. */

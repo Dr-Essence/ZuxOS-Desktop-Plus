@@ -11,6 +11,7 @@ import com.zuxos.desktopplus.core.Health;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.hook.ZuiFocus;
+import com.zuxos.desktopplus.logic.StickCurve;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
@@ -40,8 +41,6 @@ public final class DrawerStick {
     private static final int TAG_APPS = 0x7A000506;
     /** The fastest scroll, with the stick all the way over. */
     private static final float MAX_DP_PER_S = 2000f;
-    /** The least lean that counts, whatever the controller says its own dead zone is. */
-    private static final float MIN_FLAT = 0.12f;
 
     /** The list being scrolled; the stick's lean, -1 to 1, 0 at rest. Main thread. */
     private static WeakReference<ViewGroup> sList;
@@ -123,8 +122,7 @@ public final class DrawerStick {
     }
 
     /**
-     * The right stick's lean up or down: 0 inside its dead zone, then growing with the square of
-     * the way past it, for fine control near the middle. {@code AXIS_RZ} on most controllers,
+     * The right stick's lean up or down ({@link StickCurve}): {@code AXIS_RZ} on most controllers,
      * {@code AXIS_RY} on those without it.
      */
     private static float lean(MotionEvent event) {
@@ -136,13 +134,7 @@ public final class DrawerStick {
             axis = MotionEvent.AXIS_RY;
             range = device.getMotionRange(axis, event.getSource());
         }
-        float value = event.getAxisValue(axis);
-        float flat = Math.max(MIN_FLAT, range == null ? 0f : range.getFlat());
-        if (Math.abs(value) <= flat) {
-            return 0f;
-        }
-        float past = Math.min(1f, (Math.abs(value) - flat) / (1f - flat));
-        return Math.signum(value) * past * past;
+        return StickCurve.lean(event.getAxisValue(axis), range == null ? 0f : range.getFlat());
     }
 
     /** The open drawer's list in this window; null with none, or a menu or folder over it. */
