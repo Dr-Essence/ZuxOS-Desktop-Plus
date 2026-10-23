@@ -51,7 +51,7 @@ import com.zuxos.desktopplus.core.theme.Theme;
 import com.zuxos.desktopplus.desktop.Menus;
 import com.zuxos.desktopplus.hook.taskbar.BarEdge;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarBridge;
-import com.zuxos.desktopplus.hook.taskbar.TaskbarRunning;
+import com.zuxos.desktopplus.hook.taskbar.RunningIcons;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarTray;
 import com.zuxos.desktopplus.notify.NotifyProvider;
 
@@ -265,7 +265,7 @@ public final class DrawerAccountBar {
             addView(mPower, new LayoutParams(button, button));
 
             for (View v : new View[]{mAvatar, mPower}) {
-                v.setOnTouchListener(new TaskbarRunning.Press());
+                v.setOnTouchListener(new RunningIcons.Press());
                 // Under a mouse or a stylus: a little bigger, with a soft light behind.
                 v.setOnHoverListener((h, e) -> {
                     int action = e.getActionMasked();

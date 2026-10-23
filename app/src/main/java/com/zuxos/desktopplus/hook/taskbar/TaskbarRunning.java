@@ -1,16 +1,11 @@
 package com.zuxos.desktopplus.hook.taskbar;
 
-import android.app.ActivityManager;
 import android.content.Context;
-import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.graphics.drawable.Drawable;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 import com.zuxos.desktopplus.core.Cfg;
@@ -20,20 +15,11 @@ import com.zuxos.desktopplus.core.Ui;
 import com.zuxos.desktopplus.core.glass.ScreenBackdrop;
 import com.zuxos.desktopplus.core.motion.FrameRate;
 import com.zuxos.desktopplus.core.motion.Motion;
-import com.zuxos.desktopplus.core.theme.Bevel;
 import com.zuxos.desktopplus.core.theme.Theme;
-import com.zuxos.desktopplus.desktop.DragPayload;
-import com.zuxos.desktopplus.desktop.FolderIconDrawable;
 import com.zuxos.desktopplus.hook.IconInfo;
 import com.zuxos.desktopplus.hook.KeepAlive;
-import com.zuxos.desktopplus.hook.Tasks;
 import com.zuxos.desktopplus.hook.Windows;
-import com.zuxos.desktopplus.hook.drawer.DrawerFolderWindow;
-import com.zuxos.desktopplus.hook.drawer.NativeDrawerHooks;
-import com.zuxos.desktopplus.hook.drawer.ZuiFolderBar;
 import com.zuxos.desktopplus.hook.drawer.ZuiFolderCells;
-import com.zuxos.desktopplus.hook.panel.QuickTiles;
-import com.zuxos.desktopplus.hook.recents.TaskOverview;
 import com.zuxos.desktopplus.logic.PinList;
 import com.zuxos.desktopplus.logic.RunningOrder;
 import com.zuxos.desktopplus.model.Item;
@@ -82,8 +68,6 @@ public final class TaskbarRunning {
     /** Icons the launcher put there which we have hidden, so they can be shown again. */
     private static final Map<View, Boolean> HIDDEN = new WeakHashMap<>();
 
-    /** Per display: where its open apps were last read from, so a change is said once. */
-    private static final Map<Integer, Integer> SOURCE = new java.util.concurrent.ConcurrentHashMap<>();
     /** Per taskbar: with two displays, one ticking must not stand for the other. */
     private static final Map<View, Boolean> TICKING = new WeakHashMap<>();
 
@@ -121,7 +105,7 @@ public final class TaskbarRunning {
         if (icons == null) {
             return;
         }
-        Set<String> running = running(dragLayer.getContext(), icons,
+        Set<String> running = RunningTasks.running(dragLayer.getContext(), icons,
                 TaskbarTray.displayIdOf(dragLayer));
         if (onlyOpen && running.isEmpty() && pins.isEmpty()) {
             // Nothing readable: better to leave the launcher's bar alone than to empty it. With
@@ -132,7 +116,7 @@ public final class TaskbarRunning {
         }
         // Measured while the launcher's icons are still up to be measured: once they are hidden
         // their size and spacing are what our row keeps using.
-        iconSize(icons);
+        RunningIcons.iconSize(icons);
         spacing(icons);
         if (onlyOpen) {
             // A no-op while ZUI builds its row without apps; it only catches icons ZUI built
@@ -448,18 +432,18 @@ public final class TaskbarRunning {
                 return;
             }
         }
-        int size = iconSize(icons);
+        int size = RunningIcons.iconSize(icons);
         int gap = spacing(icons);
         // Not trimmed to the room any more - the row scrolls now. The cap is only so that a
         // machine with eighty things open does not build eighty views every three seconds.
         int displayId = TaskbarTray.displayIdOf(dragLayer);
         List<String> plain = new ArrayList<>();
         for (String key : row.mRunning) {
-            if (key.indexOf(WINDOW_MARK) < 0) {
+            if (key.indexOf(RunningTasks.WINDOW_MARK) < 0) {
                 plain.add(key);
             }
         }
-        List<String> wanted = withWindows(RunningOrder.trimToFit(
+        List<String> wanted = RunningTasks.withWindows(RunningOrder.trimToFit(
                 RunningOrder.inOrder(plain, missing), MOST_ICONS * (size + gap), size, gap),
                 running, displayId, dragLayer.getContext().getPackageName());
         List<String> pinKeys = new ArrayList<>();
@@ -484,7 +468,7 @@ public final class TaskbarRunning {
         row.removeAllViews();
         List<String> shownPins = new ArrayList<>();
         for (Item pin : pins) {
-            View icon = pinIcon(ctx, pin, size, displayId);
+            View icon = RunningIcons.pinIcon(ctx, pin, size, displayId);
             if (icon != null) {
                 add(row, icon, size, gap);
                 shownPins.add(pin.key());
@@ -492,7 +476,7 @@ public final class TaskbarRunning {
         }
         List<String> shown = new ArrayList<>();
         for (String pkg : wanted) {
-            View icon = iconFor(ctx, pkg, size, displayId);
+            View icon = RunningIcons.iconFor(ctx, pkg, size, displayId);
             if (icon != null) {
                 add(row, icon, size, gap);
                 shown.add(pkg);
@@ -541,7 +525,7 @@ public final class TaskbarRunning {
                 // Still open, but somewhere else in the order.
                 return false;
             }
-            View icon = iconFor(ctx, pkg, size, displayId);
+            View icon = RunningIcons.iconFor(ctx, pkg, size, displayId);
             if (icon == null) {
                 continue;
             }
@@ -1231,7 +1215,8 @@ public final class TaskbarRunning {
             // Nothing of the launcher's showing to measure: this bar's gap as last measured, or
             // ZUI's own proportion - 3px beside 60px icons in the probe - at this bar's size.
             Integer known = GAPS.get(icons);
-            return known != null ? known : Math.max(3, Math.round(iconSize(icons) / 20f));
+            return known != null ? known
+                    : Math.max(3, Math.round(RunningIcons.iconSize(icons) / 20f));
         }
         int gap = RunningOrder.spacing(gaps, Ui.dp(icons.getContext(), 64),
                 Ui.dp(icons.getContext(), 8));
@@ -1241,7 +1226,7 @@ public final class TaskbarRunning {
 
     /** Each bar's icon gap and size, last measured; kept for when its icons are not there. */
     private static final Map<View, Integer> GAPS = new WeakHashMap<>();
-    private static final Map<View, Integer> SIZES = new WeakHashMap<>();
+    static final Map<View, Integer> SIZES = new WeakHashMap<>();
 
     /** Ours, and never a child of the launcher's icon row. */
     private static final class RunningRow extends LinearLayout {
@@ -1297,8 +1282,8 @@ public final class TaskbarRunning {
          * state is unchanged is not redrawn.
          */
         private void pressIn(int display) {
-            String front = frontPackage(display);
-            Integer frontTask = FRONT_TASK.get(display);
+            String front = RunningTasks.frontPackage(display);
+            Integer frontTask = RunningTasks.FRONT_TASK.get(display);
             for (int i = 0; i < getChildCount(); i++) {
                 View icon = getChildAt(i);
                 boolean open = RunningOrder.anyRunning(IconInfo.packagesOfView(icon), mOpen);
@@ -1355,595 +1340,7 @@ public final class TaskbarRunning {
         }
     }
 
-    // --- what is open ------------------------------------------------------
-
-    /**
-     * The packages that are open.
-     *
-     * <p>Two ways of asking, and root is deliberately not one of them. Reading the task list
-     * through the shell would mean a root round trip every few seconds for as long as the
-     * taskbar is up - which would raise a prompt unasked, and, since one root request at a time
-     * is the rule here, would leave the quick settings toggles failing at random. A feature
-     * that quietly breaks another one is not worth having.
-     *
-     * <p>So: the activity manager, which a system launcher is usually allowed to ask and an
-     * ordinary app is not; and failing that the launcher's own recent-apps controller, which
-     * will say whether a given icon is running even though it does not fill this bar. The
-     * second only knows about icons that are already there, so with it the bar can be narrowed
-     * but not added to - which is said plainly in the log rather than silently half-done.
-     */
-    private static Set<String> running(Context ctx, ViewGroup icons, int displayId) {
-        Set<String> out = fromActivityManager(ctx, displayId);
-        if (!out.isEmpty()) {
-            source(displayId, 0, "the activity manager");
-            return out;
-        }
-        out = fromLauncher(icons);
-        if (!out.isEmpty()) {
-            source(displayId, 1, "the launcher's own running-app state (open apps that are not "
-                    + "pinned cannot be added this way)");
-            return out;
-        }
-        source(displayId, 2, "nothing open on this screen, or nowhere readable - no open apps "
-                + "shown");
-        return out;
-    }
-
-    /**
-     * Said once per display and change. It was one value for every bar: the tablet with apps
-     * open and the monitor with none took turns changing it, and every refresh wrote two lines
-     * to the log - 156 in an hour.
-     */
-    private static void source(int displayId, int which, String what) {
-        Integer before = SOURCE.put(displayId, which);
-        if (before == null || before != which) {
-            L.d("taskbar running: display " + displayId + " reads what is open from " + what);
-        }
-    }
-
-    /**
-     * The task list, where this launcher is allowed to see it.
-     *
-     * <p>{@code getRunningTasks} is refused to ordinary apps - they get their own task and
-     * nothing else, which is why one result counts as no answer rather than as one app.
-     *
-     * <p>What comes back is task <em>records</em>, which outlive the app that made them: without
-     * the two tests below, everything the user had open this week would be in the bar. Both read
-     * fields the framework keeps but does not publish, so both are skipped where they cannot be
-     * read rather than guessed at.
-     */
-    private static Set<String> fromActivityManager(Context ctx, int displayId) {
-        Set<String> out = new LinkedHashSet<>();
-        Set<String> everything = new LinkedHashSet<>();
-        try {
-            ActivityManager am = (ActivityManager) ctx.getSystemService(Context.ACTIVITY_SERVICE);
-            if (am == null) {
-                return out;
-            }
-            List<ActivityManager.RunningTaskInfo> tasks = am.getRunningTasks(25);
-            if (tasks == null) {
-                return out;
-            }
-            Map<String, List<Integer>> windows = new java.util.LinkedHashMap<>();
-            boolean front = true;
-            for (ActivityManager.RunningTaskInfo task : tasks) {
-                if (task.baseActivity == null) {
-                    continue;
-                }
-                describeTaskFields(task);
-                String pkg = task.baseActivity.getPackageName();
-                if (!onDisplay(task, displayId)) {
-                    // Another screen's: never on this bar, whatever the test below makes of it.
-                    continue;
-                }
-                if (front && shownOrFocused(task)) {
-                    // The list is most recent first: this screen's first task on screen is the
-                    // one in front, which the bar's fade asks about on every frame. A closed or
-                    // minimised app's record ahead of it is not.
-                    front = false;
-                    String before = FRONT.put(displayId, pkg);
-                    FRONT_TASK.put(displayId, task.taskId);
-                    if (displayId == 0 && before != null && !before.equals(pkg)) {
-                        TaskbarDiag.onFrontChanged(before, pkg);
-                    }
-                }
-                everything.add(pkg);
-                if (isOpen(task)) {
-                    out.add(pkg);
-                    List<Integer> ids = windows.get(pkg);
-                    if (ids == null) {
-                        ids = new ArrayList<>();
-                        windows.put(pkg, ids);
-                    }
-                    ids.add(task.taskId);
-                }
-            }
-            // In the order they were opened, not front first: each icon keeps its window, where
-            // ordering by recency made the app's icon and its window icon trade windows on
-            // every tap, and Close hit whichever happened to be in front.
-            for (List<Integer> ids : windows.values()) {
-                java.util.Collections.sort(ids);
-            }
-            WINDOWS.put(displayId, windows);
-            if (front) {
-                // Nothing on screen here: the monitor's desktop with every app closed.
-                FRONT.remove(displayId);
-                FRONT_TASK.remove(displayId);
-            }
-            if (everything.size() <= 1) {
-                // Nothing but the home screen on this display - or a list this launcher is not
-                // allowed to read, which looks the same. Either way nothing to show.
-                return new LinkedHashSet<>();
-            }
-            if (out.isEmpty()) {
-                // The open test threw away everything on this screen, which means it is reading
-                // something other than what it is named after on this build. A bar of every task
-                // here is wrong; an empty one is worse. Other screens' tasks never count - that
-                // filled the monitor's bar with the tablet's apps.
-                if (L.once("TaskbarRunning.unfiltered")) {
-                    L.i("taskbar running: nothing on this screen survived the open test, so every "
-                            + "task on it counts");
-                }
-                return everything;
-            }
-        } catch (Throwable t) {
-            L.d("taskbar running: the activity manager will not list tasks (" + t + ")");
-        }
-        return out;
-    }
-
-    /** Per display: the package of the task in front, as of the last read of the task list. */
-    private static final Map<Integer, String> FRONT =
-            new java.util.concurrent.ConcurrentHashMap<>();
-
-    /** Per display: the task in front, read with {@link #FRONT}. */
-    private static final Map<Integer, Integer> FRONT_TASK =
-            new java.util.concurrent.ConcurrentHashMap<>();
-
-    /** The package in front on this display, or null before the task list was first read. */
-    public static String frontPackage(int displayId) {
-        return FRONT.get(displayId);
-    }
-
-    /** Per display: each open app's windows (task ids), in the order they were opened. */
-    private static final Map<Integer, Map<String, List<Integer>>> WINDOWS =
-            new java.util.concurrent.ConcurrentHashMap<>();
-
-    /** An extra window's key in the row: the app, and which of its tasks. */
-    private static final char WINDOW_MARK = '#';
-
-    /**
-     * The row's keys with one more icon for every extra window: an app opened twice is two
-     * icons, the second right after the first - or, when the first is a pin or one of the
-     * launcher's own icons, at the end.
-     */
-    private static List<String> withWindows(List<String> wanted, Set<String> running,
-            int displayId, String launcher) {
-        Map<String, List<Integer>> windows = WINDOWS.get(displayId);
-        if (windows == null || windows.isEmpty()) {
-            return wanted;
-        }
-        List<String> out = new ArrayList<>();
-        for (String pkg : wanted) {
-            out.add(pkg);
-            addExtra(out, windows.get(pkg), pkg);
-        }
-        for (String pkg : running) {
-            if (!wanted.contains(pkg) && !pkg.equals(launcher)) {
-                addExtra(out, windows.get(pkg), pkg);
-            }
-        }
-        return out;
-    }
-
-    /**
-     * The window an app's own icon stands for: its first, when it has more than one here; -1
-     * when it has one or none, where the app and its window are the same thing.
-     */
-    static int firstWindow(String pkg, int displayId) {
-        Map<String, List<Integer>> windows = WINDOWS.get(displayId);
-        List<Integer> ids = windows == null ? null : windows.get(pkg);
-        return ids != null && ids.size() > 1 ? ids.get(0) : -1;
-    }
-
-    private static void addExtra(List<String> out, List<Integer> ids, String pkg) {
-        if (ids == null) {
-            return;
-        }
-        for (int i = 1; i < ids.size(); i++) {
-            out.add(pkg + WINDOW_MARK + ids.get(i));
-        }
-    }
-
-    /** Which of the task list's unpublished fields this build actually lets us read. */
-    private static void describeTaskFields(Object task) {
-        if (!L.once("TaskbarRunning.fields")) {
-            return;
-        }
-        L.i("taskbar running: the task list says isRunning="
-                + Reflect.field(task, "isRunning") + ", isVisible="
-                + Reflect.field(task, "isVisible") + ", displayId="
-                + Reflect.field(task, "displayId"));
-    }
-
-    /**
-     * Whether a task is an app that is open, rather than a record of one that was.
-     *
-     * <p>Visibility is not the test: an app minimised on the desktop is exactly what a taskbar is
-     * for, and it is not visible. Running is the test, and where the build will not say, every
-     * task counts - which is where this started.
-     */
-    static boolean isOpen(Object task) {
-        Object visible = Reflect.field(task, "isVisible");
-        if (visible instanceof Boolean && (Boolean) visible) {
-            return true;
-        }
-        // An app that has just been opened: in front, but not visible yet and, while its process
-        // is still starting, not running yet either. Without this it reached the bar only once
-        // it had drawn - two seconds after it was opened, on a cold start.
-        if (Boolean.TRUE.equals(Reflect.field(task, "isFocused"))) {
-            return true;
-        }
-        Object running = Reflect.field(task, "isRunning");
-        if (running instanceof Boolean) {
-            return (Boolean) running;
-        }
-        return true;
-    }
-
-    /** On screen, or just opened and about to be; true where the build tells neither. */
-    private static boolean shownOrFocused(Object task) {
-        Object visible = Reflect.field(task, "isVisible");
-        return !(visible instanceof Boolean) || (Boolean) visible
-                || Boolean.TRUE.equals(Reflect.field(task, "isFocused"));
-    }
-
-    /** This bar belongs to one display; an app on the tablet screen is not on it. */
-    private static boolean onDisplay(Object task, int displayId) {
-        if (displayId < 0) {
-            return true;
-        }
-        int where = Tasks.displayOf(task);
-        return where == Tasks.UNKNOWN || where == displayId;
-    }
-
-    /**
-     * Asks the launcher which of its own icons are running.
-     *
-     * <p>{@code getRunningAppState} is on the controller the probe found; it answers per item
-     * even on a firmware where that controller does not fill the bar. The values it returns are
-     * logged the first time, because which of them means "not running" is the whole question.
-     */
-    private static Set<String> fromLauncher(ViewGroup icons) {
-        Set<String> out = new LinkedHashSet<>();
-        Object controller = TaskbarApps.recentAppsController();
-        if (controller == null) {
-            return out;
-        }
-        for (int i = 0; i < icons.getChildCount(); i++) {
-            View child = icons.getChildAt(i);
-            String pkg = IconInfo.packageOfView(child);
-            if (pkg == null) {
-                continue;
-            }
-            Object state = Reflect.call(controller, "getRunningAppState", child.getTag());
-            if (state == null) {
-                // Not "this app is not running" - no answer at all, which for the first icon
-                // means the method is not there. Hiding every icon on the strength of that
-                // would empty the taskbar over a failed reflection call.
-                return new LinkedHashSet<>();
-            }
-            if (!state.getClass().isEnum()) {
-                // The states are named constants; anything else and the test below is reading
-                // tea leaves, so the whole source is declined rather than half-trusted.
-                if (sStates.add("?")) {
-                    L.i("taskbar running: the launcher answers with "
-                            + state.getClass().getName() + ", which cannot be read as a state");
-                }
-                return new LinkedHashSet<>();
-            }
-            String name = String.valueOf(state);
-            if (sStates.add(name)) {
-                L.i("taskbar running: the launcher calls one of these states '" + name + "'");
-            }
-            if (!name.toUpperCase(java.util.Locale.US).contains("NOT")) {
-                out.add(pkg);
-            }
-        }
-        return out;
-    }
-
-    private static final Set<String> sStates = new LinkedHashSet<>();
-
-    // --- our own icons -----------------------------------------------------
-
-    /** The size the launcher's own icons are, so ours are not the odd ones out. */
-    private static int iconSize(ViewGroup icons) {
-        for (int i = 0; i < icons.getChildCount(); i++) {
-            View child = icons.getChildAt(i);
-            if (child.getVisibility() == View.VISIBLE && child.getWidth() > 0
-                    && IconInfo.packageOfView(child) != null) {
-                SIZES.put(icons, child.getWidth());
-                return child.getWidth();
-            }
-        }
-        Integer known = SIZES.get(icons);
-        if (known != null) {
-            return known;
-        }
-        // ZUI's drawer button is laid out at the bar's icon size - 60px on the monitor, beside
-        // 60px apps in the probe - and it is there whether or not any app icon is. One size for
-        // every bar is how the tablet's got the monitor's, small at the tablet's density.
-        View button = TaskbarStart.allAppsButton(icons);
-        return TaskbarStart.size(button, icons.getContext());
-    }
-
-    /**
-     * An icon for something pinned here.
-     *
-     * <p>Pinned by us, in our own row, and so unpinned from the same menu - the launcher knows
-     * nothing about it either way.
-     */
-    private static View pinIcon(Context ctx, Item pin, int size, int displayId) {
-        View icon = pin.type == Item.TYPE_FOLDER
-                ? folderIcon(ctx, pin, size, displayId) : iconFor(ctx, pin.pkg, size, displayId);
-        if (icon == null) {
-            return null;
-        }
-        final String key = pin.key();
-        Runnable menu = () -> {
-            List<TaskbarMenu.Entry> entries = new ArrayList<>();
-            if (pin.pkg != null) {
-                entries.addAll(TaskbarApps.entriesFor(ctx, pin.pkg,
-                        android.os.Process.myUserHandle(), displayId));
-                // After Open, ZUI's own floating window and split screen.
-                entries.addAll(Math.min(1, entries.size()), ZuiWindows.entries(icon, pin.pkg,
-                        android.os.Process.myUserHandle()));
-            } else {
-                entries.add(new TaskbarMenu.Entry("Open folder",
-                        () -> openFolder(ctx, icon, pin, displayId)));
-            }
-            entries.add(new TaskbarMenu.Entry("Unpin", () -> {
-                TaskbarPins.unpin(ctx, key);
-                refreshAll();
-            }));
-            int[] at = new int[2];
-            icon.getLocationOnScreen(at);
-            TaskbarMenu.showEntries(icon, displayId, at[0] + icon.getWidth() / 2f, entries);
-        };
-        icon.setOnLongClickListener(null);
-        icon.setLongClickable(false);
-        icon.setOnTouchListener(new PinGesture(pin, menu));
-        // The controller's Triangle asks for the same menu (TaskbarKeys).
-        icon.setTag(TaskbarKeys.TAG_MENU, menu);
-        return icon;
-    }
-
-    /**
-     * A folder pinned to the bar.
-     *
-     * <p>On the tablet's bar it is ZUI's own folder ({@link ZuiFolderBar#barIcon}). On the monitor,
-     * or should ZUI's not be had, it is drawn the way folders are drawn everywhere else here and
-     * opens in the window the monitor's drawer folders use.
-     */
-    private static View folderIcon(Context ctx, Item folder, int size, int displayId) {
-        if (displayId == android.view.Display.DEFAULT_DISPLAY) {
-            // The tablet's bar: ZUI's own folder, opened as ZUI's bar opens its folders.
-            View zui = ZuiFolderBar.barIcon(ctx, folder);
-            if (zui != null) {
-                TaskbarPreview.attachHover(zui);
-                TaskbarKeys.focusable(zui, displayId);
-                return zui;
-            }
-        }
-        try {
-            List<Drawable> previews = new ArrayList<>();
-            for (Item child : folder.children) {
-                if (child.pkg == null || previews.size() >= 4) {
-                    continue;
-                }
-                try {
-                    previews.add(ctx.getPackageManager().getApplicationIcon(child.pkg));
-                } catch (Throwable missing) {
-                    // An app that has been uninstalled since. The folder still opens.
-                }
-            }
-            ImageView view = new ImageView(ctx);
-            view.setImageDrawable(new FolderIconDrawable(ctx, previews, size,
-                    Theme.of(displayId)));
-            view.setContentDescription(folder.label != null ? folder.label : "Folder");
-            view.setBackground(iconBackground(ctx, size, displayId));
-            view.setOnClickListener(v -> openFolder(ctx, v, folder, displayId));
-            // A folder lifts and jiggles under the pointer like the apps beside it; it has no
-            // windows, so no preview.
-            TaskbarPreview.attachHover(view);
-            TaskbarKeys.focusable(view, displayId);
-            return view;
-        } catch (Throwable t) {
-            L.d("taskbar running: could not draw the pinned folder (" + t + ")");
-            return null;
-        }
-    }
-
-    private static void openFolder(Context ctx, View icon, Item folder, int displayId) {
-        if (ZuiFolderBar.isZuiFolder(icon)) {
-            ZuiFolderBar.openOnBar(icon);
-            return;
-        }
-        try {
-            // The same repository the drawer's own folders open with, rather than a second one.
-            DrawerFolderWindow.show(ctx, folder, NativeDrawerHooks.repo(ctx), displayId,
-                    Ui.dp(ctx, Cfg.iconSizeDp()), null, icon);
-        } catch (Throwable t) {
-            L.e("taskbar running: could not open the pinned folder", t);
-        }
-    }
-
-    /**
-     * What a pinned icon does under a finger or a mouse.
-     *
-     * <p>Tap opens it. Hold and let go without moving: its menu. Hold and then move: it comes off
-     * the bar and can be dropped somewhere else along it. Right-click: the menu straight away.
-     * One gesture, three outcomes, the way a taskbar behaves - and a quick swipe before the hold
-     * is still a scroll of the row, because nothing is armed until the hold has happened.
-     */
-    private static final class PinGesture implements View.OnTouchListener {
-
-        private final Item mPin;
-        private final Runnable mMenu;
-        private float mDownX;
-        private float mDownY;
-        private boolean mArmed;
-        private Runnable mArm;
-
-        PinGesture(Item pin, Runnable menu) {
-            mPin = pin;
-            mMenu = menu;
-        }
-
-        @Override
-        public boolean onTouch(View v, android.view.MotionEvent e) {
-            switch (e.getActionMasked()) {
-                case android.view.MotionEvent.ACTION_DOWN: {
-                    TaskbarPreview.pressed(v);
-                    if (e.isFromSource(android.view.InputDevice.SOURCE_MOUSE)
-                            && (e.getButtonState()
-                            & android.view.MotionEvent.BUTTON_SECONDARY) != 0) {
-                        mMenu.run();
-                        return true;
-                    }
-                    mDownX = e.getRawX();
-                    mDownY = e.getRawY();
-                    mArmed = false;
-                    Press.down(v);
-                    mArm = () -> {
-                        mArmed = true;
-                        // From here the row must not take the gesture for a scroll.
-                        if (v.getParent() != null) {
-                            v.getParent().requestDisallowInterceptTouchEvent(true);
-                        }
-                        v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
-                        if (!Theme.of(v).retro()) {
-                            v.animate().scaleX(1.12f).scaleY(1.12f).setDuration(Motion.SPRING_MS)
-                                    .setInterpolator(Motion.SPRING).start();
-                        }
-                    };
-                    v.postDelayed(mArm, android.view.ViewConfiguration.getLongPressTimeout());
-                    return false;
-                }
-                case android.view.MotionEvent.ACTION_MOVE: {
-                    float slop = android.view.ViewConfiguration.get(v.getContext())
-                            .getScaledTouchSlop();
-                    boolean moved = Math.abs(e.getRawX() - mDownX) > slop
-                            || Math.abs(e.getRawY() - mDownY) > slop;
-                    if (!moved) {
-                        return mArmed;
-                    }
-                    if (!mArmed) {
-                        v.removeCallbacks(mArm);
-                        Press.up(v);
-                        return false;
-                    }
-                    mArmed = false;
-                    settle(v, e);
-                    startDrag(v);
-                    return true;
-                }
-                case android.view.MotionEvent.ACTION_UP: {
-                    v.removeCallbacks(mArm);
-                    if (!mArmed) {
-                        Press.up(v);
-                        return false;
-                    }
-                    mArmed = false;
-                    settle(v, e);
-                    mMenu.run();
-                    return true;
-                }
-                case android.view.MotionEvent.ACTION_CANCEL:
-                    v.removeCallbacks(mArm);
-                    mArmed = false;
-                    Press.up(v);
-                    return false;
-                default:
-                    return mArmed;
-            }
-        }
-
-        /**
-         * Back to rest, and the view told the touch is over.
-         *
-         * <p>It saw the press go down and will not see it come up - this listener takes the up -
-         * so without the cancel it stays pressed and its ripple never fades.
-         */
-        private void settle(View v, android.view.MotionEvent e) {
-            Press.up(v);
-            android.view.MotionEvent cancel = android.view.MotionEvent.obtain(e);
-            cancel.setAction(android.view.MotionEvent.ACTION_CANCEL);
-            v.onTouchEvent(cancel);
-            cancel.recycle();
-        }
-
-        private void startDrag(View v) {
-            try {
-                DragPayload payload =
-                        new DragPayload(mPin,
-                                DragPayload.SRC_TASKBAR, null);
-                View.DragShadowBuilder card = new View.DragShadowBuilder(v);
-                // Local - a pin moves along the bar and nowhere else, so the desktop never sees
-                // it - but across ZUX Home's windows where the home screen is behind the tablet's
-                // bar, which can take it (ZuiHomeDrop).
-                boolean home = ZuiHomeDrop.armForPin(v, mPin, card);
-                if (!v.startDragAndDrop(payload.toClip(), card, payload,
-                        home ? DragPayload.FLAGS : 0) && home) {
-                    ZuiHomeDrop.disarmPin();
-                }
-            } catch (Throwable t) {
-                L.d("taskbar running: could not pick the pin up (" + t + ")");
-            }
-        }
-    }
-
-    /**
-     * The press feel on our icons: a quick dip to 90% under the finger, and a spring back when it
-     * lifts - the small physical response that makes a tap feel like it landed.
-     */
-    public static final class Press implements View.OnTouchListener {
-
-        static void down(View v) {
-            TaskbarPreview.pressed(v);
-            if (Theme.of(v).retro()) {
-                // Retro's buttons sink into the bar instead, by their own pressed state.
-                return;
-            }
-            v.animate().cancel();
-            v.animate().scaleX(0.9f).scaleY(0.9f).setDuration(Motion.SHORT - 40)
-                    .setInterpolator(Motion.EASE).start();
-        }
-
-        static void up(View v) {
-            v.animate().cancel();
-            v.animate().scaleX(1f).scaleY(1f).setDuration(Motion.SPRING_MS)
-                    .setInterpolator(Motion.SPRING).start();
-        }
-
-        @Override
-        public boolean onTouch(View v, android.view.MotionEvent e) {
-            switch (e.getActionMasked()) {
-                case android.view.MotionEvent.ACTION_DOWN:
-                    down(v);
-                    break;
-                case android.view.MotionEvent.ACTION_UP:
-                case android.view.MotionEvent.ACTION_CANCEL:
-                    up(v);
-                    break;
-                default:
-                    break;
-            }
-            // Only watching: the click and the hold menu still happen as before.
-            return false;
-        }
-    }
+    // --- every bar -----------------------------------------------------------
 
     /**
      * The monitor's bar asks for the monitor's fastest refresh rate - the rate only, never a
@@ -2016,79 +1413,6 @@ public final class TaskbarRunning {
             }
         }
     }
-
-    /** Glass's ripple, or on a Retro bar a Windows 98 button that shows whether the app is open. */
-    private static Drawable iconBackground(Context ctx, int size, int displayId) {
-        return Theme.of(displayId).retro() ? Bevel.taskButton(ctx)
-                : Ui.ripple(ctx, 0x00000000, size / 2);
-    }
-
-    private static View iconFor(Context ctx, String key, int size, int displayId) {
-        int mark = key.indexOf(WINDOW_MARK);
-        String pkg = mark < 0 ? key : key.substring(0, mark);
-        int window = -1;
-        if (mark >= 0) {
-            try {
-                window = Integer.parseInt(key.substring(mark + 1));
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
-        }
-        final int taskId = window;
-        try {
-            PackageManager pm = ctx.getPackageManager();
-            Drawable art = pm.getApplicationIcon(pkg);
-            ImageView view = new ImageView(ctx);
-            view.setImageDrawable(art);
-            int inset = Math.max(1, size / 8);
-            view.setPadding(inset, inset, inset, inset);
-            view.setContentDescription(pm.getApplicationLabel(
-                    pm.getApplicationInfo(pkg, 0)).toString());
-            // What this icon stands for, read back by the marks and by anything else that asks an
-            // icon what it is. The launcher's own icons carry an item info here; ours carry this.
-            view.setTag(pkg);
-            view.setBackground(iconBackground(ctx, size, displayId));
-            view.setOnClickListener(v -> {
-                // A window icon is that window; the app's own icon, when it has several, is its
-                // first - always the same one, whichever is in front.
-                int target = taskId >= 0 ? taskId : firstWindow(pkg, displayId);
-                // That window already in front: minimised, as a desktop taskbar does, rather
-                // than opened again over itself.
-                if (TaskbarApps.minimizeIfFront(ctx, pkg, target, displayId)) {
-                    return;
-                }
-                if (target >= 0 && TaskOverview.bringToFront(target, displayId)) {
-                    return;
-                }
-                if (TaskbarApps.moveFromTablet(ctx, pkg, displayId)) {
-                    return;
-                }
-                try {
-                    Intent intent = pm.getLaunchIntentForPackage(pkg);
-                    if (intent == null) {
-                        return;
-                    }
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    ctx.startActivity(intent, QuickTiles.launchOptions(displayId));
-                } catch (Throwable t) {
-                    L.d("taskbar running: could not open " + pkg + " (" + t + ")");
-                }
-            });
-            // The same menu a pinned icon gives, for the same reason: from here on the bar is
-            // one row, and one row should not behave two ways.
-            view.setOnLongClickListener(v -> TaskbarApps.showMenu(v, pkg,
-                    android.os.Process.myUserHandle(), displayId,
-                    taskId >= 0 ? taskId : firstWindow(pkg, displayId)));
-            view.setOnTouchListener(new Press());
-            TaskbarPreview.attach(view, pkg, displayId, taskId);
-            TaskbarKeys.focusable(view, displayId);
-            return view;
-        } catch (Throwable t) {
-            // An app we cannot draw is an app we leave out.
-            return null;
-        }
-    }
-
     // --- keeping up -------------------------------------------------------
 
     private static void tick(ViewGroup dragLayer) {

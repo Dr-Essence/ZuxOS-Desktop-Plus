@@ -784,7 +784,7 @@ final class TaskbarStart {
             setContentDescription("Start");
             setOnClickListener(v -> press());
             setOnLongClickListener(v -> mZui != null && mZui.performLongClick());
-            View.OnTouchListener press = new TaskbarRunning.Press();
+            View.OnTouchListener press = new RunningIcons.Press();
             setOnTouchListener((v, e) -> {
                 if (e.getActionMasked() == MotionEvent.ACTION_DOWN
                         && L.once("TaskbarStart.touch " + TaskbarScope.label(v))) {

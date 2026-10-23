@@ -285,7 +285,7 @@ public final class TaskbarPreview {
         int taskId = tag instanceof Integer ? (Integer) tag : -1;
         Object pkg = icon.getTag(TAG_PKG);
         return taskId < 0 && pkg instanceof String
-                ? TaskbarRunning.firstWindow((String) pkg, display) : taskId;
+                ? RunningTasks.firstWindow((String) pkg, display) : taskId;
     }
 
     private static void show(View icon) {

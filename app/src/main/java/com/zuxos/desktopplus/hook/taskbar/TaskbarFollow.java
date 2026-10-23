@@ -406,7 +406,7 @@ final class TaskbarFollow {
         if (!dragLayer.isShown() || dragLayer.getWindowVisibility() != View.VISIBLE) {
             return false;
         }
-        String front = TaskbarRunning.frontPackage(TaskbarTray.displayIdOf(dragLayer));
+        String front = RunningTasks.frontPackage(TaskbarTray.displayIdOf(dragLayer));
         return front == null || isHome(dragLayer.getContext(), front);
     }
 

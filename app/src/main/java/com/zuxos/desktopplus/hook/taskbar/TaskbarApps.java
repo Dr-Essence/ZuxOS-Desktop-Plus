@@ -614,7 +614,7 @@ public final class TaskbarApps {
             String pkg) {
         List<Integer> ids = new ArrayList<>();
         for (android.app.ActivityManager.RunningTaskInfo t : tasks) {
-            if (pkg.equals(Tasks.packageOf(t)) && TaskbarRunning.isOpen(t)) {
+            if (pkg.equals(Tasks.packageOf(t)) && RunningTasks.isOpen(t)) {
                 ids.add(t.taskId);
             }
         }

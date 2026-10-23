@@ -27,7 +27,7 @@ import com.zuxos.desktopplus.core.motion.Hover;
 import com.zuxos.desktopplus.core.motion.Motion;
 import com.zuxos.desktopplus.core.theme.Theme;
 import com.zuxos.desktopplus.hook.taskbar.BarEdge;
-import com.zuxos.desktopplus.hook.taskbar.TaskbarRunning;
+import com.zuxos.desktopplus.hook.taskbar.RunningIcons;
 
 import java.util.List;
 
@@ -241,7 +241,7 @@ final class ShotTargets {
 
         tile.setContentDescription(name);
         tile.setOnClickListener(v -> onClick.run());
-        tile.setOnTouchListener(new TaskbarRunning.Press());
+        tile.setOnTouchListener(new RunningIcons.Press());
         tile.setOnHoverListener((v, e) -> {
             int action = e.getActionMasked();
             if (action == MotionEvent.ACTION_HOVER_ENTER && !theme.retro()) {

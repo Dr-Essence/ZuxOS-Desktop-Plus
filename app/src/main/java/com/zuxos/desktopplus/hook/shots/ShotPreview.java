@@ -43,7 +43,7 @@ import com.zuxos.desktopplus.hook.Probe;
 import com.zuxos.desktopplus.hook.Tasks;
 import com.zuxos.desktopplus.hook.system.SystemFullscreen;
 import com.zuxos.desktopplus.hook.taskbar.BarEdge;
-import com.zuxos.desktopplus.hook.taskbar.TaskbarRunning;
+import com.zuxos.desktopplus.hook.taskbar.RunningIcons;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarTray;
 
 import java.util.ArrayList;
@@ -174,7 +174,7 @@ final class ShotPreview {
             dismiss();
             launch(ctx, display, view(uri), true, "open");
         }));
-        picture.setOnTouchListener(new TaskbarRunning.Press());
+        picture.setOnTouchListener(new RunningIcons.Press());
         column.addView(picture, new LinearLayout.LayoutParams(thumbW, thumbH));
 
         LinearLayout actions = new LinearLayout(ctx);
@@ -494,7 +494,7 @@ final class ShotPreview {
                 }
             });
         }
-        b.setOnTouchListener(new TaskbarRunning.Press());
+        b.setOnTouchListener(new RunningIcons.Press());
         b.setOnHoverListener((v, e) -> {
             int a = e.getActionMasked();
             if (a == MotionEvent.ACTION_HOVER_ENTER && !theme.retro()) {

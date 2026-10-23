@@ -21,6 +21,7 @@ import com.zuxos.desktopplus.hook.taskbar.TaskbarApps;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarDiag;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarMenu;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarNav;
+import com.zuxos.desktopplus.hook.taskbar.RunningTasks;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarRunning;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarTray;
 
@@ -73,7 +74,7 @@ public final class Probe {
         try {
             StringBuilder sb = new StringBuilder("ZuxOS Desktop Plus probe (from the taskbar)\n");
             sb.append("display : ").append(displayId).append('\n');
-            String front = TaskbarRunning.frontPackage(displayId);
+            String front = RunningTasks.frontPackage(displayId);
             sb.append("front   : ").append(front).append('\n');
             try {
                 sb.append(describeTaskbarModel());

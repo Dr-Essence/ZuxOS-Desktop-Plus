@@ -48,7 +48,7 @@ import com.zuxos.desktopplus.core.theme.Theme;
 import com.zuxos.desktopplus.desktop.DesktopHost;
 import com.zuxos.desktopplus.hook.Overlays;
 import com.zuxos.desktopplus.hook.taskbar.BarEdge;
-import com.zuxos.desktopplus.hook.taskbar.TaskbarRunning;
+import com.zuxos.desktopplus.hook.taskbar.RunningIcons;
 import com.zuxos.desktopplus.logic.PopupSide;
 import com.zuxos.desktopplus.notify.NotifyProvider;
 
@@ -752,7 +752,7 @@ public final class NotifyPopup {
         b.setPadding(h, v, h, v);
         b.setBackground(theme.retro() ? Bevel.button(ctx)
                 : Ui.roundRect(accent ? Ui.COLOR_ACCENT : 0x1FFFFFFF, Ui.dp(ctx, 10)));
-        b.setOnTouchListener(new TaskbarRunning.Press());
+        b.setOnTouchListener(new RunningIcons.Press());
         b.setOnHoverListener((view, e) -> {
             int a = e.getActionMasked();
             if (a == MotionEvent.ACTION_HOVER_ENTER && !theme.retro()) {
