@@ -4,12 +4,14 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -49,6 +51,7 @@ public class MainActivity extends Activity {
         mRoot.setPadding(pad, pad, pad, pad);
         scroll.addView(mRoot, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        keepClearOfBars(scroll);
         setContentView(scroll);
 
         addStatus();
@@ -434,6 +437,23 @@ public class MainActivity extends Activity {
     }
 
     // --- building blocks -------------------------------------------------
+
+    /**
+     * The list between the bars. Android 15 and up draw an app that targets them edge to edge -
+     * under the status bar, a window's title bar, the navigation bar and the taskbar - so the
+     * first and last rows were cut off, full screen or in a window. Android 10 does not.
+     */
+    private static void keepClearOfBars(View list) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return;
+        }
+        list.setOnApplyWindowInsetsListener((v, insets) -> {
+            android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars()
+                    | WindowInsets.Type.displayCutout() | WindowInsets.Type.tappableElement());
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            return insets;
+        });
+    }
 
     private void addStatus() {
         boolean active = ModuleStatus.isActive();
