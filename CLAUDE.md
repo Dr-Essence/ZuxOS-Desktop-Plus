@@ -9,6 +9,9 @@ Read [`docs/ROADMAP.md`](docs/ROADMAP.md) before doing anything else. It is the 
 the rules, what is done, every bug fixed and whether the owner confirmed it, what is in progress,
 and what is planned, in order.
 
+When the owner says ZuxOS, ZUX Home or HeliBoard updated, follow
+[`docs/UPDATES.md`](docs/UPDATES.md).
+
 Then [`docs/ZUI-NOTES.md`](docs/ZUI-NOTES.md): what ZUI's own apps do, read from their decompiled
 code - which app runs which mode, the settings that switch them, ZUI's heat and app-killing
 policy, and where each of our hooks lands. Read it before hooking anything of ZUI's.

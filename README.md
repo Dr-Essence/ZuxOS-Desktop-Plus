@@ -27,7 +27,8 @@ nothing, look wrong or stop the home app. Before trying:
 **Feedback is welcome, never required.** If you try it and want to help, send what
 [Reporting a problem](#reporting-a-problem) asks for - the LSPosed log, a probe, and a screenshot
 or video - with your device and firmware. That is exactly what the next step, alpha testing on
-other ZuxOS devices, will be built from.
+other ZuxOS devices, will be built from. After a ZuxOS update, see
+[When ZuxOS updates](docs/UPDATES.md).
 
 > **Tested on a real device.** Every build has run on a Lenovo Legion Tab Gen 5 with ZuxOS
 > 2.0.10.026 (Android 16), driving an external 2560×1440 display. Each fix here came from that
@@ -457,6 +458,9 @@ something misbehaves.
    **Dump launcher info on attach** writes `probe.txt` on every attach, replacing the last one.
 2. Export the LSPosed log (Manager → Logs → save).
 3. Send both, with a screenshot if it is visual.
+
+Just updated ZuxOS, ZUX Home or HeliBoard? [When ZuxOS updates](docs/UPDATES.md) says what to
+check and send.
 
 The log has one line per taskbar whenever its contents change, like
 `taskbar running: display 2 open=[...] zui=[...] ours=[...]`. That line answers most "why isn't
