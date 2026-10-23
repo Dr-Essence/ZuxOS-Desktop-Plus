@@ -47,6 +47,10 @@ KEEP = {
     "Const.SORT_RECENT",
 }
 
+# Classes of constants only: javac copies each constant into its users, so the class itself is
+# never loaded and always looks unused. The source check below still covers every constant.
+CONSTANTS = {"Const", "HeliNames", "SystemNames"}
+
 
 def code_mask(text):
     """For each character, whether it is code - not a comment, a string or a char literal."""
@@ -122,7 +126,7 @@ def unreachable(classes, library):
             line = line.rstrip("\n")
             if not line.startswith(" "):
                 owner = line.rstrip(":").rsplit(".", 1)[-1]
-                if not line.endswith(":") and not owner == "Const":
+                if not line.endswith(":") and owner not in CONSTANTS:
                     found.append("class " + owner)
                 continue
             member = line.strip()

@@ -73,6 +73,10 @@ ask the owner for them again, and never copy any of it into this public reposito
   - The `catch (Throwable)` around every hook stays: it is the rule that the system process must
     never crash, and it keeps a ZUI update from taking ZUX Home down with it.
   - A log line said once per process goes behind `L.once(key)`, not a flag of its own.
+  - The names of another app's code that an area reaches (class, method, field) live in its
+    `...Names` class: `HeliNames` for `hook/keyboard`, `SystemNames` for `hook/system`. The
+    other areas get theirs as each is next worked on. Pure maths goes into `logic/`, with
+    tests.
 - **No dead code.** When a feature is replaced, the old path goes in the same change. Run
   `python3 tools/deadcode.py` and delete what it finds, after checking each finding is not
   reached by name (reflection, Xposed, another tool). Its `KEEP` list holds the ones that are.

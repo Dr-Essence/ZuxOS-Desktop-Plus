@@ -43,19 +43,19 @@ public final class SystemNewWindow {
         }
         sInstalled = true;
         try {
-            Class<?> starter = Class.forName("com.android.server.wm.ActivityStarter", false,
+            Class<?> starter = Class.forName(SystemNames.ACTIVITY_STARTER, false,
                     loader);
-            sIntent = starter.getDeclaredField("mIntent");
+            sIntent = starter.getDeclaredField(SystemNames.M_INTENT);
             sIntent.setAccessible(true);
-            sLaunchMode = starter.getDeclaredField("mLaunchMode");
+            sLaunchMode = starter.getDeclaredField(SystemNames.M_LAUNCH_MODE);
             sLaunchMode.setAccessible(true);
-            sLaunchFlags = starter.getDeclaredField("mLaunchFlags");
+            sLaunchFlags = starter.getDeclaredField(SystemNames.M_LAUNCH_FLAGS);
             sLaunchFlags.setAccessible(true);
             int initial = 0;
             StringBuilder near = new StringBuilder();
             for (Method m : starter.getDeclaredMethods()) {
                 String name = m.getName();
-                if (name.equals("setInitialState")) {
+                if (name.equals(SystemNames.SET_INITIAL_STATE)) {
                     XposedBridge.hookMethod(m, INITIAL);
                     initial++;
                 } else if (name.contains("Initial")) {
@@ -104,8 +104,8 @@ public final class SystemNewWindow {
     /** Whether the system's part is running - read from the launcher. */
     public static boolean active() {
         try {
-            Object v = Class.forName("android.os.SystemProperties")
-                    .getMethod("get", String.class).invoke(null, PROPERTY);
+            Object v = Class.forName(SystemNames.SYSTEM_PROPERTIES)
+                    .getMethod(SystemNames.GET, String.class).invoke(null, PROPERTY);
             return "on".equals(v);
         } catch (Throwable t) {
             return false;
@@ -114,8 +114,9 @@ public final class SystemNewWindow {
 
     private static void setProperty(String value) {
         try {
-            Class.forName("android.os.SystemProperties")
-                    .getMethod("set", String.class, String.class).invoke(null, PROPERTY, value);
+            Class.forName(SystemNames.SYSTEM_PROPERTIES)
+                    .getMethod(SystemNames.SET, String.class, String.class)
+                    .invoke(null, PROPERTY, value);
         } catch (Throwable ignored) {
             // Only for the launcher's message.
         }

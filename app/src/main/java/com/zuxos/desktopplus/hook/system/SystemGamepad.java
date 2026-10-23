@@ -54,7 +54,6 @@ public final class SystemGamepad {
     public static final String EXTRA_DISPLAY = "display";
     /** -1 for L1, 1 for R1. */
     public static final String EXTRA_STEP = "step";
-    private static final String LAUNCHER = "com.zui.launcher";
     /** How long Home is held for the home screen rather than the drawer. */
     private static final long HOLD_MS = 500L;
     private static final int L1 = 1;
@@ -98,11 +97,11 @@ public final class SystemGamepad {
         }
         sInstalled = true;
         try {
-            Class<?> policy = Class.forName("com.android.server.policy.PhoneWindowManager",
+            Class<?> policy = Class.forName(SystemNames.PHONE_WINDOW_MANAGER,
                     false, loader);
             int hooked = 0;
             for (Method m : policy.getDeclaredMethods()) {
-                if (m.getName().equals("interceptKeyBeforeDispatching")
+                if (m.getName().equals(SystemNames.INTERCEPT_KEY_BEFORE_DISPATCHING)
                         && m.getReturnType() == long.class && takesKey(m)) {
                     XposedBridge.hookMethod(m, KEY);
                     hooked++;
@@ -114,7 +113,7 @@ public final class SystemGamepad {
                 return;
             }
             try {
-                sDisplayId = InputEvent.class.getMethod("getDisplayId");
+                sDisplayId = InputEvent.class.getMethod(SystemNames.GET_DISPLAY_ID);
             } catch (Throwable t) {
                 // Every press goes to the tablet's screen.
             }
@@ -229,12 +228,13 @@ public final class SystemGamepad {
             }
             if (sHidesBar == null) {
                 Class<?> pwm = policy.getClass();
-                sFocusedDisplay = field(pwm, "mTopFocusedDisplayId");
-                sDisplayPolicy = field(pwm, "mDefaultDisplayPolicy");
-                sKeyguard = method(pwm, "isKeyguardShowingAndNotOccluded");
+                sFocusedDisplay = field(pwm, SystemNames.M_TOP_FOCUSED_DISPLAY_ID);
+                sDisplayPolicy = field(pwm, SystemNames.M_DEFAULT_DISPLAY_POLICY);
+                sKeyguard = method(pwm, SystemNames.IS_KEYGUARD_SHOWING_AND_NOT_OCCLUDED);
                 Object display = sDisplayPolicy == null ? null : sDisplayPolicy.get(policy);
                 sHidesBar = display == null ? null
-                        : method(display.getClass(), "topAppHidesSystemBar", int.class);
+                        : method(display.getClass(), SystemNames.TOP_APP_HIDES_SYSTEM_BAR,
+                                int.class);
                 if (sFocusedDisplay == null || sKeyguard == null || sHidesBar == null) {
                     throw new NoSuchMethodException("the policy's state");
                 }
@@ -265,11 +265,11 @@ public final class SystemGamepad {
     private static boolean keyboardUp(Object displayPolicy) {
         try {
             if (sImeWindow == null) {
-                Field content = field(displayPolicy.getClass(), "mDisplayContent");
+                Field content = field(displayPolicy.getClass(), SystemNames.M_DISPLAY_CONTENT);
                 Object displayContent = content == null ? null : content.get(displayPolicy);
                 sDisplayContent = content;
                 sImeWindow = displayContent == null ? null
-                        : field(displayContent.getClass(), "mInputMethodWindow");
+                        : field(displayContent.getClass(), SystemNames.M_INPUT_METHOD_WINDOW);
             }
             Object content = sDisplayContent == null ? null : sDisplayContent.get(displayPolicy);
             Object ime = content == null || sImeWindow == null ? null : sImeWindow.get(content);
@@ -277,7 +277,7 @@ public final class SystemGamepad {
                 return false;
             }
             if (sImeVisible == null) {
-                sImeVisible = method(ime.getClass(), "isVisible");
+                sImeVisible = method(ime.getClass(), SystemNames.IS_VISIBLE);
             }
             return sImeVisible != null && Boolean.TRUE.equals(sImeVisible.invoke(ime));
         } catch (Throwable t) {
@@ -376,7 +376,7 @@ public final class SystemGamepad {
      */
     private static UserHandle currentUser() {
         try {
-            Object current = UserHandle.class.getField("CURRENT").get(null);
+            Object current = UserHandle.class.getField(SystemNames.CURRENT).get(null);
             if (current instanceof UserHandle) {
                 return (UserHandle) current;
             }
@@ -410,7 +410,7 @@ public final class SystemGamepad {
             if (ctx == null) {
                 return;
             }
-            ctx.sendBroadcastAsUser(intent.setPackage(LAUNCHER)
+            ctx.sendBroadcastAsUser(intent.setPackage(SystemNames.ZUX_HOME)
                     .addFlags(Intent.FLAG_RECEIVER_FOREGROUND), currentUser());
         } catch (Throwable t) {
             L.w("system gamepad: ZUX Home not told (" + t + ")");

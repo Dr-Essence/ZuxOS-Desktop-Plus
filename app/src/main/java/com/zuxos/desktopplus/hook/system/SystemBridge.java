@@ -103,11 +103,11 @@ public final class SystemBridge {
 
         /** One window of an app closed, the others left running - what a launcher may not do. */
         private void closeTask(int taskId) throws Exception {
-            Object atm = Class.forName("android.app.ActivityTaskManager")
-                    .getMethod("getService").invoke(null);
+            Object atm = Class.forName(SystemNames.ACTIVITY_TASK_MANAGER)
+                    .getMethod(SystemNames.GET_SERVICE).invoke(null);
             long identity = Binder.clearCallingIdentity();
             try {
-                Object removed = atm.getClass().getMethod("removeTask", int.class)
+                Object removed = atm.getClass().getMethod(SystemNames.REMOVE_TASK, int.class)
                         .invoke(atm, taskId);
                 L.i("system bridge: closed task " + taskId + " (" + removed + ")");
             } finally {
@@ -121,21 +121,22 @@ public final class SystemBridge {
             Object token = null;
             for (ActivityManager.RunningTaskInfo task : am.getRunningTasks(100)) {
                 if (task.taskId == taskId) {
-                    token = Reflect.field(task, "token");
+                    token = Reflect.field(task, SystemNames.TOKEN);
                 }
             }
             if (token == null) {
                 L.i("system bridge: no task " + taskId + " to minimise");
                 return;
             }
-            Class<?> wctClass = Class.forName("android.window.WindowContainerTransaction");
+            Class<?> wctClass = Class.forName(SystemNames.WINDOW_CONTAINER_TRANSACTION);
             Object wct = wctClass.getConstructor().newInstance();
-            wctClass.getMethod("reorder", Class.forName("android.window.WindowContainerToken"),
-                    boolean.class).invoke(wct, token, false);
-            Class<?> organizer = Class.forName("android.window.WindowOrganizer");
+            wctClass.getMethod(SystemNames.REORDER,
+                    Class.forName(SystemNames.WINDOW_CONTAINER_TOKEN), boolean.class)
+                    .invoke(wct, token, false);
+            Class<?> organizer = Class.forName(SystemNames.WINDOW_ORGANIZER);
             long identity = Binder.clearCallingIdentity();
             try {
-                organizer.getMethod("applyTransaction", wctClass)
+                organizer.getMethod(SystemNames.APPLY_TRANSACTION, wctClass)
                         .invoke(organizer.getConstructor().newInstance(), wct);
             } finally {
                 Binder.restoreCallingIdentity(identity);
@@ -146,10 +147,10 @@ public final class SystemBridge {
 
     static Context systemContext() {
         try {
-            Class<?> thread = Class.forName("android.app.ActivityThread");
-            Object current = thread.getMethod("currentActivityThread").invoke(null);
+            Class<?> thread = Class.forName(SystemNames.ACTIVITY_THREAD);
+            Object current = thread.getMethod(SystemNames.CURRENT_ACTIVITY_THREAD).invoke(null);
             return current == null ? null
-                    : (Context) thread.getMethod("getSystemContext").invoke(current);
+                    : (Context) thread.getMethod(SystemNames.GET_SYSTEM_CONTEXT).invoke(current);
         } catch (Throwable t) {
             return null;
         }

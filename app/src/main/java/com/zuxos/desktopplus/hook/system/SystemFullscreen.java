@@ -49,17 +49,17 @@ public final class SystemFullscreen {
         sInstalled = true;
         int hooked = 0;
         try {
-            sActivityRecord = Class.forName("com.android.server.wm.ActivityRecord", false,
+            sActivityRecord = Class.forName(SystemNames.ACTIVITY_RECORD, false,
                     loader);
-            sRecordIntent = field(sActivityRecord, "intent");
+            sRecordIntent = field(sActivityRecord, SystemNames.INTENT);
             Class<?> params = Class.forName(
-                    "com.android.server.wm.LaunchParamsController$LaunchParams", false, loader);
-            sMode = field(params, "mWindowingMode");
-            sBounds = field(params, "mBounds");
+                    SystemNames.LAUNCH_PARAMS, false, loader);
+            sMode = field(params, SystemNames.M_WINDOWING_MODE);
+            sBounds = field(params, SystemNames.M_BOUNDS);
             Class<?> controller = Class.forName(
-                    "com.android.server.wm.LaunchParamsController", false, loader);
+                    SystemNames.LAUNCH_PARAMS_CONTROLLER, false, loader);
             for (Method m : controller.getDeclaredMethods()) {
-                if (m.getName().equals("calculate")) {
+                if (m.getName().equals(SystemNames.CALCULATE)) {
                     XposedBridge.hookMethod(m, CALCULATE);
                     hooked++;
                 }
@@ -68,8 +68,8 @@ public final class SystemFullscreen {
             L.i("system fullscreen: launch params not reachable (" + t + ")");
         }
         try {
-            sTask = Class.forName("com.android.server.wm.Task", false, loader);
-            sTaskIntent = field(sTask, "intent");
+            sTask = Class.forName(SystemNames.TASK, false, loader);
+            sTaskIntent = field(sTask, SystemNames.INTENT);
             // Declared on the task or on one of the classes it extends, depending on the build.
             for (Class<?> c = sTask; c != null && c != Object.class; c = c.getSuperclass()) {
                 Method m = setter(c);
@@ -101,7 +101,8 @@ public final class SystemFullscreen {
     private static Method setter(Class<?> c) {
         for (Method m : c.getDeclaredMethods()) {
             Class<?>[] p = m.getParameterTypes();
-            if (m.getName().equals("setWindowingMode") && p.length == 1 && p[0] == int.class) {
+            if (m.getName().equals(SystemNames.SET_WINDOWING_MODE) && p.length == 1
+                    && p[0] == int.class) {
                 return m;
             }
         }

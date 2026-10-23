@@ -58,13 +58,6 @@ import de.robv.android.xposed.XposedBridge;
  */
 public final class HeliPad {
 
-    private static final String LATIN = "helium314.keyboard.latin.LatinIME";
-    private static final String KEYS = "helium314.keyboard.keyboard.MainKeyboardView";
-    private static final String INPUT = "helium314.keyboard.latin.InputView";
-    private static final String POINTERS = "helium314.keyboard.keyboard.PointerTracker";
-    private static final String SETTINGS = "helium314.keyboard.latin.settings.Settings";
-    private static final String COLOR_TYPE = "helium314.keyboard.latin.common.ColorType";
-
     /** HeliBoard's codes: its delete, space and action keys, and its cursor arrows. */
     private static final int CODE_DELETE = -7;
     private static final int CODE_SPACE = ' ';
@@ -148,34 +141,35 @@ public final class HeliPad {
 
     public static void install(ClassLoader loader) {
         try {
-            Class<?> ime = Reflect.findClass(LATIN, loader);
-            Class<?> keys = Reflect.findClass(KEYS, loader);
+            Class<?> ime = Reflect.findClass(HeliNames.LATIN_IME, loader);
+            Class<?> keys = Reflect.findClass(HeliNames.MAIN_KEYBOARD_VIEW, loader);
             if (ime == null || keys == null) {
                 L.w("heli pad: HeliBoard's keyboard not found - the controller types nothing");
                 return;
             }
-            int hooked = XposedBridge.hookAllMethods(ime, "onKeyDown", KEY).size()
-                    + XposedBridge.hookAllMethods(ime, "onKeyUp", KEY).size();
+            int hooked = XposedBridge.hookAllMethods(ime, HeliNames.ON_KEY_DOWN, KEY).size()
+                    + XposedBridge.hookAllMethods(ime, HeliNames.ON_KEY_UP, KEY).size();
             XC_MethodHook gone = new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     hide();
                 }
             };
-            hooked += XposedBridge.hookAllMethods(ime, "onFinishInputView", gone).size()
-                    + XposedBridge.hookAllMethods(ime, "onWindowHidden", gone).size();
-            hooked += XposedBridge.hookAllMethods(keys, "setKeyboard", new XC_MethodHook() {
-                @Override
-                protected void afterHookedMethod(MethodHookParam param) {
-                    if (sOn && param.thisObject instanceof View) {
-                        View view = (View) param.thisObject;
-                        view.post(() -> follow(view));
-                    }
-                }
-            }).size();
-            Class<?> input = Reflect.findClass(INPUT, loader);
+            hooked += XposedBridge.hookAllMethods(ime, HeliNames.ON_FINISH_INPUT_VIEW, gone).size()
+                    + XposedBridge.hookAllMethods(ime, HeliNames.ON_WINDOW_HIDDEN, gone).size();
+            hooked += XposedBridge.hookAllMethods(keys, HeliNames.SET_KEYBOARD,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            if (sOn && param.thisObject instanceof View) {
+                                View view = (View) param.thisObject;
+                                view.post(() -> follow(view));
+                            }
+                        }
+                    }).size();
+            Class<?> input = Reflect.findClass(HeliNames.INPUT_VIEW, loader);
             if (input != null) {
-                hooked += XposedBridge.hookAllMethods(input, "onInterceptTouchEvent",
+                hooked += XposedBridge.hookAllMethods(input, HeliNames.ON_INTERCEPT_TOUCH_EVENT,
                         new XC_MethodHook() {
                             @Override
                             protected void beforeHookedMethod(MethodHookParam param) {
@@ -220,7 +214,7 @@ public final class HeliPad {
                 return true;
             }
             View keys = mainKeyboard(ime);
-            Object root = Reflect.field(ime, "mInputView");
+            Object root = Reflect.field(ime, HeliNames.M_INPUT_VIEW);
             if (!Cfg.gamepadKeyboard() || keys == null || !(root instanceof ViewGroup)
                     || !keys.isShown()) {
                 // Its emoji or clipboard view, or no keyboard: HeliBoard's own.
@@ -379,8 +373,8 @@ public final class HeliPad {
             if (t.key == null) {
                 continue;
             }
-            if (code == CODE_ENTER && intOf(t.key, "getBackgroundType", "mBackgroundType")
-                    == BACKGROUND_ACTION) {
+            if (code == CODE_ENTER && intOf(t.key, HeliNames.GET_BACKGROUND_TYPE,
+                    HeliNames.M_BACKGROUND_TYPE) == BACKGROUND_ACTION) {
                 // The action key, whatever it sends: Enter, a shifted Enter, Go, Search, Next.
                 return t;
             }
@@ -403,16 +397,16 @@ public final class HeliPad {
             touch(button, ID_CAPS, keys, key.x, key.y);
             return;
         }
-        Object listener = Reflect.field(ime, "mKeyboardActionListener");
+        Object listener = Reflect.field(ime, HeliNames.M_KEYBOARD_ACTION_LISTENER);
         Method press = null;
         Method input4 = null;
         Method release = null;
         for (Method m : listener == null ? new Method[0] : listener.getClass().getMethods()) {
-            if (m.getName().equals("onPressKey") && m.getParameterCount() == 4) {
+            if (m.getName().equals(HeliNames.ON_PRESS_KEY) && m.getParameterCount() == 4) {
                 press = m;
-            } else if (m.getName().equals("onCodeInput") && m.getParameterCount() == 4) {
+            } else if (m.getName().equals(HeliNames.ON_CODE_INPUT) && m.getParameterCount() == 4) {
                 input4 = m;
-            } else if (m.getName().equals("onReleaseKey") && m.getParameterCount() == 2) {
+            } else if (m.getName().equals(HeliNames.ON_RELEASE_KEY) && m.getParameterCount() == 2) {
                 release = m;
             }
         }
@@ -441,7 +435,7 @@ public final class HeliPad {
             return null;
         }
         try {
-            return Enum.valueOf((Class<? extends Enum>) type, "KEY_PRESS");
+            return Enum.valueOf((Class<? extends Enum>) type, HeliNames.KEY_PRESS);
         } catch (IllegalArgumentException renamed) {
             Object[] all = type.getEnumConstants();
             return all.length > 0 ? all[0] : null;
@@ -495,7 +489,7 @@ public final class HeliPad {
         try {
             if (sProcess == null && !sNoProcess) {
                 try {
-                    sProcess = press.keys.getClass().getMethod("processMotionEvent",
+                    sProcess = press.keys.getClass().getMethod(HeliNames.PROCESS_MOTION_EVENT,
                             MotionEvent.class);
                 } catch (NoSuchMethodException inlined) {
                     sNoProcess = true;
@@ -530,21 +524,22 @@ public final class HeliPad {
             return false;
         }
         try {
-            Class<?> trackers = Class.forName(POINTERS, false,
+            Class<?> trackers = Class.forName(HeliNames.POINTER_TRACKER, false,
                     press.keys.getClass().getClassLoader());
             Object tracker = null;
             for (Method m : trackers.getMethods()) {
-                if (m.getName().equals("getPointerTracker") && m.getParameterCount() == 1) {
+                if (m.getName().equals(HeliNames.GET_POINTER_TRACKER)
+                        && m.getParameterCount() == 1) {
                     tracker = m.invoke(null, press.id);
                 }
             }
-            Object panel = Reflect.field(tracker, "mPopupKeysPanel");
+            Object panel = Reflect.field(tracker, HeliNames.M_POPUP_KEYS_PANEL);
             if (!(panel instanceof View)) {
                 return false;
             }
             View popup = (View) panel;
-            Object originX = Reflect.field(popup, "mOriginX");
-            Object originY = Reflect.field(popup, "mOriginY");
+            Object originX = Reflect.field(popup, HeliNames.M_ORIGIN_X);
+            Object originY = Reflect.field(popup, HeliNames.M_ORIGIN_Y);
             if (!(originX instanceof Integer) || !(originY instanceof Integer)) {
                 return false;
             }
@@ -554,10 +549,12 @@ public final class HeliPad {
             }
             List<Target> keys = new ArrayList<>();
             for (Object key : keysOf(popup)) {
-                int x = intOf(key, "getX", "mX") + popup.getPaddingLeft() + (Integer) originX;
-                int y = intOf(key, "getY", "mY") + popup.getPaddingTop() + (Integer) originY;
-                int w = intOf(key, "getWidth", "mWidth");
-                int h = intOf(key, "getHeight", "mHeight");
+                int x = intOf(key, HeliNames.GET_X, HeliNames.M_X) + popup.getPaddingLeft()
+                        + (Integer) originX;
+                int y = intOf(key, HeliNames.GET_Y, HeliNames.M_Y) + popup.getPaddingTop()
+                        + (Integer) originY;
+                int w = intOf(key, HeliNames.GET_WIDTH, HeliNames.M_WIDTH);
+                int h = intOf(key, HeliNames.GET_HEIGHT, HeliNames.M_HEIGHT);
                 if (w > 0 && h > 0) {
                     keys.add(new Target(key, null, new Rect(x, y, x + w, y + h), 0,
                             x + w / 2f, y + h / 2f));
@@ -579,13 +576,13 @@ public final class HeliPad {
 
     /** L1 or R1: HeliBoard's own cursor arrow, as its toolbar sends it. */
     private static void codeInput(Object ime, int code) {
-        Object listener = Reflect.field(ime, "mKeyboardActionListener");
+        Object listener = Reflect.field(ime, HeliNames.M_KEYBOARD_ACTION_LISTENER);
         if (listener == null) {
             said("HeliBoard's key listener not found - L1 and R1 do nothing");
             return;
         }
         for (Method m : listener.getClass().getMethods()) {
-            if (m.getName().equals("onCodeInput") && m.getParameterCount() == 4) {
+            if (m.getName().equals(HeliNames.ON_CODE_INPUT) && m.getParameterCount() == 4) {
                 try {
                     m.invoke(listener, code, NO_COORDINATE, NO_COORDINATE, false);
                 } catch (Throwable t) {
@@ -637,10 +634,10 @@ public final class HeliPad {
 
     /** HeliBoard's main keyboard view ({@code KeyboardSwitcher.getMainKeyboardView}). */
     private static View mainKeyboard(Object ime) {
-        Object switcher = Reflect.field(ime, "mKeyboardSwitcher");
-        Object view = Reflect.call(switcher, "getMainKeyboardView");
+        Object switcher = Reflect.field(ime, HeliNames.M_KEYBOARD_SWITCHER);
+        Object view = Reflect.call(switcher, HeliNames.GET_MAIN_KEYBOARD_VIEW);
         if (view == null) {
-            view = Reflect.field(switcher, "mKeyboardView");
+            view = Reflect.field(switcher, HeliNames.M_KEYBOARD_VIEW);
         }
         return view instanceof View ? (View) view : null;
     }
@@ -648,7 +645,7 @@ public final class HeliPad {
     /** Every key of the shown keyboard and every item of the strip, in the window's root. */
     private static List<Target> targets(View keys, ViewGroup input, Object ime) {
         List<Target> all = keyTargets(keys, input);
-        Object strip = Reflect.field(ime, "mSuggestionStripView");
+        Object strip = Reflect.field(ime, HeliNames.M_SUGGESTION_STRIP_VIEW);
         if (strip instanceof ViewGroup && ((View) strip).isShown()) {
             addItems((ViewGroup) strip, input, all);
         }
@@ -662,21 +659,21 @@ public final class HeliPad {
      */
     private static List<Target> keyTargets(View keys, ViewGroup input) {
         List<Target> all = new ArrayList<>();
-        float correction = floatOf(Reflect.call(keys, "getVerticalCorrection"));
+        float correction = floatOf(Reflect.call(keys, HeliNames.GET_VERTICAL_CORRECTION));
         for (Object key : keysOf(keys)) {
-            if (key.getClass().getName().endsWith("$Spacer")) {
+            if (key.getClass().getName().endsWith(HeliNames.SPACER)) {
                 continue;
             }
-            int x = intOf(key, "getX", "mX") + keys.getPaddingLeft();
-            int y = intOf(key, "getY", "mY") + keys.getPaddingTop();
-            int w = intOf(key, "getWidth", "mWidth");
-            int h = intOf(key, "getHeight", "mHeight");
+            int x = intOf(key, HeliNames.GET_X, HeliNames.M_X) + keys.getPaddingLeft();
+            int y = intOf(key, HeliNames.GET_Y, HeliNames.M_Y) + keys.getPaddingTop();
+            int w = intOf(key, HeliNames.GET_WIDTH, HeliNames.M_WIDTH);
+            int h = intOf(key, HeliNames.GET_HEIGHT, HeliNames.M_HEIGHT);
             if (w <= 0 || h <= 0) {
                 continue;
             }
             Rect rect = new Rect(x, y, x + w, y + h);
             input.offsetDescendantRectToMyCoords(keys, rect);
-            all.add(new Target(key, null, rect, intOf(key, "getCode", "mCode"),
+            all.add(new Target(key, null, rect, intOf(key, HeliNames.GET_CODE, HeliNames.M_CODE),
                     x + w / 2f, y + h / 2f - correction));
         }
         return all;
@@ -704,13 +701,13 @@ public final class HeliPad {
     }
 
     private static List<?> keysOf(View view) {
-        Object keyboard = Reflect.call(view, "getKeyboard");
+        Object keyboard = Reflect.call(view, HeliNames.GET_KEYBOARD);
         if (keyboard == null) {
-            keyboard = Reflect.field(view, "mKeyboard");
+            keyboard = Reflect.field(view, HeliNames.M_KEYBOARD);
         }
-        Object keys = Reflect.call(keyboard, "getSortedKeys");
+        Object keys = Reflect.call(keyboard, HeliNames.GET_SORTED_KEYS);
         if (keys == null) {
-            keys = Reflect.field(keyboard, "mSortedKeys");
+            keys = Reflect.field(keyboard, HeliNames.M_SORTED_KEYS);
         }
         return keys instanceof List ? (List<?>) keys : new ArrayList<>();
     }
@@ -898,20 +895,20 @@ public final class HeliPad {
     private static int accent(View input) {
         try {
             ClassLoader loader = input.getClass().getClassLoader();
-            Class<?> settings = Class.forName(SETTINGS, false, loader);
+            Class<?> settings = Class.forName(HeliNames.SETTINGS, false, loader);
             Object values;
             try {
-                values = settings.getMethod("getValues").invoke(null);
+                values = settings.getMethod(HeliNames.GET_VALUES).invoke(null);
             } catch (NoSuchMethodException inlined) {
-                java.lang.reflect.Field one = settings.getDeclaredField("sInstance");
+                java.lang.reflect.Field one = settings.getDeclaredField(HeliNames.S_INSTANCE);
                 one.setAccessible(true);
-                values = Reflect.field(one.get(null), "mSettingsValues");
+                values = Reflect.field(one.get(null), HeliNames.M_SETTINGS_VALUES);
             }
-            Object colors = Reflect.field(values, "mColors");
-            Class<? extends Enum> type = (Class<? extends Enum>) Class.forName(COLOR_TYPE, false,
-                    loader);
-            Object accent = Enum.valueOf(type, "ACTION_KEY_BACKGROUND");
-            Object colour = colors.getClass().getMethod("get", type).invoke(colors, accent);
+            Object colors = Reflect.field(values, HeliNames.M_COLORS);
+            Class<? extends Enum> type = (Class<? extends Enum>) Class.forName(
+                    HeliNames.COLOR_TYPE, false, loader);
+            Object accent = Enum.valueOf(type, HeliNames.ACTION_KEY_BACKGROUND);
+            Object colour = colors.getClass().getMethod(HeliNames.GET, type).invoke(colors, accent);
             if (colour instanceof Integer) {
                 return (Integer) colour;
             }

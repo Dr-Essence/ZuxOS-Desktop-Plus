@@ -34,13 +34,13 @@ import de.robv.android.xposed.XposedBridge;
  * the call Android has for exactly this) ties each external touchscreen to the external screen
  * whenever either changes: after the screens are handed to the input system, and after the input
  * devices change. Only with one external screen, only wired touchscreens and pens - the tablet's
- * own are internal or Bluetooth - and taken off again when the screen goes, so the next one is tied afresh. The
- * screens handed over are written to the log at each change. Nothing runs at load time but the
- * hooks; everything is in try/catch, on the threads the system already runs these on.
+ * own are internal or Bluetooth - and taken off again when the screen goes, so the next one is
+ * tied afresh. The screens handed over are written to the log at each change. Nothing runs at load
+ * time but the hooks; everything is in try/catch, on the threads the system already runs these
+ * on.
  */
 public final class TouchScreens {
 
-    private static final String INPUT = "com.android.server.input.InputManagerService";
     /** {@code DisplayViewport.VIEWPORT_EXTERNAL}. */
     private static final int EXTERNAL = 2;
 
@@ -62,21 +62,22 @@ public final class TouchScreens {
         }
         sInstalled = true;
         try {
-            Class<?> input = Class.forName(INPUT, false, loader);
-            sViewports = input.getDeclaredField("mDisplayViewportList");
+            Class<?> input = Class.forName(SystemNames.INPUT_MANAGER_SERVICE, false, loader);
+            sViewports = input.getDeclaredField(SystemNames.M_DISPLAY_VIEWPORT_LIST);
             sViewports.setAccessible(true);
-            sAdd = input.getMethod("addUniqueIdAssociationByDescriptor", String.class,
+            sAdd = input.getMethod(SystemNames.ADD_UNIQUE_ID_ASSOCIATION_BY_DESCRIPTOR,
+                    String.class, String.class);
+            sRemove = input.getMethod(SystemNames.REMOVE_UNIQUE_ID_ASSOCIATION_BY_DESCRIPTOR,
                     String.class);
-            sRemove = input.getMethod("removeUniqueIdAssociationByDescriptor", String.class);
-            int hooked = XposedBridge.hookAllMethods(input, "setDisplayViewportsInternal",
-                    new XC_MethodHook() {
+            int hooked = XposedBridge.hookAllMethods(input,
+                    SystemNames.SET_DISPLAY_VIEWPORTS_INTERNAL, new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
                             write(param.args);
                             tie(param.thisObject);
                         }
                     }).size();
-            hooked += XposedBridge.hookAllMethods(input, "deliverInputDevicesChanged",
+            hooked += XposedBridge.hookAllMethods(input, SystemNames.DELIVER_INPUT_DEVICES_CHANGED,
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
@@ -116,7 +117,7 @@ public final class TouchScreens {
             String screen = Cfg.monitorTouch() ? externalScreen(input) : null;
             List<String> touch = new ArrayList<>();
             for (InputDevice device : (InputDevice[]) input.getClass()
-                    .getMethod("getInputDevices").invoke(input)) {
+                    .getMethod(SystemNames.GET_INPUT_DEVICES).invoke(input)) {
                 if (onTheMonitor(device)) {
                     touch.add(device.getDescriptor());
                 }
@@ -155,7 +156,7 @@ public final class TouchScreens {
     private static boolean onTheMonitor(InputDevice device) {
         return device != null && device.isExternal() && !device.isVirtual()
                 // getBluetoothAddress is hidden from the SDK: by name.
-                && Reflect.call(device, "getBluetoothAddress") == null
+                && Reflect.call(device, SystemNames.GET_BLUETOOTH_ADDRESS) == null
                 && (device.supportsSource(InputDevice.SOURCE_TOUCHSCREEN)
                 || device.supportsSource(InputDevice.SOURCE_STYLUS));
     }
@@ -168,9 +169,9 @@ public final class TouchScreens {
             for (Object viewport : viewports) {
                 // DisplayViewport is hidden from apps: its public fields, by name.
                 Class<?> c = viewport.getClass();
-                Object uniqueId = c.getField("uniqueId").get(viewport);
-                if (c.getField("type").getInt(viewport) != EXTERNAL
-                        || !c.getField("valid").getBoolean(viewport)
+                Object uniqueId = c.getField(SystemNames.UNIQUE_ID).get(viewport);
+                if (c.getField(SystemNames.TYPE).getInt(viewport) != EXTERNAL
+                        || !c.getField(SystemNames.VALID).getBoolean(viewport)
                         || !(uniqueId instanceof String)) {
                     continue;
                 }

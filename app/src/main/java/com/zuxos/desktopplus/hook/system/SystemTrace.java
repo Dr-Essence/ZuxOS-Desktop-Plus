@@ -27,11 +27,9 @@ import de.robv.android.xposed.XposedBridge;
  */
 public final class SystemTrace {
 
-    private static final String CONTROLLER = "com.android.server.wm.WindowOrganizerController";
     private static final String[] NAMES = {
-            "applyTransaction", "applySyncTransaction", "startTransition",
-            "startLegacyTransition"};
-    private static final String TRANSACTION = "android.window.WindowContainerTransaction";
+            SystemNames.APPLY_TRANSACTION, SystemNames.APPLY_SYNC_TRANSACTION,
+            SystemNames.START_TRANSITION, SystemNames.START_LEGACY_TRANSITION};
     private static final int MAX_LINES = 40;
     private static final int MAX_SIZE_LINES = 20;
     /** {@code WindowConfiguration.WINDOW_CONFIG_BOUNDS}: the change sets the window's bounds. */
@@ -53,7 +51,8 @@ public final class SystemTrace {
         sInstalled = true;
         int hooked = 0;
         try {
-            Class<?> controller = Class.forName(CONTROLLER, false, loader);
+            Class<?> controller = Class.forName(SystemNames.WINDOW_ORGANIZER_CONTROLLER, false,
+                    loader);
             for (Method m : controller.getDeclaredMethods()) {
                 if (internal(m)) {
                     continue;
@@ -101,22 +100,23 @@ public final class SystemTrace {
      */
     private static Line describe(Object wct) throws Exception {
         java.util.Map<?, ?> changes = (java.util.Map<?, ?>) wct.getClass()
-                .getMethod("getChanges").invoke(wct);
+                .getMethod(SystemNames.GET_CHANGES).invoke(wct);
         StringBuilder sb = new StringBuilder();
         boolean modes = false;
         boolean sizes = false;
         for (Object change : changes.values()) {
             Class<?> c = change.getClass();
-            int mode = (int) c.getMethod("getWindowingMode").invoke(change);
-            int activity = (int) c.getMethod("getActivityWindowingMode").invoke(change);
-            int windowMask = (int) c.getMethod("getWindowSetMask").invoke(change);
-            int configMask = (int) c.getMethod("getConfigSetMask").invoke(change);
-            int changeMask = (int) c.getMethod("getChangeMask").invoke(change);
-            Object config = c.getMethod("getConfiguration").invoke(change);
+            int mode = (int) c.getMethod(SystemNames.GET_WINDOWING_MODE).invoke(change);
+            int activity = (int) c.getMethod(SystemNames.GET_ACTIVITY_WINDOWING_MODE)
+                    .invoke(change);
+            int windowMask = (int) c.getMethod(SystemNames.GET_WINDOW_SET_MASK).invoke(change);
+            int configMask = (int) c.getMethod(SystemNames.GET_CONFIG_SET_MASK).invoke(change);
+            int changeMask = (int) c.getMethod(SystemNames.GET_CHANGE_MASK).invoke(change);
+            Object config = c.getMethod(SystemNames.GET_CONFIGURATION).invoke(change);
             Object window = config == null ? null
-                    : config.getClass().getField("windowConfiguration").get(config);
+                    : config.getClass().getField(SystemNames.WINDOW_CONFIGURATION).get(config);
             Object bounds = window == null ? null
-                    : window.getClass().getMethod("getBounds").invoke(window);
+                    : window.getClass().getMethod(SystemNames.GET_BOUNDS).invoke(window);
             modes |= mode >= 0 || activity >= 0;
             sizes |= (windowMask & WINDOW_CONFIG_BOUNDS) != 0;
             sb.append("{mode=").append(mode).append(" activityMode=").append(activity)
@@ -129,7 +129,7 @@ public final class SystemTrace {
         if (!modes && !sizes) {
             return null;
         }
-        Object hops = wct.getClass().getMethod("getHierarchyOps").invoke(wct);
+        Object hops = wct.getClass().getMethod(SystemNames.GET_HIERARCHY_OPS).invoke(wct);
         String ops = String.valueOf(hops);
         if (ops.length() > 400) {
             ops = ops.substring(0, 400) + "...";
@@ -150,7 +150,8 @@ public final class SystemTrace {
                         // A transition's type, ahead of its transaction.
                         type = (Integer) arg;
                     }
-                    if (arg == null || !TRANSACTION.equals(arg.getClass().getName())) {
+                    if (arg == null || !SystemNames.WINDOW_CONTAINER_TRANSACTION
+                            .equals(arg.getClass().getName())) {
                         continue;
                     }
                     if (sLast.get() == arg) {

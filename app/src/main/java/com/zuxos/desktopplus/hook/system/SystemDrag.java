@@ -50,18 +50,19 @@ public final class SystemDrag {
         }
         sInstalled = true;
         try {
-            Class<?> state = Class.forName("com.android.server.wm.DragState", false, loader);
-            sFlags = state.getDeclaredField("mFlags");
+            Class<?> state = Class.forName(SystemNames.DRAG_STATE, false, loader);
+            sFlags = state.getDeclaredField(SystemNames.M_FLAGS);
             sFlags.setAccessible(true);
-            sUid = state.getDeclaredField("mUid");
+            sUid = state.getDeclaredField(SystemNames.M_UID);
             sUid.setAccessible(true);
-            Class<?> window = Class.forName("com.android.server.wm.WindowState", false, loader);
-            sOwningUid = window.getDeclaredMethod("getOwningUid");
+            Class<?> window = Class.forName(SystemNames.WINDOW_STATE, false, loader);
+            sOwningUid = window.getDeclaredMethod(SystemNames.GET_OWNING_UID);
             sOwningUid.setAccessible(true);
             int hooked = 0;
             for (Method m : state.getDeclaredMethods()) {
-                if (m.getName().equals("isValidDropTarget") && m.getParameterCount() > 0
-                        && m.getParameterTypes()[0] == window && m.getReturnType() == boolean.class) {
+                if (m.getName().equals(SystemNames.IS_VALID_DROP_TARGET)
+                        && m.getParameterCount() > 0 && m.getParameterTypes()[0] == window
+                        && m.getReturnType() == boolean.class) {
                     XposedBridge.hookMethod(m, TARGET);
                     hooked++;
                 }
@@ -81,16 +82,16 @@ public final class SystemDrag {
      */
     private static int hookDropTrace(Class<?> state, Class<?> window) {
         try {
-            sDescription = state.getDeclaredField("mDataDescription");
+            sDescription = state.getDeclaredField(SystemNames.M_DATA_DESCRIPTION);
             sDescription.setAccessible(true);
-            sService = state.getDeclaredField("mService");
+            sService = state.getDeclaredField(SystemNames.M_SERVICE);
             sService.setAccessible(true);
-            sInputToWindow = sService.getType().getDeclaredField("mInputToWindowMap");
+            sInputToWindow = sService.getType().getDeclaredField(SystemNames.M_INPUT_TO_WINDOW_MAP);
             sInputToWindow.setAccessible(true);
-            sNotified = state.getDeclaredMethod("isWindowNotified", window);
+            sNotified = state.getDeclaredMethod(SystemNames.IS_WINDOW_NOTIFIED, window);
             sNotified.setAccessible(true);
-            Method inner = state.getDeclaredMethod("reportDropWindowLockInner", IBinder.class,
-                    float.class, float.class);
+            Method inner = state.getDeclaredMethod(SystemNames.REPORT_DROP_WINDOW_LOCK_INNER,
+                    IBinder.class, float.class, float.class);
             XposedBridge.hookMethod(inner, DROP);
             return 1;
         } catch (Throwable t) {

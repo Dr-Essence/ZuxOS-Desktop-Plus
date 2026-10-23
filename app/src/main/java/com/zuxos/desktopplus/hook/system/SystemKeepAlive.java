@@ -81,11 +81,12 @@ public final class SystemKeepAlive {
         int adj = 0;
         int kills = 0;
         try {
-            Class<?> state = Class.forName("com.android.server.am.ProcessStateRecord", false,
+            Class<?> state = Class.forName(SystemNames.PROCESS_STATE_RECORD, false,
                     loader);
             for (Method m : state.getDeclaredMethods()) {
                 Class<?>[] p = m.getParameterTypes();
-                if (m.getName().equals("setCurAdj") && p.length == 1 && p[0] == int.class) {
+                if (m.getName().equals(SystemNames.SET_CUR_ADJ) && p.length == 1
+                        && p[0] == int.class) {
                     XposedBridge.hookMethod(m, CUR_ADJ);
                     adj++;
                 }
@@ -94,11 +95,11 @@ public final class SystemKeepAlive {
             L.i("system keep-alive: no ProcessStateRecord.setCurAdj (" + t + ")");
         }
         try {
-            Class<?> list = Class.forName("com.android.server.am.ProcessList", false, loader);
+            Class<?> list = Class.forName(SystemNames.PROCESS_LIST, false, loader);
             for (Method m : list.getDeclaredMethods()) {
                 Class<?>[] p = m.getParameterTypes();
-                if (m.getName().equals("setOomAdj") && p.length == 3 && p[0] == int.class
-                        && p[1] == int.class && p[2] == int.class) {
+                if (m.getName().equals(SystemNames.SET_OOM_ADJ) && p.length == 3
+                        && p[0] == int.class && p[1] == int.class && p[2] == int.class) {
                     XposedBridge.hookMethod(m, SET_OOM_ADJ);
                     adj++;
                 }
@@ -107,10 +108,11 @@ public final class SystemKeepAlive {
             L.i("system keep-alive: no ProcessList.setOomAdj (" + t + ")");
         }
         try {
-            Class<?> record = Class.forName("com.android.server.am.ProcessRecord", false, loader);
+            Class<?> record = Class.forName(SystemNames.PROCESS_RECORD, false, loader);
             for (Method m : record.getDeclaredMethods()) {
                 Class<?>[] p = m.getParameterTypes();
-                if (m.getName().equals("killLocked") && p.length >= 1 && p[0] == String.class) {
+                if (m.getName().equals(SystemNames.KILL_LOCKED) && p.length >= 1
+                        && p[0] == String.class) {
                     XposedBridge.hookMethod(m, KILL);
                     kills++;
                 }
@@ -166,8 +168,8 @@ public final class SystemKeepAlive {
                 if (adj <= HOLD_ADJ) {
                     return;
                 }
-                Object app = fieldOf(param.thisObject, "mApp", APP);
-                Object uid = app == null ? null : fieldOf(app, "uid", UID);
+                Object app = fieldOf(param.thisObject, SystemNames.M_APP, APP);
+                Object uid = app == null ? null : fieldOf(app, SystemNames.UID, UID);
                 if (uid instanceof Integer && sUids.contains(uid)) {
                     param.args[0] = HOLD_ADJ;
                     sHeld++;
@@ -210,7 +212,7 @@ public final class SystemKeepAlive {
                 if (!(reason instanceof String) || !automatic((String) reason)) {
                     return;
                 }
-                Object uid = fieldOf(param.thisObject, "uid", UID);
+                Object uid = fieldOf(param.thisObject, SystemNames.UID, UID);
                 if (uid instanceof Integer && sUids.contains(uid)) {
                     param.setResult(null);
                     if (sSpared++ < 20) {
@@ -304,7 +306,7 @@ public final class SystemKeepAlive {
     }
 
     private static int uidOf(Context ctx, ActivityManager.RunningTaskInfo task) {
-        Object effective = Reflect.field(task, "effectiveUid");
+        Object effective = Reflect.field(task, SystemNames.EFFECTIVE_UID);
         if (effective instanceof Integer && (Integer) effective > 0) {
             return (Integer) effective;
         }
@@ -321,10 +323,10 @@ public final class SystemKeepAlive {
 
     private static Context systemContext() {
         try {
-            Class<?> thread = Class.forName("android.app.ActivityThread");
-            Object current = thread.getMethod("currentActivityThread").invoke(null);
+            Class<?> thread = Class.forName(SystemNames.ACTIVITY_THREAD);
+            Object current = thread.getMethod(SystemNames.CURRENT_ACTIVITY_THREAD).invoke(null);
             return current == null ? null
-                    : (Context) thread.getMethod("getSystemContext").invoke(current);
+                    : (Context) thread.getMethod(SystemNames.GET_SYSTEM_CONTEXT).invoke(current);
         } catch (Throwable t) {
             return null;
         }
@@ -347,8 +349,8 @@ public final class SystemKeepAlive {
         sPublished = state;
         sPublishedAt = now;
         try {
-            Class.forName("android.os.SystemProperties")
-                    .getMethod("set", String.class, String.class)
+            Class.forName(SystemNames.SYSTEM_PROPERTIES)
+                    .getMethod(SystemNames.SET, String.class, String.class)
                     .invoke(null, PROPERTY, state + counters);
         } catch (Throwable ignored) {
             // Only for the probe; the protection does not depend on it.
