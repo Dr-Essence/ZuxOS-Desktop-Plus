@@ -19,11 +19,11 @@ import de.robv.android.xposed.XposedBridge;
  * <p>ZUI pads the list's bottom by the bar's height ({@code AdapterHolder} in
  * {@code ActivityAllAppsContainerView}), so its last row stops above the bar, but the list draws
  * into that padding: with three-button navigation ZUI also zeroes the list's bottom margin and
- * draws its cover over the bar only in the home screen's drawer, so scrolled rows passed under
- * the bar's icons (14:12). Clipped to its padding, the list ends at the bar's top edge - what
- * ZUI's other navigation modes get from that margin. Set once as each drawer opens; nothing of
- * ZUI's sets it back. The monitor's drawer is left as it is. ZUI's focus mark is clipped the same
- * way ({@link #clipMark}).
+ * draws its cover over the bar only in the home screen's drawer, so scrolled rows passed under the
+ * bar's icons. Clipped to its padding, the list ends at the bar's top edge - what ZUI's other
+ * navigation modes get from that margin. Set once as each drawer opens; nothing of ZUI's sets it
+ * back. The monitor's drawer is left as it is. ZUI's focus mark is clipped the same way
+ * ({@link #clipMark}).
  */
 final class DrawerAboveBar {
 
@@ -83,8 +83,7 @@ final class DrawerAboveBar {
      * ZUI's mark for the icon a keyboard or controller is on is a decoration of the list
      * ({@code FocusedItemDecorator.onDrawOver}), drawn after its rows and not clipped to its
      * padding as the rows are: for a row half under the search bar or the taskbar, the mark was
-     * drawn whole over them (owner's video on 0.0.281, 22:45:23). Clipped as the list clips its
-     * rows, it is cut where the row is.
+     * drawn whole over them. Clipped as the list clips its rows, it is cut where the row is.
      */
     private static int clipMark(ClassLoader loader) {
         Class<?> decorator = Reflect.findClass(

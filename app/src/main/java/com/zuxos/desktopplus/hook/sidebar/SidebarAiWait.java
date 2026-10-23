@@ -23,12 +23,11 @@ import de.robv.android.xposed.XposedBridge;
  * <p>The sidebar listens to every drag on the screen ({@code FloatingOnDragListener.onDrag}) and,
  * on its main thread, asks ZUI's AI service which apps can take the dragged thing
  * ({@code TransferService.updateAIList} → {@code TransferUtils.getAIIntentList} →
- * {@code AIServiceHelper.getInteractTypeForSE}), waiting on a latch with no time limit. With the
- * AI service ({@code com.zui.ai.aiservice}) removed, no answer ever comes: after five seconds
- * Android says the sidebar is not responding (six times in the owner's log of 13-14 Oct, every
- * one this stack). Where the service is not installed, or is disabled, that question is not asked
- * at all; the list it would fill holds the AI service's apps, and there are none. With the service
- * there, nothing changes.
+ * {@code AIServiceHelper.getInteractTypeForSE}), waiting on a latch with no time limit. With the AI
+ * service ({@code com.zui.ai.aiservice}) removed, no answer ever comes: after five seconds Android
+ * says the sidebar is not responding. Where the service is not installed, or is disabled, that
+ * question is not asked at all; the list it would fill holds the AI service's apps, and there are
+ * none. With the service there, nothing changes.
  */
 public final class SidebarAiWait {
 

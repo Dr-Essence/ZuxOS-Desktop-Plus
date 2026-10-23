@@ -14,10 +14,10 @@ import de.robv.android.xposed.XposedBridge;
  * ({@code DesktopModeWindowDecoration$$ExternalSyntheticLambda0}). For the veil icon ZUI checks
  * first whether the title bar has closed ("is closed, return"); for the name and header icon it
  * does not, and {@code WindowDecorTaskResourceLoader} throws for a title bar that is gone
- * ("Attempt to obtain resource for non-existent decoration"). The log of 12:44 has SystemUI
- * crashing on exactly that at 12:42, as the monitor was unplugged and its windows came to the
- * tablet. That one exception, from that one task, ends the task instead: the title bar is gone,
- * so there is nothing to give a name or an icon to - what ZUI's own check does for the veil.
+ * ("Attempt to obtain resource for non-existent decoration"); SystemUI crashed on exactly that
+ * as a monitor was unplugged and its windows came to the tablet. That one exception, from that
+ * one task, ends the task instead: the title bar is gone, so there is nothing to give a name or
+ * an icon to - what ZUI's own check does for the veil.
  */
 public final class ClosedWindowInfo {
 

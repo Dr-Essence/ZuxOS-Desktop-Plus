@@ -171,8 +171,8 @@ public final class TaskOverview {
             root.addView(sheet, slp);
             root.setOnClickListener(v -> close());
             // A touch on the taskbar - the one part of the screen this does not cover - means
-            // the user has moved on: opened a folder, an app, a menu. The recordings showed
-            // recents left open over the app launched from there.
+            // the user has moved on: opened a folder, an app, a menu. Left open, recents stayed
+            // over the app launched from there.
             root.setOnTouchListener((v, e) -> {
                 if (e.getActionMasked() == MotionEvent.ACTION_OUTSIDE) {
                     sOutsideAt = android.os.SystemClock.uptimeMillis();
@@ -598,7 +598,7 @@ public final class TaskOverview {
             PackageManager pm = ctx.getPackageManager();
             // What is open on this screen, from the running list: the recent list left out
             // windows that were plainly on screen ("No recent apps" over an open Termux and an
-            // open browser in the recordings). The running list is the one the probe proves
+            // open browser). The running list is the one the probe proves
             // carries every task with its display.
             int here = 0;
             for (ActivityManager.RunningTaskInfo task : am.getRunningTasks(40)) {

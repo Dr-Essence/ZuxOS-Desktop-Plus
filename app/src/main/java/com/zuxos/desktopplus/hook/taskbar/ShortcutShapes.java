@@ -31,16 +31,16 @@ import de.robv.android.xposed.XposedBridge;
  * <p>ZUI's app icons get their shape from its icon factory: the app's own icon goes through
  * {@code BaseIconFactory.createBadgedIconBitmap} ({@code LauncherActivityCachingLogic.loadIcon}),
  * which cuts it to the theme's shape. A shortcut's icon never does - its menus draw it as the app
- * gave it, on its square backing, boxy beside the round app icons (owner, 15:56). Ours go through
- * that same factory call:
+ * gave it, on its square backing, boxy beside the round app icons. Ours go through that same
+ * factory call:
  * <ul>
  *   <li>ZUI's own shortcut rows ({@code DeepShortcutView.applyShortcutInfo}), once ZUI has
  *       filled them, the icon made off the main thread and kept, so a menu never waits;</li>
  *   <li>our menus' shortcut icons ({@link TaskbarApps#shortcutIcon}).</li>
  * </ul>
- * Two calls before it fell short: {@code GraphicsUtils.getZuiThemeAdaptiveIconDrawable} shapes
- * only in one of ZUI's regions (0.0.232), and {@code CacheableShortcutInfo.getIcon} with ZUI's
- * theme flattens the icon to a square before shaping, so it came out a box on a plate (0.0.233).
+ * Two other calls fall short: {@code GraphicsUtils.getZuiThemeAdaptiveIconDrawable} shapes only
+ * in one of ZUI's regions, and {@code CacheableShortcutInfo.getIcon} with ZUI's theme flattens
+ * the icon to a square before shaping, so it comes out a box on a plate.
  */
 final class ShortcutShapes {
 
@@ -107,8 +107,7 @@ final class ShortcutShapes {
             }
             if (!(raw instanceof AdaptiveIconDrawable)) {
                 // ZUI's factory sets any other icon on a white plate (wrapToAdaptiveIcon), as it
-                // does a legacy app's - a white square over a plain glyph (owner, 16:59). Left
-                // as the app drew it.
+                // does a legacy app's - a white square over a plain glyph. Left as the app drew it.
                 return raw;
             }
             factory = (AutoCloseable) sObtain.invoke(null, ctx);

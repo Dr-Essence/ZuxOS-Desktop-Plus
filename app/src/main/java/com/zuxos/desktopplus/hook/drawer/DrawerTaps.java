@@ -19,12 +19,12 @@ import de.robv.android.xposed.XposedBridge;
  *
  * <p>ZUI's app icon takes a touch only inside what it counts as its content
  * ({@code BubbleTextView.onTouchEvent} asks {@code CheckLongPressHelper.isContentRect}, before
- * anything else, and lets the touch go when it says no). That area is a square of the home
- * screen's icon size ({@code iconSizePx}) at the top of the cell, the name never in it - and
- * on fine home grids that size is shrunk to fit their cells (198 to 122 px at 12x8), while the
- * drawers draw their icons at their own size. A tap near an icon's edge or on its name went
- * nowhere and the app needed tapping again (owner, 0.0.270). ZUI's answer stands unless the
- * touch is on the icon as drawn, or on its name.
+ * anything else, and lets the touch go when it says no). That area is a square of the home screen's
+ * icon size ({@code iconSizePx}) at the top of the cell, the name never in it - and on fine home
+ * grids that size is shrunk to fit their cells (198 to 122 px at 12x8), while the drawers draw
+ * their icons at their own size. A tap near an icon's edge or on its name went nowhere and the app
+ * needed tapping again. ZUI's answer stands unless the touch is on the icon as drawn, or on its
+ * name.
  */
 public final class DrawerTaps {
 

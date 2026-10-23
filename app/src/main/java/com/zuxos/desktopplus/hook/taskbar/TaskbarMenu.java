@@ -350,8 +350,8 @@ public final class TaskbarMenu {
                 () -> Probe.dumpFromBar(ctx, displayId)));
         if (displayId == android.view.Display.DEFAULT_DISPLAY && source instanceof ViewGroup) {
             // On the tablet, ZUI's compact popup at the press on the bar. Given the bar's whole
-            // window as the thing to stand beside - full screen while a popup is up - ZUI put it
-            // in the middle of the screen (12:22).
+            // window as the thing to stand beside - full screen while a popup is up - ZUI put it in
+            // the middle of the screen.
             dismiss();
             ViewGroup dragLayer = (ViewGroup) source;
             View[] point = new View[1];

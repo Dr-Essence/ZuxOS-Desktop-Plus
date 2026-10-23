@@ -51,7 +51,7 @@ public final class Probe {
             // and a dump without them could not show a bar at all.
             String text = describe(activity, content) + describeAllWindows();
             // One fixed file, replaced each time: this runs on every attach, sometimes three
-            // times in as many seconds, and the probes the owner takes have names of their own.
+            // times in as many seconds, and the probes taken by hand have names of their own.
             String out = Storage.export(activity, Const.FILE_PROBE, text);
             Storage.write(Storage.file(activity, Const.FILE_PROBE), text);
             L.i("probe dump" + (out != null ? " written to " + out : "") + ":\n" + text);
@@ -497,10 +497,10 @@ public final class Probe {
     /**
      * What a page of the home screen paints over its cells itself, with no view of its own
      * ({@code CellLayout.onDraw}, {@code dispatchDraw}): its delegated cell drawings (a folder's
-     * accept ring, {@code PreviewBackground}), its folder leave-behind, and its drop outlines
-     * still showing - each with its cell, and what view stands there now. A translucent square
-     * left on the home screen and in recents where a folder had been (owner on 0.0.277, video
-     * 21:31:33) is none of the window's views. Read only, by the fields' kinds.
+     * accept ring, {@code PreviewBackground}), its folder leave-behind, and its drop outlines still
+     * showing - each with its cell, and what view stands there now. A translucent square left on
+     * the home screen and in recents where a folder had been is none of the window's views. Read
+     * only, by the fields' kinds.
      */
     private static void describeCells(StringBuilder sb, View page) {
         java.util.List<java.lang.reflect.Field> fields = new java.util.ArrayList<>();

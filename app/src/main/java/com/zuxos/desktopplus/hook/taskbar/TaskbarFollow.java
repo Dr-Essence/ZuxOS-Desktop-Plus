@@ -716,7 +716,7 @@ final class TaskbarFollow {
             if (ZuiBarDrop.holdsBar(TaskbarTray.displayIdOf(dragLayer))) {
                 // ZUI's drawer drag is under way: the bar has given up its touches so the drop
                 // reaches the drawer's window, the one Android tells of it. Ours added back,
-                // a drop over our icons landed in the bar's window and was lost (20:16-20:18).
+                // a drop over our icons landed in the bar's window and was lost.
                 return;
             }
             Region region = (Region) sTouchableRegion.get(info);

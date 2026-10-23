@@ -149,8 +149,7 @@ public final class IconInfo {
     /**
      * The user's serial, as our items store it. Asked of the system ({@code UserManager}, a call
      * into the system process) only the first time: the drawer names every entry on screen several
-     * times on each move of a drag, and asking each time held frames up to 47 ms (0.0.260's trace,
-     * 14:17).
+     * times on each move of a drag, and asking each time held frames up to 47 ms.
      */
     public static long serialOf(Context ctx, UserHandle user) {
         if (user == null) {

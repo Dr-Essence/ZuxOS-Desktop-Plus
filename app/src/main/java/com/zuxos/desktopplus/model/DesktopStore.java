@@ -21,8 +21,8 @@ import java.util.List;
  *
  * <p>Each monitor's file is named by the display's unique id ({@link #monitorKey}). A monitor
  * seen for the first time starts from {@link Const#FILE_DESKTOP}, the one layout every monitor
- * shared before (0.0.216); that file is only read from then on, never written or deleted, so no
- * layout is ever lost.
+ * shared before; that file is only read from then on, never written or deleted, so no layout is
+ * ever lost.
  */
 public final class DesktopStore {
 

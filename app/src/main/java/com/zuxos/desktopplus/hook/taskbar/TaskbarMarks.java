@@ -93,7 +93,7 @@ final class TaskbarMarks {
      * The marks' colour. On ZUI's own bar, ZUI's own colour for the dot under its open apps
      * ({@code taskbar_running_app_dot_indicator_color}: near black by day, near white in night
      * mode), so they turn with the bar as ZUI's keys do; on glass, light over dark and dark over
-     * light. Fixed dark, they vanished on ZUI's black night bar (22:11).
+     * light. Fixed dark, they vanished on ZUI's black night bar.
      */
     static int markColor(Context ctx) {
         if (!Tone.glazedNow()) {
@@ -163,8 +163,8 @@ final class TaskbarMarks {
 
         /**
          * Night mode switched: drawn again in the new colour at once. The screen's own change
-         * reaches every view of the bar's window; ZUI's call on its bar alone came too late or
-         * not at all, so the marks only turned when the bar was made again (owner, 1.0.212).
+         * reaches every view of the bar's window; ZUI's call on its bar alone came too late or not
+         * at all, so the marks only turned when the bar was made again.
          */
         @Override
         protected void onConfigurationChanged(android.content.res.Configuration config) {

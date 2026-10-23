@@ -422,10 +422,9 @@ public final class TaskbarTray {
      *
      * <p>ZUI's rows are {@code layout_gravity="bottom"} ({@code taskbar.xml}; top where
      * {@link TaskbarEdge} moved the monitor's bar up), so the frame layout keeps them on the bar
-     * whatever size ZUI gives the window. Ours copied the row's top instead, from layout
-     * listeners: when the window grew from the transient bar's height to full screen without one
-     * of them firing (23:04), our row stayed 167 px from the top of the screen and a folder
-     * opened from there.
+     * whatever size ZUI gives the window. Ours copied the row's top instead, from layout listeners:
+     * when the window grew from the transient bar's height to full screen without one of them
+     * firing, our row stayed 167 px from the top of the screen and a folder opened from there.
      *
      * @param height     our view's height; centred on the row when shorter than it
      * @param horizontal our view's horizontal gravity, kept as it is

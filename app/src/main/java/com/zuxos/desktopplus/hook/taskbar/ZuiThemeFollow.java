@@ -18,8 +18,7 @@ import de.robv.android.xposed.XposedBridge;
  * Our parts of the bar follow ZUI's own changes as ZUI's bar does, with no force stop.
  *
  * <p>ZUI changes much of its bar without making it again, so what we add to it - our row, the
- * marks, the start button, our folders as ZUI's - kept the old look until ZUX Home was stopped
- * (22:11):
+ * marks, the start button, our folders as ZUI's - kept the old look until ZUX Home was stopped:
  * <ul>
  * <li>The icon shape is a system overlay; ZUI hears it through its {@code ThemeManager}, whose
  * listeners it tells ({@code ThemeChangeListener.onThemeChanged}), and reloads its model. A ZUI

@@ -312,9 +312,8 @@ public final class HotseatButton {
      * scale and place ({@code ZuiHotseat.getBlurRect}). Holding back the dock's drawing left that
      * area: a blurred, see-through square where ZUI's drawer button had been and, with the dock
      * moved for recents or a drag, one in the middle of the screen - no view, so no probe showed
-     * it (owner's videos on 0.0.281, 22:43:33). While the dock's drawing is held back ZUI is
-     * handed an empty area for it (no radius, no alpha), which its own update leaves out; ZUI's
-     * own data stays as it is.
+     * it. While the dock's drawing is held back ZUI is handed an empty area for it (no radius, no
+     * alpha), which its own update leaves out; ZUI's own data stays as it is.
      */
     private static void installAreaBlurOff(Class<?> hotseat) {
         try {
@@ -415,11 +414,11 @@ public final class HotseatButton {
 
     /**
      * Whether the dock's apps are the tablet bar's to show: ZUI's taskbar is on
-     * ({@code TaskbarUtilities.isTaskbarSwitchOpen}) and our bar keeps them off it. Launcher3
-     * hands the dock's icons to the bar while the bar lines up with them, and gives them back to
-     * the dock whenever the bar's icons step aside - as the taskbar's drawer opens, the dock's
-     * apps (Calculator, Clock) came up under our row, bigger than its icons (12:21, 02:14). Kept
-     * off the bar, they are not drawn in the dock either.
+     * ({@code TaskbarUtilities.isTaskbarSwitchOpen}) and our bar keeps them off it. Launcher3 hands
+     * the dock's icons to the bar while the bar lines up with them, and gives them back to the dock
+     * whenever the bar's icons step aside - as the taskbar's drawer opens, the dock's apps
+     * (Calculator, Clock) came up under our row, bigger than its icons. Kept off the bar, they are
+     * not drawn in the dock either.
      */
     private static boolean appsOnTheBar(ViewGroup dock) {
         if (!Cfg.taskbarRunningOnly()) {

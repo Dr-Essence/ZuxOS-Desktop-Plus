@@ -68,6 +68,10 @@ ask the owner for them again, and never copy any of it into this public reposito
   - Shared helpers live in `core/` or `hook/`. An area never borrows another area's internals:
     `hook/system` uses only `core` and `hook` basics.
   - Match the surrounding code: its comments, naming and import order.
+  - Comments say why the code does what it does. History goes to git and `docs/ROADMAP.md`:
+    no build numbers, dates, clock times, videos or "the owner saw" in the code.
+  - The `catch (Throwable)` around every hook stays: it is the rule that the system process must
+    never crash, and it keeps a ZUI update from taking ZUX Home down with it.
 - **No dead code.** When a feature is replaced, the old path goes in the same change. Run
   `python3 tools/deadcode.py` and delete what it finds, after checking each finding is not
   reached by name (reflection, Xposed, another tool). Its `KEEP` list holds the ones that are.

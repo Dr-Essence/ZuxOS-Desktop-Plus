@@ -323,7 +323,7 @@ public final class Cfg {
     }
 
     /**
-     * On by default, at the owner's request: on the monitor ZUI's status bar only shows icons,
+     * On by default: on the monitor ZUI's status bar only shows icons,
      * and the taskbar's tray does its job.
      */
     public static boolean hideMonitorStatusBar() {
@@ -628,8 +628,8 @@ public final class Cfg {
     }
 
     /**
-     * A desktop of its own for each monitor. Read as the desktop attaches. Off by default (owner,
-     * 2026-10-12): every monitor shows the same desktop unless this is turned on.
+     * A desktop of its own for each monitor. Read as the desktop attaches. Off by default: every
+     * monitor shows the same desktop unless this is turned on.
      */
     public static boolean monitorLayouts() {
         return getBool(Const.KEY_MONITOR_LAYOUTS, false);

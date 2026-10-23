@@ -46,7 +46,7 @@ final class GamepadButtons {
             filter.addAction(SystemGamepad.ACTION_BAR);
             // Only the system may ask: it holds every permission, and no app holds this one. The
             // sender's own name is no test - Android gives it only to a sender that shares it,
-            // which the system's broadcasts do not: every press was refused (owner, 10:36:45).
+            // which the system's broadcasts do not: every press was refused.
             app.registerReceiver(new Receiver(), filter, SENDER, null,
                     Context.RECEIVER_EXPORTED);
             L.i("gamepad buttons: a controller's Home opens the drawer or goes home, L1 and R1"

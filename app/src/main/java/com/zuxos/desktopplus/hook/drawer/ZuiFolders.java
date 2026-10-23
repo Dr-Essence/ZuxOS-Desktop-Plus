@@ -73,8 +73,8 @@ public final class ZuiFolders {
      * One of our folders as ZUI's, in one of ZUI's contexts, and what it was built with: its name
      * and apps ({@link #contentOf}). Made again only when those change - not on every save of the
      * drawer, which re-inflated every folder of the drawer on each drop of a rearrange (frames
-     * dropped to 72 a second on a 144 Hz screen, 22:53) and drew each new one a frame at ZUI's
-     * home size before it was aligned (the top row's folders flashing, 22:53, 4.26 s).
+     * dropped to 72 a second on a 144 Hz screen) and drew each new one a frame at ZUI's home size
+     * before it was aligned (the top row's folders flashed).
      */
     private static final class Built {
         final View icon;
@@ -208,13 +208,13 @@ public final class ZuiFolders {
     }
 
     /**
-     * ZUI's "Enlarge folder" ({@code SystemShortcut.SWITCH_FOLDER}) is never offered for one of
-     * our folders. ZUI's factory makes it for any folder outside desktop mode, and its click
-     * resizes the folder on the home screen's grid ({@code SwitchFolder.onClick} casts the icon's
-     * layout params to {@code CellLayoutLayoutParams}): for our folders, in a drawer or on the
-     * bar, that stopped ZUX Home (21:55:31, 21:58:23). The factory, asked about one of ours,
-     * answers with no shortcut - ZUI's decision, not its menu undone afterwards. Its other folder
-     * shortcut, Rename, only opens the folder and stays.
+     * ZUI's "Enlarge folder" ({@code SystemShortcut.SWITCH_FOLDER}) is never offered for one of our
+     * folders. ZUI's factory makes it for any folder outside desktop mode, and its click resizes
+     * the folder on the home screen's grid ({@code SwitchFolder.onClick} casts the icon's layout
+     * params to {@code CellLayoutLayoutParams}): for our folders, in a drawer or on the bar, that
+     * stopped ZUX Home. The factory, asked about one of ours, answers with no shortcut - ZUI's
+     * decision, not its menu undone afterwards. Its other folder shortcut, Rename, only opens the
+     * folder and stays.
      */
     private static int hookNoEnlarge(ClassLoader loader) {
         try {
@@ -252,15 +252,14 @@ public final class ZuiFolders {
     private static float[] sDragScale;
 
     /**
-     * ZUI dissolving one of our folders breaks it in our model instead. ZUI dissolves a folder
-     * left with one app ({@code Folder.X0}, its delegate's {@code i}: the last app put in the
-     * folder's place on the home screen) when it is bound with one ({@code E0}), when one of two
-     * is dragged out ({@code W0}) or removed. For ours, the taskbar drawer's delegate does
-     * nothing and ZUI will not open a folder of one ({@code Folder.a1}): it stayed, one app,
-     * never opening (owner on 0.0.276); in ZUX Home's drawer the delegate ran ZUI's home-screen
-     * replace on it, its writes kept out of ZUI's database (10:59:16). For our folders ZUI's
-     * delegate is never asked: the folder's apps take its place in the drawer
-     * ({@link DrawerArrange#breakUp}), after ZUI's call is done.
+     * ZUI dissolving one of our folders breaks it in our model instead. ZUI dissolves a folder left
+     * with one app ({@code Folder.X0}, its delegate's {@code i}: the last app put in the folder's
+     * place on the home screen) when it is bound with one ({@code E0}), when one of two is dragged
+     * out ({@code W0}) or removed. For ours, the taskbar drawer's delegate does nothing and ZUI
+     * will not open a folder of one ({@code Folder.a1}): it stayed, one app, never opening; in ZUX
+     * Home's drawer the delegate ran ZUI's home-screen replace on it, its writes kept out of ZUI's
+     * database. For our folders ZUI's delegate is never asked: the folder's apps take its place in
+     * the drawer ({@link DrawerArrange#breakUp}), after ZUI's call is done.
      */
     private static int hookDissolve(Class<?> folderCls) {
         Method dissolve = null;
@@ -314,8 +313,8 @@ public final class ZuiFolders {
      * Our folder behind a folder ZUI dissolved, broken into its apps where it still is one - and
      * only when ZUI's folder shows all the apps of ours ZUI has ({@code zuiHas}): with fewer, an
      * app of it is out on a drag, which ends by showing the folder whole again
-     * ({@link DrawerSession}). An app taken out of a folder of two and let go on it again broke
-     * the folder that still held both (owner on 0.0.277, 19:18:04).
+     * ({@link DrawerSession}). An app taken out of a folder of two and let go on it again broke the
+     * folder that still held both.
      */
     private static void breakUp(int id, int zuiHas) {
         Item folder = folderOfId(id);
@@ -351,18 +350,18 @@ public final class ZuiFolders {
 
     /**
      * The picture ZUI drags of one of our drawer folders is drawn at its natural size, with its
-     * round corners. ZUI draws the dragged view into a picture the size of its unscaled preview
-     * but at the view's own scale ({@code DragPreviewProvider.createDrawable}: made for an icon
-     * shrunk by a press); ours are scaled up to the drawer's icon size ({@link #align}), so the
-     * folder overflowed the picture and its corners were cut square (owner, video 22:53). For
-     * the drawing only, the icon is at scale 1; ZUI then reads the scale from the view
-     * ({@code getScaleAndPosition}) and the dragged picture is as large as the folder shown.
+     * round corners. ZUI draws the dragged view into a picture the size of its unscaled preview but
+     * at the view's own scale ({@code DragPreviewProvider.createDrawable}: made for an icon shrunk
+     * by a press); ours are scaled up to the drawer's icon size ({@link #align}), so the folder
+     * overflowed the picture and its corners were cut square. For the drawing only, the icon is at
+     * scale 1; ZUI then reads the scale from the view ({@code getScaleAndPosition}) and the dragged
+     * picture is as large as the folder shown.
      *
-     * <p>Shown ×1.53 in portrait, that picture of the natural size was blurred (owner on 0.0.277).
-     * While the icon is still at 1, ZUI's own drawing of it ({@code drawDragView}) is drawn again
-     * at the shown scale, into a hardware bitmap as ZUI's {@code BitmapRenderer} makes it, and
-     * handed back at ZUI's size ({@link SharpPicture}): ZUI places and scales it as before, and it
-     * is drawn at full resolution.
+     * <p>Shown ×1.53 in portrait, that picture of the natural size was blurred. While the icon is
+     * still at 1, ZUI's own drawing of it ({@code drawDragView}) is drawn again at the shown scale,
+     * into a hardware bitmap as ZUI's {@code BitmapRenderer} makes it, and handed back at ZUI's
+     * size ({@link SharpPicture}): ZUI places and scales it as before, and it is drawn at full
+     * resolution.
      */
     private static int hookDragPicture(ClassLoader loader) {
         Class<?> provider = Reflect.findClass("com.android.launcher3.graphics.DragPreviewProvider",
@@ -518,24 +517,23 @@ public final class ZuiFolders {
     }
 
     /**
-     * ZUI picks a folder's motion by where it is: the bar ({@code getZuiTbFolderAnimator}) or
-     * else the home screen ({@code getZuiFolderAnimator}, which needs {@code Launcher}). Our
-     * folders in the taskbar's drawer get ZUI's Launcher ({@link #hookHomeContext}) and so the
-     * home screen's motion, as in ZUX Home's drawer. Only should there be no Launcher at all do
-     * they fall back to ZUI's own {@code getAnimatorZui}, which asks where the folder is at each
-     * step - and to no motion rather than a crash (01:32) should that fail too.
+     * ZUI picks a folder's motion by where it is: the bar ({@code getZuiTbFolderAnimator}) or else
+     * the home screen ({@code getZuiFolderAnimator}, which needs {@code Launcher}). Our folders in
+     * the taskbar's drawer get ZUI's Launcher ({@link #hookHomeContext}) and so the home screen's
+     * motion, as in ZUX Home's drawer. Only should there be no Launcher at all do they fall back to
+     * ZUI's own {@code getAnimatorZui}, which asks where the folder is at each step - and to no
+     * motion rather than a crash should that fail too.
      *
      * <p>One motion for every folder of ours, in either drawer, whatever the home screen is
      * doing. While ZUI builds it ({@link #sBuilding}):
      * <ul>
-     *   <li>the home screen's folder scale ({@code Workspace.getNewScaleFolder()}, about 0.89
-     *       while a drawer is up) reads 1.0. ZUI animates the apps to that scale and then shows the
-     *       real ones at full size, so they grew and then snapped - in the taskbar's drawer
-     *       (23:05) and, left out of that fix, in ZUX Home's own (15:52, the Add apps button and
-     *       every icon's backing appearing in the last frame);</li>
-     *   <li>Recents reads as not showing ({@code Launcher.isInOverViewState()}). ZUI leaves the
-     *       Add apps button out of the motion while it shows, and the button then popped in after
-     *       the folder had opened, when the drawer was opened from Recents (15:52).</li>
+     *   <li>the home screen's folder scale ({@code Workspace.getNewScaleFolder()}, about 0.89 while
+     *       a drawer is up) reads 1.0. ZUI animates the apps to that scale and then shows the real
+     *       ones at full size, so they grew and then snapped - in the taskbar's drawer and, left
+     *       out of that fix, in ZUX Home's own;</li>
+     *   <li>Recents reads as not showing ({@code Launcher.isInOverViewState()}). ZUI leaves the Add
+     *       apps button out of the motion while it shows, and the button then popped in after the
+     *       folder had opened, when the drawer was opened from Recents.</li>
      * </ul>
      */
     private static int hookAnimator(ClassLoader loader, Class<?> folderCls) {
@@ -646,7 +644,7 @@ public final class ZuiFolders {
     /**
      * ZUI's folder code is written for the home screen: outside it, its folder delegate
      * ({@code LauncherDelegate$b}) answers no {@code Launcher}, and ZUI then draws a folder of the
-     * taskbar's drawer unlike ZUX Home's (see-through, 1.0.192). For our folders there it answers
+     * taskbar's drawer unlike ZUX Home's (see-through). For our folders there it answers
      * ZUI's tablet Launcher - read as ZUI's own {@code expandFolder} reads it - so the folder is
      * drawn and moves exactly as in ZUX Home's drawer. ZUI's Launcher-only effects stay behind
      * {@code isFromLauncher()}, which asks the folder's own context; drag stays off.
@@ -716,13 +714,13 @@ public final class ZuiFolders {
 
     /**
      * Back closes what is on top in the taskbar's drawer while our folder is open: an app's popup
-     * over the folder first, then the folder, then the drawer. The drawer takes back by
-     * registering itself with its window ({@code TaskbarAllAppsSlideInView}); ZUI's folder and
-     * popups register nothing there, so back closed the drawer and left the folder (02:14), and
-     * then the folder and left its popup (12:21). While our folder is open a callback is
-     * registered the same way - the last one registered is the one called - and it does what
-     * ZUI's drawer does with a back key ({@code TaskbarOverlayDragLayer.dispatchKeyEvent}):
-     * closes ZUI's top open view ({@code AbstractFloatingView.getTopOpenView}).
+     * over the folder first, then the folder, then the drawer. The drawer takes back by registering
+     * itself with its window ({@code TaskbarAllAppsSlideInView}); ZUI's folder and popups register
+     * nothing there, so back closed the drawer and left the folder, and then the folder and left
+     * its popup. While our folder is open a callback is registered the same way - the last one
+     * registered is the one called - and it does what ZUI's drawer does with a back key
+     * ({@code TaskbarOverlayDragLayer.dispatchKeyEvent}): closes ZUI's top open view
+     * ({@code AbstractFloatingView.getTopOpenView}).
      */
     private static int hookBack(Class<?> folderCls) {
         int hooked = XposedBridge.hookAllMethods(folderCls, "onAttachedToWindow",
@@ -746,9 +744,9 @@ public final class ZuiFolders {
     /**
      * Back closes ZUI's popup in the taskbar's drawer, not the drawer under it. A popup there - an
      * app's, or a folder's menu opened by a hold or the controller's Triangle - registers no back
-     * callback, so back went to the drawer's and closed the whole drawer with the menu (owner on
-     * 0.0.279). While a popup is open there one is registered as for our folders, closing ZUI's
-     * top open view; ZUX Home's own back already closes its popups first.
+     * callback, so back went to the drawer's and closed the whole drawer with the menu. While a
+     * popup is open there one is registered as for our folders, closing ZUI's top open view; ZUX
+     * Home's own back already closes its popups first.
      */
     private static int hookPopupBack(ClassLoader loader) {
         Class<?> popup = Reflect.findClass("com.android.launcher3.popup.ArrowPopup", loader);
@@ -797,15 +795,15 @@ public final class ZuiFolders {
     }
 
     /**
-     * A back key in the taskbar's drawer closes one thing, as the back gesture does. ZUX Home
-     * takes back through callbacks ({@code enableOnBackInvokedCallback}), so Android hands a back
-     * key to the top callback - our folder's, closing the folder - and then passes the same key
-     * on to the drawer's views marked cancelled ({@code ViewRootImpl.doOnBackKeyEvent}: "forward
-     * a cancelled event so that following stages cancel their back logic"). ZUI's drawer layer
-     * acts on a back key's release without asking whether it was cancelled
+     * A back key in the taskbar's drawer closes one thing, as the back gesture does. ZUX Home takes
+     * back through callbacks ({@code enableOnBackInvokedCallback}), so Android hands a back key to
+     * the top callback - our folder's, closing the folder - and then passes the same key on to the
+     * drawer's views marked cancelled ({@code ViewRootImpl.doOnBackKeyEvent}: "forward a cancelled
+     * event so that following stages cancel their back logic"). ZUI's drawer layer acts on a back
+     * key's release without asking whether it was cancelled
      * ({@code TaskbarOverlayDragLayer.dispatchKeyEvent}), and closed the drawer under the folder
      * just closed: a controller's B (Android's back for it) or a keyboard's back key took both
-     * away (owner, 10:37:53 and 10:37:58). A cancelled back is left to the callback that had it.
+     * away. A cancelled back is left to the callback that had it.
      */
     private static int hookCancelledBack(ClassLoader loader) {
         Class<?> layer = Reflect.findClass(
@@ -888,14 +886,13 @@ public final class ZuiFolders {
     /**
      * Our folder closes with the taskbar's drawer. ZUI's own close of the drawer's window
      * ({@code TaskbarOverlayController.hideWindow}) closes every view open in it
-     * ({@code AbstractFloatingView.closeAllOpenViews}), and the window stays while any is open;
-     * the drawer's sheet closed on its own - our start button, a swipe - left our folder over the
-     * home screen for a second, then shrinking to nowhere (14:12), and an app's popup over the
-     * folder stayed as the sheet slid away (15:14). So as the sheet starts to close while one of
-     * our folders is open, everything open in its window closes with it, as ZUI closes it -
-     * every type but the sheet itself and the window's own proxy
-     * ({@code closeOpenViews(context, animate, TYPE_ALL & ~(TYPE_TASKBAR_ALL_APPS |
-     * TYPE_TASKBAR_OVERLAY_PROXY))}).
+     * ({@code AbstractFloatingView.closeAllOpenViews}), and the window stays while any is open; the
+     * drawer's sheet closed on its own - our start button, a swipe - left our folder over the home
+     * screen for a second, then shrinking to nowhere, and an app's popup over the folder stayed as
+     * the sheet slid away. So as the sheet starts to close while one of our folders is open,
+     * everything open in its window closes with it, as ZUI closes it - every type but the sheet
+     * itself and the window's own proxy ({@code closeOpenViews(context, animate,
+     * TYPE_ALL & ~(TYPE_TASKBAR_ALL_APPS | TYPE_TASKBAR_OVERLAY_PROXY))}).
      */
     private static int hookDrawerClose(ClassLoader loader) {
         try {
@@ -1018,7 +1015,7 @@ public final class ZuiFolders {
     /**
      * Who to tell once ZUI's app list is known, when a bar built its folders before it was: the
      * bar is put up at boot a moment before ZUI builds its drawer's list, which is where our
-     * folders' apps come from (1.0.209 left the bar's folders ours for the whole session).
+     * folders' apps come from. Without it, the bar's folders stayed ours for the whole session.
      */
     public static void onAppsKnown(Runnable known) {
         sAppsKnown = known;
@@ -1153,11 +1150,10 @@ public final class ZuiFolders {
     }
 
     /**
-     * ZUI lays its folder icon out with the home screen's sizes; in the drawer its box was a
-     * tenth bigger than the apps beside it and sat higher (01:43). Measured once laid out: the
-     * folder's preview ({@code getPreviewBounds}) is scaled to a drawer icon's size and moved to
-     * where that icon is drawn (its top compound drawable, at its top padding). Its name follows
-     * ({@link #fitName}).
+     * ZUI lays its folder icon out with the home screen's sizes; in the drawer its box was a tenth
+     * bigger than the apps beside it and sat higher. Measured once laid out: the folder's preview
+     * ({@code getPreviewBounds}) is scaled to a drawer icon's size and moved to where that icon is
+     * drawn (its top compound drawable, at its top padding). Its name follows ({@link #fitName}).
      */
     private static void align(View icon) {
         if (icon.isLaidOut()) {
@@ -1175,8 +1171,7 @@ public final class ZuiFolders {
      * measured the folder takes the drawer's icon size from ZUI's profile
      * ({@code allAppsIconSizePx}), and every folder of the list is aligned again the moment one
      * is ({@link #drawerIconIn}). A folder laid out before any app used to keep ZUI's home size
-     * - in landscape smaller than the apps beside it, and than the folders aligned after it
-     * (owner, 0.0.270).
+     * - in landscape smaller than the apps beside it, and than the folders aligned after it.
      */
     private static void alignNow(View icon, boolean retry) {
         try {
@@ -1211,12 +1206,11 @@ public final class ZuiFolders {
             }
             View.OnFocusChangeListener zui = focusOf(list, drawer);
             if (zui != null && icon.getOnFocusChangeListener() == null) {
-                // Reached by a keyboard or a controller, marked as ZUI marks its apps - guarded,
-                // as ZUI made its mark for app icons. ZUI draws the mark where the view is in its
-                // list (FocusIndicatorHelper.viewToRect: its left and top in its parent), so it
-                // is told of the folder's cell, the list's own child: told of the folder inside
-                // the cell, the mark stayed on the list's first cell wherever the focus went
-                // (owner's video, 10:37:46).
+                // Reached by a keyboard or a controller, marked as ZUI marks its apps - guarded, as
+                // ZUI made its mark for app icons. ZUI draws the mark where the view is in its list
+                // (FocusIndicatorHelper.viewToRect: its left and top in its parent), so it is told
+                // of the folder's cell, the list's own child: told of the folder inside the cell,
+                // the mark stayed on the list's first cell wherever the focus went.
                 icon.setOnFocusChangeListener((v, focused) -> {
                     try {
                         View cell = v.getParent() instanceof View ? (View) v.getParent() : v;
@@ -1224,8 +1218,7 @@ public final class ZuiFolders {
                         if (focused) {
                             // The whole cell into view: the list scrolls to the focused view's
                             // laid-out bounds, and the folder is drawn larger than those, so a
-                            // folder at the top or bottom stayed half out of the list (owner's
-                            // video on 0.0.281, 22:45:23).
+                            // folder at the top or bottom stayed half out of the list.
                             cell.requestRectangleOnScreen(new android.graphics.Rect(0, 0,
                                     cell.getWidth(), cell.getHeight()), false);
                         }
@@ -1256,9 +1249,9 @@ public final class ZuiFolders {
     /**
      * ZUI's focus mark for the icons of a drawer list: the listener its adapter gives each app
      * ({@code BaseAllAppsAdapter.mIconFocusListener}, ZUI's {@code FocusedItemDecorator}), so a
-     * folder has it before any app is laid out - the owner's drawer opens on rows of folders, and
-     * they had no mark until an app scrolled into view (owner on 0.0.277). An app's own listener
-     * when the adapter's is not found; null for neither.
+     * folder has it before any app is laid out - a drawer that opens on rows of folders had no mark
+     * on them until an app scrolled into view. An app's own listener when the adapter's is not
+     * found; null for neither.
      */
     private static View.OnFocusChangeListener focusOf(ViewGroup list, Look drawer) {
         Object adapter = list == null ? null : Reflect.call(list, "getAdapter");
@@ -1290,10 +1283,10 @@ public final class ZuiFolders {
 
     /**
      * The folder's name as ZUI writes the app names beside it. ZUI's folder name is made for the
-     * home screen and does not shorten to its width, so in a portrait drawer, narrower than a
-     * home cell and scaled with the icon, long names ran out of the cell on both sides (14:12).
-     * It takes the cell's width and the drawer names' size, lines and shortening, each divided by
-     * the icon's scale so that, scaled, it is exactly as wide and as large as ZUI's own.
+     * home screen and does not shorten to its width, so in a portrait drawer, narrower than a home
+     * cell and scaled with the icon, long names ran out of the cell on both sides. It takes the
+     * cell's width and the drawer names' size, lines and shortening, each divided by the icon's
+     * scale so that, scaled, it is exactly as wide and as large as ZUI's own.
      */
     private static void fitName(View icon, Look drawer, float scale) {
         int id = icon.getResources().getIdentifier("folder_icon_name", "id",
@@ -1344,8 +1337,8 @@ public final class ZuiFolders {
 
     /**
      * Read-only: a folder whose name could not be fitted. Three of ZUX Home's drawer folders kept
-     * ZUI's home-size name (probe 11:00:38: 334x53 beside the others' 284x40) though they were
-     * aligned; what the probe cannot show is said here, once per orientation and kind.
+     * ZUI's home-size name though they were aligned; what the probe cannot show is said here, once
+     * per orientation and kind.
      */
     private static void traceName(View icon, String what) {
         String said = icon.getResources().getConfiguration().orientation + ":"
@@ -1730,10 +1723,10 @@ public final class ZuiFolders {
             Object activity = lookup(ctx);
             if (isLauncher(activity) && Cfg.drawerDrag()) {
                 // ZUI's own hold on a home-screen folder's app (Folder.onLongClick): its popup,
-                // then its drag with the folder as the source, which rearranges inside the
-                // folder; out of it the drawer takes the drag (DrawerRearrange). Made a drag of
-                // the drawer's entry instead, the folder shut as it started and nothing could be
-                // moved inside it (owner on 0.0.276).
+                // then its drag with the folder as the source, which rearranges inside the folder;
+                // out of it the drawer takes the drag (DrawerRearrange). Made a drag of the
+                // drawer's entry instead, the folder shut as it started and nothing could be moved
+                // inside it.
                 return false;
             }
             if (isLauncher(activity)) {
@@ -1743,10 +1736,10 @@ public final class ZuiFolders {
                 return true;
             }
             // The taskbar's drawer: what ZUI's drawer does with a hold on its own icons
-            // (getAllAppsItemLongClickListener, the drawer's TaskbarDragController): its popup
-            // and its drag, in the drawer's own window, with the press let go by ZUI. Through
-            // the bar instead (onClickIconWithRightMouse), the bar's window went full screen over
-            // the drawer and took every touch from the popup (12:21).
+            // (getAllAppsItemLongClickListener, the drawer's TaskbarDragController): its popup and
+            // its drag, in the drawer's own window, with the press let go by ZUI. Through the bar
+            // instead (onClickIconWithRightMouse), the bar's window went full screen over the
+            // drawer and took every touch from the popup.
             Object hold = activity.getClass().getMethod("getAllAppsItemLongClickListener")
                     .invoke(activity);
             return hold instanceof View.OnLongClickListener
@@ -1795,7 +1788,7 @@ public final class ZuiFolders {
      */
     public static Runnable removeAction(Object item) {
         // The app as the menu is built: ZUX Home's drawer hold notes it under the drawer's own
-        // entry only while the hold is handled, so a lookup at the tap found nothing (21:58).
+        // entry only while the hold is handled, so a lookup at the tap found nothing.
         Item child = childOf(item);
         return child == null ? null : () -> removeFromFolder(child);
     }
@@ -1894,7 +1887,7 @@ public final class ZuiFolders {
         }
         // By key: ZUI's apps map to our apps as they were when its folder was built - the bar's
         // and the drawer's builds hold other copies of the same apps. Matched as objects, every
-        // app of a folder pinned to the bar was added again each time ZUI bound it (0.0.269).
+        // app of a folder pinned to the bar was added again each time ZUI bound it.
         Map<String, Item> ours = new java.util.LinkedHashMap<>();
         for (Item child : folder.children) {
             ours.putIfAbsent(child.key(), child);
@@ -2005,13 +1998,13 @@ public final class ZuiFolders {
     /**
      * The apps chosen with a dragged one ({@link DrawerSelect}) into the folder of ours that took
      * it ({@code Folder.onDrop}), after it and in their order. ZUI's own multi-drag files its
-     * chosen items after a drop into a folder ({@code MultiDragSupport.onDropFolderSuccess});
-     * ours are not ZUI's, so only the dragged app went in and the others went back to their
-     * cells (owner on 0.0.274). Into our model as the dropped app went ({@link #filedByDrop}),
-     * and shown by ZUI's open folder as ZUI's Add apps shows its picks ({@link ZuiFolderAdd}):
-     * the drawer's own entry made into ZUI's item for a folder ({@code makeWorkspaceItem}, as
-     * ZUI's drop makes it) and added through ZUI's {@code addFolderContent}, its writes kept out
-     * of ZUI's database ({@link ZuiFolderWrites}). How many went in.
+     * chosen items after a drop into a folder ({@code MultiDragSupport.onDropFolderSuccess}); ours
+     * are not ZUI's, so only the dragged app went in and the others went back to their cells. Into
+     * our model as the dropped app went ({@link #filedByDrop}), and shown by ZUI's open folder as
+     * ZUI's Add apps shows its picks ({@link ZuiFolderAdd}): the drawer's own entry made into ZUI's
+     * item for a folder ({@code makeWorkspaceItem}, as ZUI's drop makes it) and added through ZUI's
+     * {@code addFolderContent}, its writes kept out of ZUI's database ({@link ZuiFolderWrites}).
+     * How many went in.
      */
     static int fileCarried(Object zuiFolder, List<String> keys) {
         try {
@@ -2053,7 +2046,7 @@ public final class ZuiFolders {
             for (Item app : filed) {
                 // From ZUI's app store as our folders' apps are: the drawer's own list leaves the
                 // apps in folders out, so once filed they were not found and not shown until the
-                // drawer was opened again ("0 shown", owner on 0.0.277, 19:18:31).
+                // drawer was opened again.
                 Object entry = sFiled.get(app.key());
                 Object made = entry == null ? null : entry.getClass()
                         .getMethod("makeWorkspaceItem", Context.class).invoke(entry, ctx);

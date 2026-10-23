@@ -434,8 +434,8 @@ public final class TaskbarApps {
      * <p>Else through ZUI as its popup loads it ({@code CacheableShortcutInfo.getIcon}), then as
      * Android hands it over; when the app gave none, the app's own icon, as ZUI falls back to one.
      * Our plain glyph only should even that be missing: white, it made blank cells in ZUI's light
-     * popup (Claude, 14:12). Never one guessed from the title: a shortcut called "New chat" is not
-     * an "add" button, whatever the word suggests.
+     * popup. Never one guessed from the title: a shortcut called "New chat" is not an "add"
+     * button, whatever the word suggests.
      */
     static android.graphics.drawable.Drawable shortcutIcon(Context ctx,
             ShortcutInfo shortcut) {
@@ -655,13 +655,13 @@ public final class TaskbarApps {
     }
 
     /**
-     * An app open on the tablet, asked for on the monitor: its window moved there the way ZUI
-     * moves one ({@code SystemUiProxy.moveToExternalDisplay}, SystemUI's own move to the next
-     * screen, as a transition it follows). Opened again with the monitor as its screen instead,
-     * the system moved the window behind SystemUI's back: its title bar kept the tablet, and the
-     * window's "…" menu opened there (22:17). Only with the tablet and this one monitor, where
-     * ZUI's "next screen" is the monitor; should the window not arrive, it is opened there as
-     * before. True when the move was asked for.
+     * An app open on the tablet, asked for on the monitor: its window moved there the way ZUI moves
+     * one ({@code SystemUiProxy.moveToExternalDisplay}, SystemUI's own move to the next screen, as
+     * a transition it follows). Opened again with the monitor as its screen instead, the system
+     * moved the window behind SystemUI's back: its title bar kept the tablet, and the window's "…"
+     * menu opened there. Only with the tablet and this one monitor, where ZUI's "next screen" is
+     * the monitor; should the window not arrive, it is opened there as before. True when the move
+     * was asked for.
      */
     static boolean moveFromTablet(Context ctx, String pkg, int display) {
         if (display == android.view.Display.DEFAULT_DISPLAY || !onlyMonitor(ctx, display)) {
@@ -853,7 +853,7 @@ public final class TaskbarApps {
 
     /**
      * Whether the new window came, checked for a few seconds: a heavy app can take more than a
-     * second to make its task, and checking once at 1.5 s said "only one window" for Claude, whose
+     * second to make its task, and checking once at 1.5 s said "only one window" for an app whose
      * second window then opened anyway.
      */
     private static void watchNewWindow(Context ctx, String pkg, int display, int before,

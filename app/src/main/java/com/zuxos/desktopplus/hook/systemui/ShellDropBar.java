@@ -110,8 +110,8 @@ public final class ShellDropBar {
     private static int sTraced;
 
     /**
-     * Read-only: the shell's window entered or left during a drag it shares with the bar - the
-     * owner saw its floating window not come back after the bar (0.0.269). Logged a few times a
+     * Read-only: the shell's window entered or left during a drag it shares with the bar, traced
+     * because its floating window did not always come back after the bar. Logged a few times a
      * drag, with ZUI's own split flag, which decides whether the shell hides its preview on leaving
      * ({@code DragAndDropController.onDrag}: {@code mIsZuiSplit}).
      */

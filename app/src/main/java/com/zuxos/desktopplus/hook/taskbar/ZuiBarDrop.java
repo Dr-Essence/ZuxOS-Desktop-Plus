@@ -30,11 +30,11 @@ import de.robv.android.xposed.XposedBridge;
  * <p>ZUI's drawer drag is a system drag ({@code TaskbarDragController}: {@code startDragAndDrop}
  * with Android's activity clip), which SystemUI's drop window takes for a floating window or split
  * screen. That window covers the whole screen, the bar too, so a drop on the bar opened the app
- * instead (owner, 16:59). ZUI's clip already has a place for the part of the screen the shell
- * must leave alone - {@code DISALLOW_HIT_REGION}, which ZUI fills with its own transient bar - and
- * this puts our bar there. SystemUI's side ({@code ShellDropBar}) then keeps its window off that
- * region, so the drop reaches the bar's own window, whose strip ({@link TaskbarDrop}) pins the app
- * this remembered. Anywhere else the shell does as it always did.
+ * instead. ZUI's clip already has a place for the part of the screen the shell must leave alone -
+ * {@code DISALLOW_HIT_REGION}, which ZUI fills with its own transient bar - and this puts our bar
+ * there. SystemUI's side ({@code ShellDropBar}) then keeps its window off that region, so the drop
+ * reaches the bar's own window, whose strip ({@link TaskbarDrop}) pins the app this remembered.
+ * Anywhere else the shell does as it always did.
  */
 final class ZuiBarDrop {
 
@@ -205,7 +205,7 @@ final class ZuiBarDrop {
      * the window under it - ZUI's drawer, which ignores it. A view of ours in the drawer's window,
      * there for this drag only, takes a drop over the bar to the bar. It reaches past the window
      * on every side: the drawer's layer keeps the bar's height clear at its bottom, and a drop
-     * over the bar came at the window's very edge (y 1904 of 1904, 15:43), outside a view the
+     * over the bar came at the window's very edge (y 1904 of 1904), outside a view the
      * layer's own size. The shell still covers the rest of the screen, so nothing else ever
      * reaches it.
      */
@@ -268,7 +268,7 @@ final class ZuiBarDrop {
         }
         boolean onStart = TaskbarStart.overStart(sDisplay, x, y);
         if (onStart && !sSaidStart) {
-            // Read-only: the owner saw the drawer open again once only (0.0.269).
+            // Read-only, traced because the drawer opened again once only.
             sSaidStart = true;
             L.i("zui bar drop: trace: the drag of " + item.pkg + " reached the start button at "
                     + Math.round(x) + "," + Math.round(y));
@@ -550,8 +550,8 @@ final class ZuiBarDrop {
      * ours - on the bar, or on the home screen, whose own icon is dragged instead - nothing else
      * will ever take the card away. ZUI asks for the drag's surface back for its return animation
      * ({@code DRAG_FLAG_REQUEST_SURFACE_FOR_RETURN_ANIMATION} in its flags, 2816); Android then
-     * hands it back only for a drop nobody took, and otherwise leaves it on screen until a
-     * timeout, five seconds, where the finger let go (owner, 16:30). Empty, it is not seen.
+     * hands it back only for a drop nobody took, and otherwise leaves it on screen until a timeout,
+     * five seconds, where the finger let go. Empty, it is not seen.
      */
     static void hideShadow(View inDrawer) {
         sShadowHidden = true;

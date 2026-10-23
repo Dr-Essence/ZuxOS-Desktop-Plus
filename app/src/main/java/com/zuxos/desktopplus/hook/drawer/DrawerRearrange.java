@@ -204,14 +204,13 @@ final class DrawerRearrange {
     }
 
     /**
-     * A drag starting inside our open folder in the taskbar's drawer leaves the folder open, as
-     * one inside ZUI's home-screen folders does. Kept in the drawer ({@code setDisallowGlobalDrag},
+     * A drag starting inside our open folder in the taskbar's drawer leaves the folder open, as one
+     * inside ZUI's home-screen folders does. Kept in the drawer ({@code setDisallowGlobalDrag},
      * ours), ZUI's {@code TaskbarDragController.callOnDragStart} closes every open view of the
-     * drawer's window but the drawer itself ({@code closeAllOpenViewsExcept(context,
-     * TYPE_TASKBAR_ALL_APPS)}): our folder closed under the finger as the app was picked up, and
-     * nothing could be moved inside it (owner on 0.0.276; "left its folder" in the log the moment
-     * the drag began, 10:59:59). For that one start ZUI is told to keep folders too; its popup
-     * still gives way to the drag.
+     * drawer's window but the drawer itself
+     * ({@code closeAllOpenViewsExcept(context, TYPE_TASKBAR_ALL_APPS)}): our folder closed under
+     * the finger as the app was picked up, and nothing could be moved inside it. For that one start
+     * ZUI is told to keep folders too; its popup still gives way to the drag.
      */
     private static int hookKeepFolderOpen(ClassLoader loader) {
         Class<?> floating = Reflect.findClass("com.android.launcher3.AbstractFloatingView",
@@ -262,8 +261,8 @@ final class DrawerRearrange {
      * {@code getDragLayer().animateViewIntoPosition(dragView, view, null)}); our folders there
      * answer ZUX Home's ({@link ZuiFolders}, so that they are drawn as ZUI's), so the taskbar's
      * picture was animated on ZUX Home's layer, and at its end ZUX Home's own controller, with no
-     * drag of its own, read its missing drag and ZUX Home stopped (owner, 10:20:06:
-     * {@code DragController.g} from {@code DragLayer.clearAnimatedView}). A picture that is not
+     * drag of its own, read its missing drag and ZUX Home stopped ({@code DragController.g}
+     * from {@code DragLayer.clearAnimatedView}). A picture that is not
      * on the layer gets ZUI's own way for one it cannot animate ({@code onDrop}, not drawn yet):
      * the icon shown, and the drag ended by its own controller. ZUX Home's own drops always have
      * their picture on its layer and are left as they are.
@@ -320,9 +319,8 @@ final class DrawerRearrange {
      * ends by announcing it through the drag's {@code DragViewStateAnnouncer}, which only the
      * taskbar's controller makes, and only while an accessibility service is on
      * ({@code TaskbarDragController.startDrag}); the announcer asks for ZUX Home's activity
-     * ({@code Launcher.getLauncher}), which the taskbar's window has none of, and ZUX Home
-     * stopped on every such drop ("Cannot find BaseActivity in parent tree", owner, 15:15-15:18
-     * and 23:23).
+     * ({@code Launcher.getLauncher}), which the taskbar's window has none of, and ZUX Home stopped
+     * on every such drop.
      */
     private static void quietDrop(Object folder, Object[] args) {
         try {
@@ -495,10 +493,10 @@ final class DrawerRearrange {
             View original = (View) Reflect.field(drag, "originalView");
             Object info = Reflect.field(drag, "dragInfo");
             String key = keyFor(original, info);
-            // From a folder, the drawer is found through the folder: ZUI's folder has already
-            // taken the app's icon off its pages (Folder.onDragStart, the folder being the
-            // drag's source), so the icon is in no window - and the drag went on as ZUI's
-            // floating window, closing the drawer (owner on 0.0.274, 10:20:42).
+            // From a folder, the drawer is found through the folder: ZUI's folder has already taken
+            // the app's icon off its pages (Folder.onDragStart, the folder being the drag's
+            // source), so the icon is in no window - and the drag went on as ZUI's floating window,
+            // closing the drawer.
             View apps = folder == null ? appsViewOf(original)
                     : appsIn(((View) folder).getRootView());
             Object activity = Reflect.field(controller, "mActivity");

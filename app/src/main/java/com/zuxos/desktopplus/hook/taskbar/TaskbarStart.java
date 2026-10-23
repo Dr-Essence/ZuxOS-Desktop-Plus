@@ -84,10 +84,10 @@ final class TaskbarStart {
      * come, and taking that as the drawer closing left the eyes small with the drawer open.
      *
      * <p>In the tablet's desktop mode ZUI's button opens the home screen's own drawer instead
-     * ({@code LauncherState.ALL_APPS}, which ZUI's own {@code expandFolder} checks for): its
-     * state changes ({@code Launcher.onStateSetStart}) count as a drawer too. Missing it, the
-     * start button took the first press as opening nothing and opened the taskbar's drawer as
-     * well - two drawers (12:44).
+     * ({@code LauncherState.ALL_APPS}, which ZUI's own {@code expandFolder} checks for): its state
+     * changes ({@code Launcher.onStateSetStart}) count as a drawer too. Missing it, the start
+     * button took the first press as opening nothing and opened the taskbar's drawer as well - two
+     * drawers.
      *
      * <p>In between, the eyes follow the drawer itself, frame by frame: as wide as it is open,
      * whether it slides on its own or under a finger, and still where it is held still.

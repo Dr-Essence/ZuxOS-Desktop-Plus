@@ -22,11 +22,11 @@ import de.robv.android.xposed.XposedBridge;
  * The home screen keeps its look when its grid changes: widgets stay as large on screen, and on
  * a finer grid the icons keep their places, spread over the new cells.
  *
- * <p>ZUI moves the home screen's items into a new grid itself ({@code GridSizeMigrationTask},
- * one column or row a step, {@code MultiStepMigrationTask.migrate(from, to)}), keeping every
- * item's cells: on a grid twice as fine a widget became half its size and was cut (the clock,
- * owner's video 22:02), and the icons bunched up in a corner. Just before ZUI's step, in its
- * transaction, the items on the home screen are written into the new grid:
+ * <p>ZUI moves the home screen's items into a new grid itself ({@code GridSizeMigrationTask}, one
+ * column or row a step, {@code MultiStepMigrationTask.migrate(from, to)}), keeping every item's
+ * cells: on a grid twice as fine a widget became half its size and was cut, and the icons bunched
+ * up in a corner. Just before ZUI's step, in its transaction, the items on the home screen are
+ * written into the new grid:
  * <ul>
  *   <li>a grid finer in a direction: every item's place in it scales (whole cells, rounded down,
  *       so no two items overlap - {@link GridMath}), and a widget's size with it;</li>

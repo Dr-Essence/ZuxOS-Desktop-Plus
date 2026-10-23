@@ -92,7 +92,7 @@ final class CancelBin {
     }
 
     /**
-     * Read-only: where the bin is once laid out - the owner saw none (0.0.269), though the drag
+     * Read-only: where the bin is once laid out, traced because none showed though the drag
      * reached the drawer's window to its end. Once a drag.
      */
     private static void trace(ViewGroup root, View bin) {

@@ -101,12 +101,12 @@ final class TaskbarFolderDrag {
                         }
                         return null;
                     });
-            // The size ZUI's drag takes the picture to be, as it sets it for an app's icon
-            // (n0: getIconSize): its drag view grows by this less the picture's width
-            // (startDrag). Left at the last app's size, a folder's picture grew by the
-            // difference - three times too big and blurred (owner's video, 15:13). Set to the
-            // picture's width and ZUI's pre-drag growth: the lift ZUI's home screen gives a
-            // held folder while its menu shows (LauncherDragController: pre_drag_view_scale).
+            // The size ZUI's drag takes the picture to be, as it sets it for an app's icon (n0:
+            // getIconSize): its drag view grows by this less the picture's width (startDrag). Left
+            // at the last app's size, a folder's picture grew by the difference - three times too
+            // big and blurred. Set to the picture's width and ZUI's pre-drag growth: the lift ZUI's
+            // home screen gives a held folder while its menu shows (LauncherDragController:
+            // pre_drag_view_scale).
             if (!setIconSize(controller, bounds.width() + preDragGrowth(ctx))) {
                 L.i("zui folders: " + folder.label + " not dragged - ZUI's drag size not found");
                 return false;

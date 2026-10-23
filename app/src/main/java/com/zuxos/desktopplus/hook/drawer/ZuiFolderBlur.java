@@ -14,17 +14,17 @@ import de.robv.android.xposed.XposedBridge;
  * The taskbar drawer blurred behind our open folder, as ZUI blurs behind its home folders.
  *
  * <p>ZUI blurs what is behind a folder only for a folder of its home screen: its blur animation
- * ({@code FolderBlurBgAnim}, render blur 0 to 70) is added in {@code FolderAnimationManager}
- * only when the folder's own context is {@code Launcher}. Our drawer folders are in the taskbar
- * drawer's window, so they opened with no blur and the drawer's rows read through them (15:14).
- * And there ZUI's way - cutting the folder's shape out of its window and blurring what is behind
- * the window - could not work anyway: the drawer's sheet is in the folder's own window.
+ * ({@code FolderBlurBgAnim}, render blur 0 to 70) is added in {@code FolderAnimationManager} only
+ * when the folder's own context is {@code Launcher}. Our drawer folders are in the taskbar drawer's
+ * window, so they opened with no blur and the drawer's rows read through them. And there ZUI's way
+ * - cutting the folder's shape out of its window and blurring what is behind the window - could not
+ * work anyway: the drawer's sheet is in the folder's own window.
  *
- * <p>So the sheet beside the folder is blurred at ZUI's radius as the folder opens, and sharp
- * again as it closes. Set once each way: 1.0.211 eased the radius in, a new blur of the whole
- * sheet on every frame of ZUI's open, and on the 165 Hz screen that cost the frames ZUI moves the
- * folder's apps in on - they popped in at the end (22:11). Set once, the GPU blurs the sheet once
- * and reuses it while ZUI animates.
+ * <p>So the sheet beside the folder is blurred at ZUI's radius as the folder opens, and sharp again
+ * as it closes. Set once each way, not eased in: easing it is a new blur of the whole sheet on
+ * every frame of ZUI's open, and on the 165 Hz screen that costs the frames ZUI moves the
+ * folder's apps in on - they pop in at the end. Set once, the GPU blurs the sheet once and reuses
+ * it while ZUI animates.
  */
 final class ZuiFolderBlur {
 

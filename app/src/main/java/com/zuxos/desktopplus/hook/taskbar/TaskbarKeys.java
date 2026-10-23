@@ -286,11 +286,10 @@ public final class TaskbarKeys {
 
     /**
      * The controller kept where it can be seen once ZUI's popup or folder on the bar opened or
-     * closed. A closing popup took the focus with it, and Android handed it to whatever view of
-     * the bar's window came first, which carries no mark: after B the controller seemed gone
-     * from the bar (owner on 0.0.282). With a popup open its rows have the focus; with a folder
-     * open, the app it was on inside it, or its first; with neither, the icon the menu or the
-     * folder was opened from.
+     * closed. A closing popup took the focus with it, and Android handed it to whatever view of the
+     * bar's window came first, which carries no mark: after B the controller seemed gone from the
+     * bar. With a popup open its rows have the focus; with a folder open, the app it was on inside
+     * it, or its first; with neither, the icon the menu or the folder was opened from.
      */
     private static void settle(ViewGroup bar) {
         try {
@@ -368,10 +367,10 @@ public final class TaskbarKeys {
     }
 
     /**
-     * The icon the controller was last on, or the start button, takes the focus - unless one of
-     * our icons has it already. Whatever else of the bar's window held the focus is no place for
-     * the controller: kept, ZUI's whole icon row took the mark and the lift, and a ring wider
-     * than the screen swung across it (owner's video on 0.0.282, 23:21:06).
+     * The icon the controller was last on, or the start button, takes the focus - unless one of our
+     * icons has it already. Whatever else of the bar's window held the focus is no place for the
+     * controller: kept, ZUI's whole icon row took the mark and the lift, and a ring wider than the
+     * screen swung across it.
      */
     private static void focusLast(ViewGroup bar) {
         View focused = bar.findFocus();
@@ -540,7 +539,7 @@ public final class TaskbarKeys {
      * The bar given back before a drawer opens from the start button - a tap, A, or the
      * controller's Home. The bar's window is above the drawer's and, kept focusable for the
      * controller, kept its keys: the D-pad moved nothing in the drawer until the screen was
-     * touched (owner's video on 0.0.281, 22:45:23).
+     * touched.
      */
     static void release(String why) {
         if (on() != null) {
@@ -628,7 +627,7 @@ public final class TaskbarKeys {
     /**
      * ZUI's mark on an icon, or taken off again. The mark alone, as ZUI's drawers show it, inside
      * the icon's edges: with the mouse's lift (x1.14 and a turn) it ran off the screen's edge at
-     * the start button and past the row's ends at its first and last icons (owner on 0.0.282).
+     * the start button and past the row's ends at its first and last icons.
      */
     private static void look(View icon, boolean on) {
         Object mark = icon.getTag(TAG_MARK);

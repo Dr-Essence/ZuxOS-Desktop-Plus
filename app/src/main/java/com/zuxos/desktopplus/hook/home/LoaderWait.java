@@ -19,11 +19,11 @@ import de.robv.android.xposed.XposedBridge;
  * <p>ZUI's loader ({@code LoaderTask}, Launcher3's) binds the home screen, then "takes a break"
  * ({@code waitForIdle}) until the main thread has nothing to do, and only then loads the app list
  * ({@code LoadAllApps}). The wait has no limit ({@code LooperIdleLock}, waited for a second at a
- * time for as long as the main thread is busy). With the home screen in front its main thread
- * never went idle, and the drawer stayed empty until an app was opened over it: 14 s and 23 s
- * after a boot, 14 s after a restart in front, about 1 s after starts in the background (logs
- * 18:59, 21:31, 21:58). The break is kept, one second at most: the idle lock ZUI makes
- * ({@code BaseLauncherBinder.newIdleLock}) is let go then through its own
+ * time for as long as the main thread is busy). With the home screen in front its main thread never
+ * went idle, and the drawer stayed empty until an app was opened over it: 14 s and 23 s after a
+ * boot, 14 s after a restart in front, about 1 s after starts in the background. The break is kept,
+ * one second at most: the idle lock ZUI makes ({@code BaseLauncherBinder.newIdleLock}) is let go
+ * then through its own
  * {@code queueIdle}, as if the main thread had gone idle. Released from a thread of its own:
  * the loader holds the lock's monitor while it works, and the main thread must never wait on it.
  */

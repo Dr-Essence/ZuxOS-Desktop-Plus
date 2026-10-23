@@ -21,14 +21,14 @@ import de.robv.android.xposed.XposedBridge;
  * Inside the system: the monitor's touchscreen tied to the monitor, through Android's own
  * association of a touch device with a screen.
  *
- * <p>Android ties a touchscreen to a screen through viewports: each display gets one by the kind
- * of touch its device reports - internal, external, or a virtual one by unique id
+ * <p>Android ties a touchscreen to a screen through viewports: each display gets one by the kind of
+ * touch its device reports - internal, external, or a virtual one by unique id
  * ({@code DisplayManagerService.getViewportType}) - and the list goes to the input system in one
- * call ({@code InputManagerService.setDisplayViewportsInternal}). An external touchscreen is put
- * on the external viewport only by default, and without one at the moment it is configured it
- * falls back to the internal screen. After a replug the monitor's touchscreen acted on the tablet
- * and the monitor took no touch at all (owner, 2026-10-11). Nothing on this firmware ties input
- * to a screen explicitly - no ZUI or Motorola app calls the input system's associations.
+ * call ({@code InputManagerService.setDisplayViewportsInternal}). An external touchscreen is put on
+ * the external viewport only by default, and without one at the moment it is configured it falls
+ * back to the internal screen. After a replug the monitor's touchscreen acted on the tablet and the
+ * monitor took no touch at all. Nothing on this firmware ties input to a screen explicitly - no ZUI
+ * or Motorola app calls the input system's associations.
  *
  * <p>So the input system's own association by device ({@code addUniqueIdAssociationByDescriptor},
  * the call Android has for exactly this) ties each external touchscreen to the external screen
@@ -148,10 +148,9 @@ public final class TouchScreens {
 
     /**
      * A wired touchscreen or pen: the monitor's. A touchscreen's pen is often an input device of
-     * its own, pen only, and stayed on the tablet with the touch (owner: the stylus did not work
-     * on the monitor either). Bluetooth devices are left alone - the tablet's own pen and
-     * keyboards are Bluetooth, and belong wherever the user takes them. Mice and touchpads keep
-     * following the pointer's screen.
+     * its own, pen only, and stayed on the tablet with the touch. Bluetooth devices are left alone
+     * - the tablet's own pen and keyboards are Bluetooth, and belong wherever the user takes them.
+     * Mice and touchpads keep following the pointer's screen.
      */
     private static boolean onTheMonitor(InputDevice device) {
         return device != null && device.isExternal() && !device.isVirtual()

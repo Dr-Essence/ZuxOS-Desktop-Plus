@@ -94,9 +94,8 @@ public final class DrawerKeys {
             }
             int code = event.getKeyCode();
             if (code == KeyEvent.KEYCODE_BUTTON_Y) {
-                // Taken whatever it finds: left to Android, Triangle falls back to SPACE and
-                // clicks the icon, opening the app or folder whose menu was asked for (owner on
-                // 0.0.277).
+                // Taken whatever it finds: left to Android, Triangle falls back to SPACE and clicks
+                // the icon, opening the app or folder whose menu was asked for.
                 if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
                     menu(layer);
                 }

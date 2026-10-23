@@ -17,12 +17,12 @@ import de.robv.android.xposed.XposedBridge;
  *
  * <p>ZUI keeps that band in its device profile ({@code DeviceProfile.hotseatAreaHeight}: its dock
  * pad, {@code hotseat_bar_height_pad}, plus the bar's own space, {@code launcherTaskBarOffset}),
- * and lays the home screen above it ({@code N(Context)}, the workspace's bottom padding), its
- * page dots too. No setting of ZUI's gives it up; the module only stops the empty dock drawing,
- * which left the band empty and still a drop zone for the dock (owner, 14:18). Here the band is
- * the bar's own space only, through ZUI's own fields: the home screen's padding loses the dock's
- * part and the page dots follow by ZUI's code. ZUI's own checks then keep the dock out of the
- * way: with no bounds view no drop goes to it ({@code Workspace} asks
+ * and lays the home screen above it ({@code N(Context)}, the workspace's bottom padding), its page
+ * dots too. No setting of ZUI's gives it up; the module only stops the empty dock drawing, which
+ * left the band empty and still a drop zone for the dock. Here the band is the bar's own space
+ * only, through ZUI's own fields: the home screen's padding loses the dock's part and the page dots
+ * follow by ZUI's code. ZUI's own checks then keep the dock out of the way: with no bounds view no
+ * drop goes to it ({@code Workspace} asks
  * {@code getCustomBoundsView()} first), it takes no touches, as ZUI's desktop mode has its dock
  * stand aside, and it is never drawn ({@link HotseatButton}). Tablet's screen, regular mode
  * only: ZUI's desktop mode keeps its own smaller band, the monitor its own profile.
@@ -136,11 +136,10 @@ public final class HomeBand {
     private static boolean sSaidEdges;
 
     /**
-     * The bands at the home screen's top and bottom become home screen too (owner's screenshots,
-     * 23:39-23:41): the page dots' band, which ZUI adds under the grid
-     * ({@code N}: {@code workspacePageIndicatorHeight - r}, 60 dp here) though its dots show only
-     * while the pages are swiped, and the empty band each page keeps at its top
-     * ({@code cellLayoutPaddingPx.top}, 60 dp, from
+     * The bands at the home screen's top and bottom become home screen too: the page dots' band,
+     * which ZUI adds under the grid ({@code N}: {@code workspacePageIndicatorHeight - r}, 60 dp
+     * here) though its dots show only while the pages are swiped, and the empty band each page
+     * keeps at its top ({@code cellLayoutPaddingPx.top}, 60 dp, from
      * {@code Utilities.getCellLayoutPaddingVertical}),
      * which takes ZUI's own side padding instead. The dots then draw over the last row while a
      * swipe lasts. ZUI's {@code N} lays the padding out afresh each time, so the dots' band is

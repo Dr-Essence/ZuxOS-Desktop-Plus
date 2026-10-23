@@ -17,7 +17,7 @@ import de.robv.android.xposed.XposedBridge;
  * <p>ZUI's desktop opens every new task on the monitor as a floating window, and Android
  * remembers each app's last window and hands it back - after, and over, anything the launch
  * itself asked for. ZUI's photo editor will not run in a window: it closed itself the moment it
- * opened, "not support split screen" (17:53 log: "getlauncherparams=...FilterShowActivity 5").
+ * opened, "not support split screen" (its log: "getlauncherparams=...FilterShowActivity 5").
  *
  * <p>So for a launch carrying the mark, and only for one, the window the system worked out is
  * replaced by full screen, and nothing turns the task back into a window afterwards. Every other

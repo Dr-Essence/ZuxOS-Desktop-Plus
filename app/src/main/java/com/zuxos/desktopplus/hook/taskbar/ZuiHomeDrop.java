@@ -157,8 +157,8 @@ final class ZuiHomeDrop {
         int[] here = new int[2];
         homeLayer.getLocationOnScreen(home);
         catcher.getLocationOnScreen(here);
-        // The drawer's window and the home screen's need not share their origin (15:45): every
-        // event is moved from the catcher's place to the home screen's.
+        // The drawer's window and the home screen's need not share their origin: every event is
+        // moved from the catcher's place to the home screen's.
         sDx = here[0] - home[0];
         sDy = here[1] - home[1];
         Object apps = Reflect.call(launcher, "getAppsView");
@@ -252,9 +252,9 @@ final class ZuiHomeDrop {
     }
 
     /**
-     * The system drag is over: ZUI's ends with it if it has not - its end handed on, or, with
-     * none ({@code ended} null: the drawer's window went first), cancelled - and the drawer
-     * comes back. Left going, the home screen stayed open for a drop (20:16:48).
+     * The system drag is over: ZUI's ends with it if it has not - its end handed on, or, with none
+     * ({@code ended} null: the drawer's window went first), cancelled - and the drawer comes back.
+     * Left going, the home screen stayed open for a drop.
      */
     static void end(DragEvent ended) {
         Object controller = sController;
@@ -439,8 +439,8 @@ final class ZuiHomeDrop {
      * A folder pinned to the bar, for the home screen: ZUI's new folder for it, which ZUI fills
      * once placed ({@code ZuiFolderHome.forHome}), dragged as the bar draws it. Drawn as ZUI's
      * {@code BitmapRenderer} draws, through a {@code Picture} into a hardware bitmap: ZUI's icons
-     * are hardware bitmaps, which a software canvas cannot draw (ZUI's folder skips them), and
-     * the folder was dragged as an empty box (owner on 0.0.277, video 21:26:27).
+     * are hardware bitmaps, which a software canvas cannot draw (ZUI's folder skips them), and the
+     * folder was dragged as an empty box.
      */
     private static Object[] folderOf(View catcher, Item pin) {
         View icon = sPinView != null ? sPinView.get() : null;

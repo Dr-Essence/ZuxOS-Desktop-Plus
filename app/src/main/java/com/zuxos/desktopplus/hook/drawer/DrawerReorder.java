@@ -179,7 +179,7 @@ final class DrawerReorder {
         // The slot under the finger is the laid-out cell there; what the finger is over is the
         // entry the preview draws in that slot (ReorderSlots) - the laid-out one may have been
         // slid elsewhere. Read by layout alone, the gap's own slot was an app's, and resting in
-        // the gap folded into an app drawn somewhere else (21:58: every drop made a folder).
+        // the gap folded into an app drawn somewhere else: every drop made a folder.
         List<View> icons = visibleIcons();
         View cell = iconAt(icons, x, y);
         String slotKey = cell == null ? null : keyOfCell(cell);
@@ -265,7 +265,7 @@ final class DrawerReorder {
      * Back to how the drawer was, for a drag that left the drawer or ended without a drop: every
      * cell home and showing, the dragged one too. Put back by drawing the preview again, the
      * dragged entry's cell stayed hidden, and the drawer's list reused that hidden view for
-     * whatever it showed there next - a folder gone until ZUX Home restarted (owner, 22:52).
+     * whatever it showed there next - a folder gone until ZUX Home restarted.
      */
     void cancel() {
         mGrid.removeCallbacks(mFold);
@@ -374,10 +374,10 @@ final class DrawerReorder {
     }
 
     /**
-     * The list scrolled so the dropped entry is drawn where the gap was. ZUI's list keeps its
-     * first row on screen when an entry is put in before it: dropped at the very start, the
-     * whole drawer moved down a row and the app landed out of sight above (owner, 23:15). When
-     * the entry is not on screen, its row is worked out from one that is.
+     * The list scrolled so the dropped entry is drawn where the gap was. ZUI's list keeps its first
+     * row on screen when an entry is put in before it: dropped at the very start, the whole drawer
+     * moved down a row and the app landed out of sight above. When the entry is not on screen, its
+     * row is worked out from one that is.
      */
     private void keepInPlace(String key, int gapTop, List<String> after) {
         View there = cellOf(key);
@@ -589,10 +589,10 @@ final class DrawerReorder {
     }
 
     /**
-     * A drawer cell whose look the rearranging changes - hidden, slid or swelled - is put back
-     * to rest the moment the drawer's list takes it off screen. The list keeps such cells to
-     * show other entries later; one taken while hidden or slid came back as a blank cell, or as
-     * an entry drawn a place along, until ZUX Home restarted (owner, 23:15 and 23:24).
+     * A drawer cell whose look the rearranging changes - hidden, slid or swelled - is put back to
+     * rest the moment the drawer's list takes it off screen. The list keeps such cells to show
+     * other entries later; one taken while hidden or slid came back as a blank cell, or as an entry
+     * drawn a place along, until ZUX Home restarted.
      */
     static void touched(View cell) {
         cell.removeOnAttachStateChangeListener(RESET);

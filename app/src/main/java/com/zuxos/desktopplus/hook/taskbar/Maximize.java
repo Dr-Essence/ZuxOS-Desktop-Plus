@@ -29,13 +29,12 @@ import java.util.Set;
  * Maximize and Floating, for the taskbar's and the desktop's menus.
  *
  * <p>On the tablet's desktop mode a window goes full screen, app and all, as ZUI's own button
- * does there. On the monitor too, ZUI's button makes the window full screen: its trace on
- * 1.0.166 showed SystemUI starting a transition of Android's type for "leave desktop mode by the
- * window's button" (1106) that sets full screen, no bounds, not always on top, and in front - and
- * for its Restore one of type "enter desktop mode by the window's button" (1101) that hands the
- * window back with the size it had. This starts the same two, so SystemUI follows them as it
- * follows its own; sending the change around it, as 1.0.133 did, left its window menu opening
- * on the tablet.
+ * does there. On the monitor too, ZUI's button makes the window full screen: traced, it has
+ * SystemUI start a transition of Android's type for "leave desktop mode by the window's button"
+ * (1106) that sets full screen, no bounds, not always on top, and in front - and for its Restore
+ * one of type "enter desktop mode by the window's button" (1101) that hands the window back with
+ * the size it had. This starts the same two, so SystemUI follows them as it follows its own;
+ * sending the change around it left its window menu opening on the tablet.
  *
  * <p>If the system refuses the transition, the window is grown in place instead, to the area ZUI
  * leaves a floating window ({@link WindowMath}), and Floating shrinks it back.
@@ -120,9 +119,8 @@ final class Maximize {
             // does it, SystemUI would take it as a launch into the desktop and float it again.
         } else {
             if (!monitor && toFullScreen(task)) {
-                // The tablet's desktop mode: full screen, window and app together - tried there
-                // on 1.0.133 with Claude, Gallery, Lawnchair and Termux, each filling the screen
-                // as ZUI's own maximise does.
+                // The tablet's desktop mode: full screen, window and app together, filling the
+                // screen as ZUI's own maximise does.
                 L.i("taskbar apps: maximising " + pkg + " (task " + id + ") to full screen");
             } else {
                 // Full screen refused, or a window grown in place by this same fallback, which

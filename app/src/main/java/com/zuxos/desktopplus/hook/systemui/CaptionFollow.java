@@ -18,8 +18,8 @@ import de.robv.android.xposed.XposedBridge;
  * window moves to another screen: {@code DesktopModeWindowDecorViewModel} only relays it out,
  * from the moved window's details, and only for changes it is told of. A window that reached the
  * monitor without SystemUI being told kept a title bar that still said "full screen on the
- * tablet", and its "…" menu opened on the tablet (22:17: SystemUI's own log had Claude full
- * screen while the system had it floating on the monitor).
+ * tablet", and its "…" menu opened on the tablet (SystemUI's own log had the app full screen
+ * while the system had it floating on the monitor).
  *
  * <p>So when SystemUI is told of a window whose title bar is from another screen, the title bar
  * is closed and made again with SystemUI's own calls - {@code destroyWindowDecoration}, then

@@ -106,8 +106,8 @@ public final class Const {
     /** An app off the taskbar - its drawer, or a pin on the tablet - lands on the home screen. */
     public static final String KEY_HOME_DROP = "home_drop";
     /**
-     * The home grid chosen in the module's own setting in 0.0.261, before the sizes moved into
-     * ZUI's own grid choice ({@code HomeGrids}): read once, to hand it over.
+     * The home grid chosen in the module's old setting, before the sizes moved into ZUI's own
+     * grid choice ({@code HomeGrids}): read once, to hand it over.
      */
     public static final String KEY_HOME_GRID = "home_grid";
     /** The taskbar's drawer rearranges under a drag, as ZUX Home's does. */

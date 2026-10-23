@@ -379,7 +379,7 @@ public final class FolderStyle {
     /**
      * An icon a folder opened from, back to its full size. Opening the folder ourselves cut the
      * launcher's tap short: its press shrink was never undone, and the drawer folder stayed a
-     * size smaller than its neighbours after it closed (the 15:35 and 23:58 recordings).
+     * size smaller than its neighbours after it closed.
      */
     public static void restoreIcon(View icon) {
         try {

@@ -19,9 +19,9 @@ import java.util.function.Function;
  * screen shows its chosen icons ({@code MultiDragSupport}): each gets a picture of its own, the
  * pictures gather under the finger behind the dragged app in 150 ms
  * ({@code initSelectedViewAndDragView}) and follow it, and at the drop each flies onto where its
- * app now is - its new cell, or the folder it went into - and goes ({@code MultiDragSupport.x},
- * 300 ms, linear). Without them the chosen apps just vanished into the folder (owner, 0.0.269).
- * Only the chosen apps on screen get one; the rest move as before.
+ * app now is - its new cell, or the folder it went into - and goes ({@code MultiDragSupport.x}, 300
+ * ms, linear). Without them the chosen apps just vanished into the folder. Only the chosen apps on
+ * screen get one; the rest move as before.
  */
 final class CarriedFlight {
 

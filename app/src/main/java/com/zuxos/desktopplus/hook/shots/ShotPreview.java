@@ -579,7 +579,7 @@ final class ShotPreview {
      * Starts it on the screen the picture was taken on.
      *
      * <p>{@code fullscreen}: ZUI's desktop makes every new task a floating window, and its photo
-     * editor closes itself at once in one ("not support split screen", 17:38 log). Asked for full
+     * editor closes itself at once in one ("not support split screen"). Asked for full
      * screen, it opens. The mode the task really got is logged half a second later.
      */
     private static void launch(Context ctx, int display, Intent intent, boolean fullscreen,
@@ -590,7 +590,7 @@ final class ShotPreview {
             if (fullscreen) {
                 Reflect.call(options, "setLaunchWindowingMode", WINDOWING_MODE_FULLSCREEN);
                 // The system part makes it stick: ZUI hands back the app's last floating window
-                // over the launch's own request (17:53 log).
+                // over the launch's own request.
                 intent.putExtra(SystemFullscreen.EXTRA, true);
             }
             ctx.startActivity(intent, options.toBundle());

@@ -205,11 +205,11 @@ public final class NativeDrawerHooks {
     /**
      * App info chosen in a menu of the taskbar's drawer: the drawer goes as Settings opens.
      *
-     * <p>ZUI's {@code SystemShortcut.AppInfo.onClick} sends ZUX Home's own drawer back to the
-     * home screen ({@code returnToHomescreen}), and leaves the taskbar's drawer, a window above
-     * every app, open in front of Settings (owner on 0.0.282, 23:19:15). Its menu there has App
-     * info because we hand ZUI's own to it ({@code ZuiAppRows}). It is closed as after a launch
-     * from it ({@link #closeTaskbarDrawer}), once Settings is on its way.
+     * <p>ZUI's {@code SystemShortcut.AppInfo.onClick} sends ZUX Home's own drawer back to the home
+     * screen ({@code returnToHomescreen}), and leaves the taskbar's drawer, a window above every
+     * app, open in front of Settings. Its menu there has App info because we hand ZUI's own to it
+     * ({@code ZuiAppRows}). It is closed as after a launch from it ({@link #closeTaskbarDrawer}),
+     * once Settings is on its way.
      */
     private static void hookAppInfo(ClassLoader loader) {
         try {
@@ -396,8 +396,8 @@ public final class NativeDrawerHooks {
     /**
      * The installed apps filed in our folders, by key, from ZUI's own app store
      * ({@code AllAppsStore.getApps()}): the list rewritten here has them taken out after its first
-     * pass, so it cannot be where ZUI's folders of them are made from (1.0.190: every folder
-     * empty). Null where the store is not found.
+     * pass, so it cannot be where ZUI's folders of them are made from: every folder would be
+     * empty. Null where the store is not found.
      */
     private static Map<String, Object> storeAppsByKey(Context ctx, Object appsList,
             Set<String> filed) {
@@ -843,10 +843,10 @@ public final class NativeDrawerHooks {
      * <p>ZUI closes it only for launches it runs itself, and on the desktop displays the launch
      * goes elsewhere - so the drawer stayed open with the app starting behind it. Apps inside our
      * folders were left out (their entries are ZUI's workspace items, not drawer entries), and so
-     * was ZUX Home's own drawer (22:11). Closed a moment later rather than at once, so the launch
-     * animation still starts from the icon: the taskbar's drawer as ZUI hides it
-     * ({@code TaskbarOverlayContext.hideAllAppsOverlay}), ZUX Home's by its state manager back
-     * to {@code NORMAL}, as ZUI does in desktop mode.
+     * was ZUX Home's own drawer. Closed a moment later rather than at once, so the launch animation
+     * still starts from the icon: the taskbar's drawer as ZUI hides it
+     * ({@code TaskbarOverlayContext.hideAllAppsOverlay}), ZUX Home's by its state manager back to
+     * {@code NORMAL}, as ZUI does in desktop mode.
      */
     private static void closeAfterLaunch(View view) {
         Object tag = view.getTag();

@@ -21,9 +21,9 @@ public final class Bypass {
     private static final String MANAGER = "android.hardware.battery.ZuiBatteryManager";
 
     /**
-     * Read-only trace while the owner's report is looked into: bypass holds, but under load the
-     * battery gives current and at some point charges again. Whether ZUI says it is on - asked
-     * once when the tray starts, then kept from the switch.
+     * Read-only trace while a report is looked into: bypass holds, but under load the battery
+     * gives current and at some point charges again. Whether ZUI says it is on - asked once when
+     * the tray starts, then kept from the switch.
      */
     private static boolean sHeld;
     private static boolean sAsked;
@@ -188,7 +188,7 @@ public final class Bypass {
 
     /**
      * What the battery is doing: its current in mA with the kernel's sign - on this tablet
-     * positive is the battery giving current, as the owner's probes showed - then status, plug,
+     * positive is the battery giving current, as probes showed - then status, plug,
      * level, and what the charger offers when the broadcast says.
      */
     private static String battery(Context ctx, android.content.Intent intent) {

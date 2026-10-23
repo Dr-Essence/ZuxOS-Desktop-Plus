@@ -59,10 +59,10 @@ public final class Reflect {
     }
 
     /**
-     * What a class's lookups found, by class and name, "nothing" included. A lookup walks the
-     * class chain and costs a thrown exception per class without the field (or every method of
-     * every class), and some are asked for every drawer cell on every finger move: dozens of
-     * exceptions a frame made drags spend 30-60 ms in input (owner's trace, 21:59).
+     * What a class's lookups found, by class and name, "nothing" included. A lookup walks the class
+     * chain and costs a thrown exception per class without the field (or every method of every
+     * class), and some are asked for every drawer cell on every finger move: dozens of exceptions a
+     * frame made drags spend 30-60 ms in input.
      */
     private static final java.util.Map<Class<?>, java.util.Map<String, Object>> FOUND =
             new java.util.concurrent.ConcurrentHashMap<>();

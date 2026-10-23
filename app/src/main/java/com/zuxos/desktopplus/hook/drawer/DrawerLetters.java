@@ -12,11 +12,11 @@ import de.robv.android.xposed.XposedBridge;
  * ZUI's A-Z bar down the side of its drawers, gone while the drawers follow our order.
  *
  * <p>ZUI's {@code RecyclerViewLettersScroller} jumps to an app by its first letter, which only
- * means something in an alphabetical list - and ours is the order the owner arranged, folders
+ * means something in an alphabetical list - and ours is the order the user arranged, folders
  * first. ZUI has no setting for it: both of its scroller layouts use that class, and ZUI shows it
  * again whenever a search starts or ends ({@code ActivityAllAppsContainerView}), so hiding it was
- * undone (the 00:28 recording). Its visibility is left to ZUI; its letters are never drawn and it
- * takes no touches while the drawer follows our order, so turning that off brings them back.
+ * undone. Its visibility is left to ZUI; its letters are never drawn and it takes no touches
+ * while the drawer follows our order, so turning that off brings them back.
  */
 final class DrawerLetters {
 

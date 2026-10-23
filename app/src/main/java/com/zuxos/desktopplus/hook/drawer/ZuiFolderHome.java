@@ -72,14 +72,13 @@ final class ZuiFolderHome {
      * {@code DragView}: from the start scale to {@code (width + growth) / width}). Our drawer
      * folders are drawn larger than their picture (scaled to the drawer's icons,
      * {@code ZuiFolders.align}), so the end is taken relative to the size shown: without it the
-     * picture "grew" to about the size it had - no pickup (owner, 0.0.261). The growth is ZUI's
-     * 6 dp on the folder as shown, as on its home screen: multiplied by the shown scale, it was
-     * ×1.53 in portrait, a folder held "too big" (owner on 0.0.277).
+     * picture "grew" to about the size it had - no pickup. The growth is ZUI's 6 dp on the folder
+     * as shown, as on its home screen: multiplied by the shown scale, it was ×1.53 in portrait, a
+     * folder held "too big".
      *
-     * <p>Once per picture: ZUI's {@code DragView} is made through three constructors, each
-     * calling the next, and the lift was given as each returned - three times, the folder held
-     * at 1.77 times its size (owner's video on 0.0.279, 22:27:57; 0.0.277 multiplied it three
-     * times).
+     * <p>Once per picture: ZUI's {@code DragView} is made through three constructors, each calling
+     * the next, and the lift was given as each returned - three times, the folder held at 1.77
+     * times its size.
      */
     private static int hookPickup(ClassLoader loader) {
         Class<?> view = Reflect.findClass("com.android.launcher3.dragndrop.DragView", loader);
@@ -333,11 +332,11 @@ final class ZuiFolderHome {
     }
 
     /**
-     * The drag is over: the drawer's folder icon it was held from shows again. ZUI hides the icon
-     * a drag starts from ({@code PopupContainerWithArrow}'s pre-drag, {@code onPreDragEnd}) and
-     * shows it again only through its own home screen's drop or its cancel; a drop in the drawer,
-     * or on to the home screen from the drawer, took neither, so the folder stayed a blank cell
-     * until ZUX Home restarted (probe 23:45: our folder icons "hidden" in shown cells).
+     * The drag is over: the drawer's folder icon it was held from shows again. ZUI hides the icon a
+     * drag starts from ({@code PopupContainerWithArrow}'s pre-drag, {@code onPreDragEnd}) and shows
+     * it again only through its own home screen's drop or its cancel; a drop in the drawer, or on
+     * to the home screen from the drawer, took neither, so the folder stayed a blank cell until ZUX
+     * Home restarted.
      */
     private static void showHeld() {
         View icon = sHeld != null ? sHeld.get() : null;

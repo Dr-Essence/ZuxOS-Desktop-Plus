@@ -166,7 +166,7 @@ public final class Glyphs {
                 return p;
             case CLOSE_ALL:
                 // Every window: one behind another, the front one crossed out - told apart from
-                // Close's single cross at a glance (owner).
+                // Close's single cross at a glance.
                 p.moveTo(8, 5);
                 p.lineTo(19, 5);
                 p.lineTo(19, 15);
@@ -373,8 +373,8 @@ public final class Glyphs {
                 p.lineTo(17, 19);
                 return p;
             case TASKS:
-                // A task manager's sign: a window with the pulse of what runs in it. The rows
-                // with their dots it had looked like a note (owner).
+                // A task manager's sign: a window with the pulse of what runs in it. The rows with
+                // their dots it had looked like a note.
                 p.addRoundRect(new RectF(3.5f, 4.5f, 20.5f, 19.5f), 2.5f, 2.5f,
                         Path.Direction.CW);
                 p.moveTo(5.5f, 13);

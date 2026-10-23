@@ -18,9 +18,8 @@ import java.util.WeakHashMap;
 /**
  * Puts the launcher right when ZUI moves its taskbar from the tablet to the monitor.
  *
- * <p>The log of a bad boot (2026-10-06 14:20): ZUI's bar was not on any screen when first
- * seen, then on the monitor with an empty row - its start button left out - and the probe
- * written at 14:21:08 shows that row. Apps opened from it went to the tablet and its drawer
+ * <p>On a bad boot ZUI's bar was not on any screen when first seen, then on the monitor with an
+ * empty row - its start button left out. Apps opened from it went to the tablet and its drawer
  * could come up empty. Force stopping the launcher fixed all of it, because the launcher then
  * built the bar on the monitor properly.
  *

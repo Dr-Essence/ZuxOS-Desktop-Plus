@@ -18,10 +18,10 @@ import de.robv.android.xposed.XposedBridge;
  * ({@link HomeGrids}), as ZUI's scalable grids fit theirs.
  *
  * <p>ZUI's grids on this tablet are neither scalable nor responsive, and for them its
- * {@code DeviceProfile.updateIconSize} never shrinks an icon: it only works out the cell's
- * height from it. On 10x7 or 12x8 the icon, its name and its dot stayed their 6x4 size in a cell
- * half as large, and spilled over the next one (owner, video 22:02). Here, once ZUI has sized a
- * profile's icons ({@code DeviceProfile.I}, which sets {@code iconSizePx} and
+ * {@code DeviceProfile.updateIconSize} never shrinks an icon: it only works out the cell's height
+ * from it. On 10x7 or 12x8 the icon, its name and its dot stayed their 6x4 size in a cell half as
+ * large, and spilled over the next one. Here, once ZUI has sized a profile's icons
+ * ({@code DeviceProfile.I}, which sets {@code iconSizePx} and
  * {@code iconTextSizePx} and lays the cells out), a profile whose icon and name do not fit its
  * cell ({@code getCellSize()}) gets them shrunk by one scale, and ZUI works its cells, folder
  * icons and hotseat out again from them ({@code updateIconSize}). The dots ZUI then makes for

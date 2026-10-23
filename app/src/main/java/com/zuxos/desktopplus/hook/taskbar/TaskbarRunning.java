@@ -1005,8 +1005,8 @@ public final class TaskbarRunning {
         }
         // ZUI's navigation keys, where they rest: always, whether or not they are showing at
         // this moment. ZUI fades and slides them as an app opens or home comes back, and
-        // measured then the row ran on to the bar's end, under the keys (15:33: every switch
-        // flipped the row's end between the two).
+        // measured then the row ran on to the bar's end, under the keys: every switch flipped the
+        // row's end between the two.
         // Their own place or where they are drawn, the nearer: in landscape ZUI rests them part
         // way along the bar by sliding them there (x 1384 on a bar 3040 wide).
         View keys = restingKeys(dragLayer);
@@ -1027,10 +1027,9 @@ public final class TaskbarRunning {
                 by = describe(which[0]);
             }
         }
-        // What ends the row, each time that changes: the bar in portrait was cut short by
-        // something of ZUI's that no probe has shown yet (15:15).
-        // Which view and how wide the bar is, not where: ZUI slides its keys across the bar,
-        // and every frame of that would be a line.
+        // What ends the row, each time that changes: the bar in portrait was cut short by something
+        // of ZUI's that no probe has shown yet. Which view and how wide the bar is, not where: ZUI
+        // slides its keys across the bar, and every frame of that would be a line.
         String said = by + " (bar " + width + " wide)";
         if (!said.equals(LIMITED_BY.put(dragLayer, said))) {
             L.i("taskbar running: display " + TaskbarTray.displayIdOf(dragLayer)
@@ -1062,8 +1061,8 @@ public final class TaskbarRunning {
                     || view.getClass().getName().startsWith("com.zuxos.desktopplus.")
                     || floating(view)
                     // A bare view is no button of the bar's: it is the arrow under ZUI's popup,
-                    // which ZUI puts in the bar's layer beside the popup. Counted, it cut our
-                    // row short at the app the popup was opened for (15:33, x 1187).
+                    // which ZUI puts in the bar's layer beside the popup. Counted, it cut our row
+                    // short at the app the popup was opened for.
                     || view.getClass() == View.class) {
                 continue;
             }
@@ -1082,7 +1081,7 @@ public final class TaskbarRunning {
             // slide in from past the bar's end - an app opening, the keys coming back - where
             // they are drawn is not where they stop. The nearer of that and their own place, so
             // the row never runs on under where they land: measured mid-slide (x 2520 on a bar
-            // 1904 wide, portrait, 15:33), it ran to the bar's end, under the keys at 1384.
+            // 1904 wide, portrait), it ran to the bar's end, under the keys at 1384.
             int drawn = TaskbarStart.drawnLeftIn(dragLayer, view);
             int laid = offsetIn(dragLayer, view);
             int left = Math.min(drawn, laid);
@@ -1265,8 +1264,8 @@ public final class TaskbarRunning {
 
         /**
          * Night mode switched: drawn again in the new colour at once. The screen's own change
-         * reaches every view of the bar's window; ZUI's call on its bar alone came too late or
-         * not at all, so the marks only turned when the bar was made again (owner, 1.0.212).
+         * reaches every view of the bar's window; ZUI's call on its bar alone came too late or not
+         * at all, so the marks only turned when the bar was made again.
          */
         @Override
         protected void onConfigurationChanged(android.content.res.Configuration config) {

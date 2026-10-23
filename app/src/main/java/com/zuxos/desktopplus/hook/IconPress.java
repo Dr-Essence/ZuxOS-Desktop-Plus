@@ -12,7 +12,7 @@ import com.zuxos.desktopplus.core.L;
  * handler with {@code setStayPressed(false)}, a hold that opens a popup without a drag with
  * {@code clearPressedBackground()} ({@code LauncherCustom.skipHotseatDrag}). A tap or hold we take
  * from ZUI skips those handlers, so the icon stayed pressed: small, and small again each time ZUI
- * rebuilt it, since a rebuilt icon starts at its view's pressed state (the 00:29 recording).
+ * rebuilt it, since a rebuilt icon starts at its view's pressed state.
  * This makes the same calls ZUI's handlers make, nothing more.
  */
 public final class IconPress {

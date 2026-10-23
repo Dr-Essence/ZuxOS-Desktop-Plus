@@ -34,7 +34,7 @@ public final class AndroidRobot extends Drawable {
     private final Paint mFill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mLine = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mEye = new Paint(Paint.ANTI_ALIAS_FLAG);
-    /** The z's of its sleep: a soft purple, so the robot itself stays green (owner). */
+    /** The z's of its sleep: a soft purple, so the robot itself stays green. */
     private final Paint mZ = new Paint(Paint.ANTI_ALIAS_FLAG);
     private float mScale = 1f;
     private float mLeft;

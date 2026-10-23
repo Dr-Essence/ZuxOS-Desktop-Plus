@@ -186,9 +186,9 @@ final class DrawerSession {
         }
         if (mInFolder != null && !mLeftFolder) {
             // Our target hears the drag only where the folder does not: it has left the folder.
-            // ZUI's folder closes on the drag's exit (Folder.onDragExit) and the app goes on in
-            // the drawer, placed where it is let go - as in ZUX Home's drawer. Sent on as ZUI's
-            // floating window here, the drawer closed under it (owner on 0.0.274).
+            // ZUI's folder closes on the drag's exit (Folder.onDragExit) and the app goes on in the
+            // drawer, placed where it is let go - as in ZUX Home's drawer. Sent on as ZUI's
+            // floating window here, the drawer closed under it.
             mLeftFolder = true;
             L.i("drawer rearrange: the drag of " + key + " left its folder - on in the drawer");
         }
@@ -377,9 +377,9 @@ final class DrawerSession {
      *
      * <p>ZUI's folder adds itself only when it opens with no parent ({@code Folder.c0}), and the
      * taskbar's controller turns folders away ({@code TaskbarDragController.addDropTarget}): in
-     * either drawer the drop went to our target, not the folder that had opened for it (owner,
-     * 23:47). ZUI's controller asks its targets newest first ({@code DragController.e}), so the
-     * folder goes after ours on the very list ZUI keeps.
+     * either drawer the drop went to our target, not the folder that had opened for it. ZUI's
+     * controller asks its targets newest first ({@code DragController.e}), so the folder goes after
+     * ours on the very list ZUI keeps.
      */
     private boolean asTarget(Object folder) {
         java.util.List<Object> targets = targetsOf(controller, target);
@@ -557,11 +557,11 @@ final class DrawerSession {
         if (mInFolder != null && mLeftFolder && !(folderOpened && sprung == mInFolder)
                 && !Boolean.TRUE.equals(Reflect.call(controller, "isDragging"))
                 && Boolean.TRUE.equals(Reflect.call(mInFolder, "isOpen"))) {
-            // ZUI closes a folder its app has left (Folder.onDragExit, then completeDragExit at
-            // the drop); now and then this one was still open, its blur behind it, with the app
-            // placed elsewhere (owner on 0.0.277). It closes as ZUI closes it - at the drag's
-            // end, after ZUI's own onDropCompleted, so a folder ZUI closed itself is not
-            // touched, nor one a new drag has started in.
+            // ZUI closes a folder its app has left (Folder.onDragExit, then completeDragExit at the
+            // drop); now and then this one was still open, its blur behind it, with the app placed
+            // elsewhere. It closes as ZUI closes it - at the drag's end, after ZUI's own
+            // onDropCompleted, so a folder ZUI closed itself is not touched, nor one a new drag has
+            // started in.
             Reflect.call(mInFolder, "close", true);
             if (!sSaidLeftOpen) {
                 sSaidLeftOpen = true;
@@ -573,10 +573,10 @@ final class DrawerSession {
                 ? ZuiFolders.folderOfZui(mInFolder) : null;
         if (from != null) {
             // ZUI's folder took the app off its pages as the drag began: wherever the app went
-            // - back into it on its icon, another folder, the bar, a copy on the home screen -
-            // the folder is shown again from our model. Left as ZUI had it, the app was missing
-            // until the taskbar's drawer was opened again, and for good in ZUX Home's drawer,
-            // which keeps its icons (owner on 0.0.277).
+            // - back into it on its icon, another folder, the bar, a copy on the home screen - the
+            // folder is shown again from our model. Left as ZUI had it, the app was missing until
+            // the taskbar's drawer was opened again, and for good in ZUX Home's drawer, which keeps
+            // its icons.
             ZuiFolders.rebuild(from);
         }
         String filed = ZuiFolders.sLastFiled;
@@ -601,7 +601,7 @@ final class DrawerSession {
      * The held icon shown again. ZUI hides it when its popup gives way to the drag
      * ({@code PopupContainerWithArrow} {@code onPreDragEnd}: {@code INVISIBLE}) and the taskbar's
      * controller brings back only its alpha ({@code TaskbarDragController.d0}): after a pin from
-     * the taskbar's drawer its cell stayed blank (owner, 0.0.269).
+     * the taskbar's drawer its cell stayed blank.
      */
     private void showOriginal() {
         Object original = Reflect.field(drag, "originalView");
@@ -627,9 +627,8 @@ final class DrawerSession {
      * drop): it stops the picture's own animation, moves and scales it onto the icon, and at its
      * end ZUI removes it and ends the drag ({@code clearAnimatedView} - the drag's
      * {@code deferDragViewCleanupPostAnimation}). Animated by us instead, the picture never moved,
-     * and swapped for the cell in one frame (video 14:17, owner: "bigger with no animation").
-     * Where ZUI's animation is not found - the taskbar drawer's layer has none - the drag ends at
-     * once.
+     * and swapped for the cell in one frame. Where ZUI's animation is not found - the taskbar
+     * drawer's layer has none - the drag ends at once.
      */
     private void land(View dragged, View cell, boolean into) {
         if (dragged == null) {

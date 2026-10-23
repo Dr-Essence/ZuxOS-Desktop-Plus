@@ -48,9 +48,9 @@ public final class ZuiFocus {
     }
 
     /**
-     * A menu opened by a key: while it is made, ZUI's floating window and split screen are left
-     * out of it ({@link #byKeys()}) - a controller has no use for them (owner on 0.0.282). A
-     * menu opened by touch, a stylus or a mouse keeps them.
+     * A menu opened by a key: while it is made, ZUI's floating window and split screen are left out
+     * of it ({@link #byKeys()}) - a controller has no use for them. A menu opened by touch, a
+     * stylus or a mouse keeps them.
      */
     public static boolean byKeys(Opening opening) throws Exception {
         sByKeys = true;
@@ -212,10 +212,10 @@ public final class ZuiFocus {
     /**
      * ZUI's focus mark on every row and button of its popup. ZUI's text rows
      * ({@code deep_shortcut_zui}, {@code system_shortcut}) have plain shapes behind them, with no
-     * focused state, and the controller moved through them unseen (owner on 0.0.277); its icon
-     * buttons - floating window, split screen, app info and the rest - have a borderless ripple
-     * whose focused state does not show either (owner's video on 0.0.279, 22:37:07). The mark is
-     * a foreground seen only while the row is focused - which only keys do - once per popup.
+     * focused state, and the controller moved through them unseen; its icon buttons - floating
+     * window, split screen, app info and the rest - have a borderless ripple whose focused state
+     * does not show either. The mark is a foreground seen only while the row is focused - which
+     * only keys do - once per popup.
      */
     public static void markRows(Object popup) {
         if (!(popup instanceof ViewGroup) || ((View) popup).getTag(TAG_MARKED) != null) {

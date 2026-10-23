@@ -28,13 +28,13 @@ import de.robv.android.xposed.XposedBridge;
  * there, as ZUI's own dock takes it.
  *
  * <p>ZUI's home-screen drag is ZUX Home's own ({@code DragController}, in its window), and the bar
- * is another window: the drag never reached it, and let go over the bar the item went back
- * (owner on 0.0.276). For a drag from the home screen - its pages, its dock, or one of ZUI's own
- * folders on it - a drop target of ours joins ZUI's own drag ({@code addDropTarget}, the newest,
- * so asked first) over the bar only. The bar shows its line with the icon there; let go, the item
- * is pinned at the line and leaves the home screen through ZUI's own removal
- * ({@code Launcher.removeItem}), as a pin dragged off the bar onto the home screen leaves the bar
- * (drag row 2: home to bar moves). A drop the bar would refuse is ZUI's to send back.
+ * is another window: the drag never reached it, and let go over the bar the item went back. For a
+ * drag from the home screen - its pages, its dock, or one of ZUI's own folders on it - a drop
+ * target of ours joins ZUI's own drag ({@code addDropTarget}, the newest, so asked first) over the
+ * bar only. The bar shows its line with the icon there; let go, the item is pinned at the line and
+ * leaves the home screen through ZUI's own removal ({@code Launcher.removeItem}), as a pin dragged
+ * off the bar onto the home screen leaves the bar (drag row 2: home to bar moves). A drop the bar
+ * would refuse is ZUI's to send back.
  */
 final class HomeBarDrop {
 

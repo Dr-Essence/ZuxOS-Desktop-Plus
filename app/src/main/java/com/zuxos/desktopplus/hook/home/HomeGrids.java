@@ -29,7 +29,7 @@ import de.robv.android.xposed.XposedBridge;
  * migration moves the icons. 7x5 is never offered: ZUI treats exactly 7x5 as its work-mode
  * grid. With the module off, ZUI finds no such name and falls back to its nearest grid itself.
  *
- * <p>The grid chosen in the module's own setting before (0.0.261) is handed to ZUI's choice once.
+ * <p>A grid chosen in the module's old setting is handed to ZUI's choice once.
  */
 public final class HomeGrids {
 

@@ -268,9 +268,9 @@ final class NavKeysHold {
 
     /**
      * Whether the room ZUI keeps at the bar's right edge is empty: its contextual buttons there
-     * ({@code zui_contextual_container}, {@code end_contextual_buttons} - the accessibility
-     * button) show nothing. ZUI's layoutter keeps it either way
-     * ({@code inlineNavButtonsEndSpacing}); the keys then stopped short of the edge (owner).
+     * ({@code zui_contextual_container}, {@code end_contextual_buttons} - the accessibility button)
+     * show nothing. ZUI's layoutter keeps it either way ({@code inlineNavButtonsEndSpacing}); the
+     * keys then stopped short of the edge.
      */
     private static boolean edgeFree(View keys) {
         if (!Cfg.navKeysEdge() || !(keys.getParent() instanceof ViewGroup)) {
