@@ -2,7 +2,7 @@ package com.zuxos.desktopplus.logic;
 
 /**
  * Where one of ours goes on the taskbar: by gravity, at the edge of the window ZUI's own row is
- * kept at, never at a top measured once (0.0.215).
+ * kept at, never at a top measured once.
  *
  * <p>Gravity values are Android's ({@code android.view.Gravity}), written out so this needs no
  * framework: a frame layout reads a child's vertical gravity as bottom, centre or - for anything

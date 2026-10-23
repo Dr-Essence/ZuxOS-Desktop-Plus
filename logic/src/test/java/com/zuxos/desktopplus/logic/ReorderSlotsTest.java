@@ -7,7 +7,7 @@ import org.junit.Test;
 /**
  * The rearranged drawer's preview: every entry drawn in one slot, the gap where the dragged one
  * lands, and the slot under the finger read back to the entry drawn there - never to the entry
- * whose laid-out cell it is, which the preview has moved away (21:58: every drop made a folder).
+ * whose laid-out cell it is, which the preview has moved away: every drop made a folder.
  */
 public class ReorderSlotsTest {
 

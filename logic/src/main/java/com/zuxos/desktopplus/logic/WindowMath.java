@@ -3,7 +3,7 @@ package com.zuxos.desktopplus.logic;
 /**
  * Where a maximised window goes, and whether one is maximised, by ZUI's own rule.
  *
- * <p>Read from ZUI's window shell on the owner's firmware ({@code DesktopModeUtils}, in
+ * <p>Read from ZUI's window shell on ZuxOS 2.x ({@code DesktopModeUtils}, in
  * SystemUI): a window that can take any size fills the screen less its bars; one that cannot
  * keeps its shape, as large as fits, centred. Its title bar is not part of that shape. Our menu's
  * Maximize did the first to every window, and stretched the ones that keep their shape.
