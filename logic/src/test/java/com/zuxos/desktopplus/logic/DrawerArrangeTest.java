@@ -138,6 +138,33 @@ public class DrawerArrangeTest {
     }
 
     @Test
+    public void fileIntoAtMovesAnAppFromOneFolderToAnother() {
+        Item a = app("a");
+        Item b = app("b");
+        Item c = app("c");
+        Item x = app("x");
+        Item y = app("y");
+        Item from = Item.folder("A");
+        from.children.addAll(Arrays.asList(a, b, c));
+        Item to = Item.folder("B");
+        to.children.addAll(Arrays.asList(x, y));
+        List<String> order = order(from, to);
+        List<Item> folders = new ArrayList<>(Arrays.asList(from, to));
+
+        // In the new folder once, gone from the old one.
+        assertTrue(DrawerArrange.fileIntoAt(order, folders, to, b, 1));
+        assertEquals(order(x, b, y), order(to.children.toArray(new Item[0])));
+        assertEquals(order(a, c), order(from.children.toArray(new Item[0])));
+        assertEquals(order(from, to), order);
+
+        // The old folder left with one app gives its place to it.
+        assertTrue(DrawerArrange.fileIntoAt(order, folders, to, a, 0));
+        assertEquals(order(a, x, b, y), order(to.children.toArray(new Item[0])));
+        assertEquals(order(c, to), order);
+        assertEquals(Arrays.asList(to), folders);
+    }
+
+    @Test
     public void aFolderLeftWithOneAppGivesItsPlaceToIt() {
         Item a = app("a");
         Item b = app("b");

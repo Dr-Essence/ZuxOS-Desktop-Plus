@@ -236,13 +236,15 @@ public final class ZuiFolderModel {
     /**
      * ZUI's folder of ours took a dragged app ({@code Folder.onDrop}, sprung open under it in the
      * drawer): the app goes into our folder at the place it was let go, out of the drawer's
-     * order, and ZUI's folder, which already shows it, is kept as it is. True when it went in.
+     * order or out of the other folder it came from, and ZUI's folder, which already shows it,
+     * is kept as it is. True when it went in. An app let go in the folder it is already in is a
+     * move within it, which {@link #reordered} keeps.
      */
     static boolean filedByDrop(int id, Object item) {
         try {
             Item folder = folderOfId(id);
             Context ctx = AppCtx.get();
-            if (folder == null || ctx == null || item == null || childOf(item) != null) {
+            if (folder == null || ctx == null || item == null) {
                 return false;
             }
             Object target = Reflect.call(item, "getTargetComponent");
@@ -263,6 +265,10 @@ public final class ZuiFolderModel {
             boolean[] filed = new boolean[1];
             NativeDrawerHooks.rearrange("put " + app.key() + " into a folder at " + rank,
                     (order, folders) -> {
+                        Item from = DrawerArrange.folderOf(folders, app.key());
+                        if (from != null && from.id.equals(folderId)) {
+                            return false;
+                        }
                         for (Item f : folders) {
                             if (f.id.equals(folderId)) {
                                 filed[0] = DrawerArrange.fileIntoAt(order, folders, f, app, rank);
