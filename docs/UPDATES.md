@@ -47,8 +47,8 @@ controller depends on it.
 2. Read the whole module log, the `ZuxDesktopPlus` lines: every warning (`[W]`), above all those
    that say something was not found, and the red rows of Feature health.
 3. Check the names against the new code:
-   - `hook/system/SystemNames` against `services.jar` and `framework.jar`, and `hook/keyboard/HeliNames` against
-     HeliBoard's source at its new tag;
+   - `hook/system/SystemNames` against `services.jar` and `framework.jar`, and
+     `hook/keyboard/HeliNames` against HeliBoard's source at its new tag;
    - for the other areas, the class, method and field names in that area's files.
 4. Update the versions in `docs/ZUI-NOTES.md`.
 5. Open one row in `docs/ROADMAP.md` per broken feature, and fix them one at a time under

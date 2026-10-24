@@ -202,6 +202,47 @@ public final class DrawerArrange {
         return removed;
     }
 
+    /**
+     * Puts back into {@code after} - what the drawer showed ({@code shownBefore}), changed - the
+     * keys of the {@code stored} order that the drawer did not show. A list that lacks some
+     * entries, one not told of apps installed since, would otherwise drop them from the order for
+     * good. Each goes back after the nearest key that came before it in the stored order, unless
+     * it is now in a folder, a folder that is gone, or an app no longer {@code installed}. How
+     * many went back.
+     */
+    public static int keepUnshown(List<String> after, List<String> stored,
+            List<String> shownBefore, List<Item> folders,
+            java.util.function.Predicate<String> installed) {
+        java.util.Set<String> shown = new java.util.HashSet<>(shownBefore);
+        java.util.Set<String> now = new java.util.HashSet<>(after);
+        int kept = 0;
+        String previous = null;
+        for (String key : stored) {
+            if (!shown.contains(key) && !now.contains(key) && (key.startsWith(FOLDER_KEY)
+                    ? folderWithKey(folders, key) != null
+                    : folderOf(folders, key) == null && installed.test(key))) {
+                after.add(previous == null ? 0 : after.indexOf(previous) + 1, key);
+                now.add(key);
+                kept++;
+            }
+            if (now.contains(key)) {
+                previous = key;
+            }
+        }
+        return kept;
+    }
+
+    private static final String FOLDER_KEY = "folder:";
+
+    private static Item folderWithKey(List<Item> folders, String key) {
+        for (Item folder : folders) {
+            if (folder.key().equals(key)) {
+                return folder;
+            }
+        }
+        return null;
+    }
+
     /** The folder holding the app {@code key}, or null. */
     public static Item folderOf(List<Item> folders, String key) {
         for (Item folder : folders) {

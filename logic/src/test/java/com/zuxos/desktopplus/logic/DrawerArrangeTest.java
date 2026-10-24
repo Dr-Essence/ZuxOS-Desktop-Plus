@@ -264,6 +264,79 @@ public class DrawerArrangeTest {
     }
 
     @Test
+    public void appsALaggingListDidNotShowKeepTheirPlace() {
+        // A drawer list not yet told of n1 and n2: c moved up there must not drop them.
+        Item a = app("a");
+        Item b = app("b");
+        Item c = app("c");
+        Item n1 = app("n1");
+        Item n2 = app("n2");
+        Item f = Item.folder("F");
+        f.children.addAll(Arrays.asList(app("x"), app("y")));
+        List<Item> folders = new ArrayList<>(Arrays.asList(f));
+        List<String> stored = order(f, a, b, n1, n2, c);
+        List<String> shown = order(f, a, b, c);
+        List<String> after = order(f, c, a, b);
+
+        assertEquals(2, DrawerArrange.keepUnshown(after, stored, shown, folders, k -> true));
+
+        assertEquals(order(f, c, a, b, n1, n2), after);
+    }
+
+    @Test
+    public void anUnshownFirstAppStaysFirst() {
+        Item a = app("a");
+        Item b = app("b");
+        Item n = app("n");
+        List<String> after = order(b, a);
+
+        assertEquals(1, DrawerArrange.keepUnshown(after, order(n, a, b), order(a, b),
+                new ArrayList<>(), k -> true));
+
+        assertEquals(order(n, b, a), after);
+    }
+
+    @Test
+    public void unshownKeysInAFolderOrOfAGoneFolderStayOut() {
+        Item a = app("a");
+        Item inside = app("inside");
+        Item kept = Item.folder("Kept");
+        kept.children.addAll(Arrays.asList(inside, app("z")));
+        Item gone = Item.folder("Gone");
+        List<Item> folders = new ArrayList<>(Arrays.asList(kept));
+        List<String> after = order(a);
+
+        assertEquals(1, DrawerArrange.keepUnshown(after, order(a, inside, gone, kept), order(a),
+                folders, k -> true));
+
+        assertEquals(order(a, kept), after);
+    }
+
+    @Test
+    public void nothingUnshownChangesNothing() {
+        Item a = app("a");
+        Item b = app("b");
+        List<String> after = order(b, a);
+
+        assertEquals(0, DrawerArrange.keepUnshown(after, order(a, b), order(a, b),
+                new ArrayList<>(), k -> true));
+
+        assertEquals(order(b, a), after);
+    }
+
+    @Test
+    public void anUninstalledAppIsNotKept() {
+        Item a = app("a");
+        Item n = app("n");
+        List<String> after = order(a);
+
+        assertEquals(0, DrawerArrange.keepUnshown(after, order(a, n), order(a),
+                new ArrayList<>(), k -> !k.equals(n.key())));
+
+        assertEquals(order(a), after);
+    }
+
+    @Test
     public void appOfReadsAnAppKeyOnly() {
         Item app = DrawerArrange.appOf("com.x/com.x.Main#10", "X");
         assertNotNull(app);

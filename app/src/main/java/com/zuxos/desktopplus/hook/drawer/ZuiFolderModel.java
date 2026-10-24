@@ -353,6 +353,10 @@ public final class ZuiFolderModel {
                     }
                 }
                 if (made == null || child == null) {
+                    String why = made == null ? "no ZUI entry for it" : "not in our folder";
+                    if (L.once("ZuiFolderModel.notShown " + why)) {
+                        L.i("zui folders: a chosen app not shown by ZUI's folder - " + why);
+                    }
                     continue;
                 }
                 ZuiFolders.setInt(made, "container", (Integer) id);

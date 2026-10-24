@@ -29,6 +29,7 @@ import com.zuxos.desktopplus.core.Const;
 import com.zuxos.desktopplus.core.Health;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.core.theme.Theme;
+import com.zuxos.desktopplus.hook.drawer.NativeDrawerHooks;
 import com.zuxos.desktopplus.hook.panel.Notifications;
 import com.zuxos.desktopplus.hook.taskbar.BarEdge;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarScope;
@@ -465,6 +466,7 @@ public final class RoadmapProbe {
                     .append(", system drag ").append(Reflect.call(drag, "isSystemDragInProgress"))
                     .append('\n');
         }
+        sb.append(NativeDrawerHooks.describeLists());
         return sb.toString();
     }
 

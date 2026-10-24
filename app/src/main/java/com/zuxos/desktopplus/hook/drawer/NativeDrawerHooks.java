@@ -20,6 +20,7 @@ import com.zuxos.desktopplus.core.theme.Theme;
 import com.zuxos.desktopplus.desktop.DesktopHost;
 import com.zuxos.desktopplus.desktop.DragPayload;
 import com.zuxos.desktopplus.desktop.FolderIconDrawable;
+import com.zuxos.desktopplus.hook.Detached;
 import com.zuxos.desktopplus.hook.IconInfo;
 import com.zuxos.desktopplus.hook.IconPress;
 import com.zuxos.desktopplus.hook.Mirror;
@@ -297,9 +298,7 @@ public final class NativeDrawerHooks {
                 return false;
             }
             sLastList = new java.lang.ref.WeakReference<>(appsList);
-            synchronized (LISTS) {
-                LISTS.put(appsList, Boolean.TRUE);
-            }
+            keep(appsList);
             DrawerStore store = store(ctx);
             Set<String> filed = store.keysInFolders();
             Map<String, Object> inStore = storeAppsByKey(ctx, appsList, filed);
@@ -368,19 +367,8 @@ public final class NativeDrawerHooks {
     private static boolean forgetUninstalled(Context ctx, DrawerStore store, Set<String> filed,
             Set<String> inStore) {
         Set<String> gone = new java.util.HashSet<>();
-        android.content.pm.PackageManager pm = null;
         for (String key : filed) {
-            Item app = inStore.contains(key) || !key.endsWith("#0") ? null
-                    : DrawerArrange.appOf(key, null);
-            if (app == null) {
-                continue;
-            }
-            if (pm == null) {
-                pm = ctx.getPackageManager();
-            }
-            try {
-                pm.getApplicationInfo(app.pkg, 0);
-            } catch (android.content.pm.PackageManager.NameNotFoundException uninstalled) {
+            if (!inStore.contains(key) && !installed(ctx, key)) {
                 gone.add(key);
             }
         }
@@ -391,6 +379,20 @@ public final class NativeDrawerHooks {
         store.save();
         L.i("native drawer: " + removed + " uninstalled app(s) taken out of the folders");
         return removed > 0;
+    }
+
+    /** Whether the app of a key is still installed; true for what cannot be told. */
+    private static boolean installed(Context ctx, String key) {
+        Item app = key.endsWith("#0") ? DrawerArrange.appOf(key, null) : null;
+        if (app == null) {
+            return true;
+        }
+        try {
+            ctx.getPackageManager().getApplicationInfo(app.pkg, 0);
+            return true;
+        } catch (android.content.pm.PackageManager.NameNotFoundException uninstalled) {
+            return false;
+        }
     }
 
     /**
@@ -531,6 +533,64 @@ public final class NativeDrawerHooks {
     /** Every drawer list ours is applied to - ZUX Home's own and the taskbar's - to refresh. */
     private static final Map<Object, Boolean> LISTS = new java.util.WeakHashMap<>();
 
+    /**
+     * A drawer list ours is applied to, kept until its drawer's window goes. A list that outlives
+     * its drawer stops at the apps it had then: laid out again and taken as the drawer's order,
+     * it cut the apps installed since out of that order, and out of our folders' ZUI entries.
+     */
+    private static void keep(Object appsList) {
+        boolean added;
+        synchronized (LISTS) {
+            added = LISTS.put(appsList, Boolean.TRUE) == null;
+        }
+        Object layer = added ? Reflect.call(listContext(appsList), "getDragLayer") : null;
+        if (!(layer instanceof View)) {
+            return;
+        }
+        Detached.then((View) layer, () -> {
+            synchronized (LISTS) {
+                LISTS.remove(appsList);
+            }
+            if (sLastList != null && sLastList.get() == appsList) {
+                sLastList = null;
+            }
+            if (L.once("NativeDrawerHooks.listGone")) {
+                L.i("native drawer: a drawer list let go with its window");
+            }
+        });
+    }
+
+    /** The context a drawer list was made in - its only {@code Context} field - or null. */
+    private static Object listContext(Object appsList) {
+        for (Field f : Mirror.fields(appsList.getClass())) {
+            if (f.getType() == Context.class) {
+                return Mirror.get(f, appsList);
+            }
+        }
+        return null;
+    }
+
+    /** The drawer lists ours is applied to, for the probe: entries, context, window. */
+    public static String describeLists() {
+        List<Object> lists;
+        synchronized (LISTS) {
+            lists = new ArrayList<>(LISTS.keySet());
+        }
+        Object last = sLastList != null ? sLastList.get() : null;
+        StringBuilder sb = new StringBuilder("  drawer lists kept: " + lists.size() + "\n");
+        for (Object list : lists) {
+            List<Object> apps = appsListOf(list);
+            Object context = listContext(list);
+            Object layer = Reflect.call(context, "getDragLayer");
+            sb.append("    ").append(apps == null ? "?" : apps.size()).append(" entries, ")
+                    .append(context == null ? "no context" : context.getClass().getSimpleName())
+                    .append(layer instanceof View && ((View) layer).isAttachedToWindow()
+                            ? ", window attached" : ", window gone")
+                    .append(list == last ? ", taken as the drawer's order" : "").append('\n');
+        }
+        return sb.toString();
+    }
+
     /** What an icon in the stock drawer stands for, as a key of the drawer's order; or null. */
     static String keyOfIcon(View icon) {
         Context ctx = AppCtx.get();
@@ -586,14 +646,18 @@ public final class NativeDrawerHooks {
             return false;
         }
         DrawerStore store = store(ctx);
+        List<String> shown = new ArrayList<>(keys);
         if (!change.test(keys, store.folders())) {
             return false;
         }
+        int kept = DrawerArrange.keepUnshown(keys, store.order(), shown, store.folders(),
+                key -> installed(ctx, key));
         store.order().clear();
         store.order().addAll(keys);
         store.save();
         refreshList();
-        L.i("native drawer: " + what);
+        L.i("native drawer: " + what + (kept > 0 ? " (" + kept + " the drawer's list did not show"
+                + " kept in the order)" : ""));
         return true;
     }
 

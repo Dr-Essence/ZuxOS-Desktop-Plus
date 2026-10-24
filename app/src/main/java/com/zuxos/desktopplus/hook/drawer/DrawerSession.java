@@ -664,7 +664,11 @@ final class DrawerSession {
             }
             Object blurValue = Reflect.call(dragged, "getBlurSizeOutline");
             if (animate == null || !(blurValue instanceof Integer)) {
-                noLanding("ZUI's drop animation not found");
+                // The taskbar drawer's layer has none, by design: no warning for it.
+                if (L.once("DrawerSession.noAnimation")) {
+                    L.i("drawer rearrange: a drop lands at once - no drop animation on "
+                            + layer.getClass().getSimpleName());
+                }
                 return false;
             }
             int blur = (Integer) blurValue;
