@@ -128,9 +128,13 @@ public final class Storage {
     /** Writes through a temp file so a crash mid-write cannot leave a truncated file. */
     private static boolean writeNow(File f, String content) {
         File tmp = new File(f.getParentFile(), f.getName() + ".tmp");
-        try (OutputStream out = new FileOutputStream(tmp)) {
+        try (FileOutputStream out = new FileOutputStream(tmp)) {
             out.write(content.getBytes(StandardCharsets.UTF_8));
             out.flush();
+            // On the disk before the rename, as Android's AtomicFile does: renamed while still
+            // in the cache, a power loss or forced reboot can leave the file empty, and the
+            // drawer or a layout read as corrupt.
+            out.getFD().sync();
         } catch (Throwable t) {
             L.e("write failed: " + f, t);
             return false;

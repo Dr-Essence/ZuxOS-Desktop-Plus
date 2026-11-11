@@ -36,13 +36,6 @@ final class SystemNames {
     static final String M_BOUNDS = "mBounds";
     static final String TASK = "com.android.server.wm.Task";
     static final String SET_WINDOWING_MODE = "setWindowingMode";
-    static final String WINDOW_ORGANIZER_CONTROLLER =
-            "com.android.server.wm.WindowOrganizerController";
-    /** Also {@code WindowOrganizer}'s. */
-    static final String APPLY_TRANSACTION = "applyTransaction";
-    static final String APPLY_SYNC_TRANSACTION = "applySyncTransaction";
-    static final String START_TRANSITION = "startTransition";
-    static final String START_LEGACY_TRANSITION = "startLegacyTransition";
     static final String WINDOW_STATE = "com.android.server.wm.WindowState";
     static final String GET_OWNING_UID = "getOwningUid";
     static final String IS_VISIBLE = "isVisible";
@@ -98,21 +91,10 @@ final class SystemNames {
     static final String TOKEN = "token";
     static final String EFFECTIVE_UID = "effectiveUid";
     static final String WINDOW_ORGANIZER = "android.window.WindowOrganizer";
+    static final String APPLY_TRANSACTION = "applyTransaction";
     static final String WINDOW_CONTAINER_TOKEN = "android.window.WindowContainerToken";
     static final String WINDOW_CONTAINER_TRANSACTION = "android.window.WindowContainerTransaction";
     static final String REORDER = "reorder";
-    static final String GET_CHANGES = "getChanges";
-    static final String GET_HIERARCHY_OPS = "getHierarchyOps";
-    /** {@code WindowContainerTransaction.Change}'s. */
-    static final String GET_WINDOWING_MODE = "getWindowingMode";
-    static final String GET_ACTIVITY_WINDOWING_MODE = "getActivityWindowingMode";
-    static final String GET_WINDOW_SET_MASK = "getWindowSetMask";
-    static final String GET_CONFIG_SET_MASK = "getConfigSetMask";
-    static final String GET_CHANGE_MASK = "getChangeMask";
-    static final String GET_CONFIGURATION = "getConfiguration";
-    /** {@code Configuration}'s, and its {@code WindowConfiguration.getBounds}. */
-    static final String WINDOW_CONFIGURATION = "windowConfiguration";
-    static final String GET_BOUNDS = "getBounds";
     /** {@code UserHandle}'s. */
     static final String CURRENT = "CURRENT";
     static final String SYSTEM_PROPERTIES = "android.os.SystemProperties";

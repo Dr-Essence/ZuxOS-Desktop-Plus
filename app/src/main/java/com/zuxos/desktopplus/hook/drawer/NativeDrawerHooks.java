@@ -80,7 +80,6 @@ public final class NativeDrawerHooks {
     private static final Map<String, Object> sFolderEntries = new HashMap<>();
     /** What each folder's entry was made with ({@link #contentOf}). */
     private static final Map<String, String> sFolderContent = new HashMap<>();
-    private static final ThreadLocal<Boolean> sRefreshing = new ThreadLocal<>();
     private static String sLastNote;
 
     private NativeDrawerHooks() {
@@ -114,26 +113,13 @@ public final class NativeDrawerHooks {
                 ZuiFolderCells.built();
             }
         });
-        int hookedUpdates = hookUpTheHierarchy(listCls, "onAppsUpdated", new XC_MethodHook() {
-            @Override
-            protected void afterHookedMethod(MethodHookParam param) {
-                if (Boolean.TRUE.equals(sRefreshing.get()) || !customise(param.thisObject)) {
-                    return;
-                }
-                sRefreshing.set(Boolean.TRUE);
-                try {
-                    Reflect.call(param.thisObject, "updateAdapterItems");
-                } finally {
-                    sRefreshing.set(Boolean.FALSE);
-                }
-            }
-        });
+        // Only there: ZUI's own onAppsUpdated fills the list from its app store and lays it out
+        // through updateAdapterItems, so ours is applied once per update. Applied after
+        // onAppsUpdated as well, it would sort the list again and rebuild ZUI's adapter twice.
         Health.hooked("drawer: our order and folders (updateAdapterItems)", hooked,
                 Cfg::nativeDrawer);
-        Health.hooked("drawer: app list updates (onAppsUpdated)", hookedUpdates);
-        L.i("native drawer: " + listCls.getName() + " - updateAdapterItems x" + hooked
-                + ", onAppsUpdated x" + hookedUpdates);
-        if (hooked == 0 && hookedUpdates == 0) {
+        L.i("native drawer: " + listCls.getName() + " - updateAdapterItems x" + hooked);
+        if (hooked == 0) {
             L.w("native drawer: no entry point on this build");
             dumpCandidates(listCls);
             return;
@@ -337,6 +323,7 @@ public final class NativeDrawerHooks {
                 return false;
             }
 
+            forgetGoneFolders(store.folders());
             Object sample = kept.get(0);
             for (Item folder : store.folders()) {
                 Object entry = folderEntry(ctx, folder, sample, iconPx);
@@ -636,16 +623,19 @@ public final class NativeDrawerHooks {
      * order, and our folders, and changes them in place ({@link DrawerArrange}); the result is
      * kept - the same order the module's own drawer uses - and shown in every drawer.
      *
-     * @return false when the drawer's list is not at hand or nothing changed
+     * @return false when nothing changed
      */
     static boolean rearrange(String what,
             java.util.function.BiPredicate<List<String>, List<Item>> change) {
         Context ctx = AppCtx.get();
-        List<String> keys = shownOrder();
-        if (ctx == null || keys.isEmpty()) {
+        if (ctx == null) {
             return false;
         }
         DrawerStore store = store(ctx);
+        List<String> keys = shownOrder();
+        if (keys.isEmpty()) {
+            return rearrangeUnseen(what, store, change);
+        }
         List<String> shown = new ArrayList<>(keys);
         if (!change.test(keys, store.folders())) {
             return false;
@@ -658,6 +648,24 @@ public final class NativeDrawerHooks {
         refreshList();
         L.i("native drawer: " + what + (kept > 0 ? " (" + kept + " the drawer's list did not show"
                 + " kept in the order)" : ""));
+        return true;
+    }
+
+    /**
+     * The same before any drawer list has been seen since ZUX Home started - a folder of the
+     * bar, held first: the change goes to the order as it is kept, and each drawer shows it when
+     * it is next laid out. A drawer in its own A-Z order keeps it: the folders change, and the
+     * order the change would write is dropped, so an app taken out is not put first.
+     */
+    private static boolean rearrangeUnseen(String what, DrawerStore store,
+            java.util.function.BiPredicate<List<String>, List<Item>> change) {
+        List<String> order = store.order().isEmpty() ? new ArrayList<>() : store.order();
+        if (!change.test(order, store.folders())) {
+            return false;
+        }
+        store.save();
+        refreshList();
+        L.i("native drawer: " + what + " (no drawer seen yet)");
         return true;
     }
 
@@ -745,6 +753,21 @@ public final class NativeDrawerHooks {
             L.e("native drawer: could not build a folder entry", t);
             return null;
         }
+    }
+
+    /**
+     * The entries made for folders no longer in the drawer let go, each with its icon's bitmap,
+     * and ZUI's icons for them in the drawers: kept, every folder ever broken up stayed in memory
+     * until ZUX Home restarted.
+     */
+    private static void forgetGoneFolders(List<Item> folders) {
+        Set<String> ids = new HashSet<>();
+        for (Item folder : folders) {
+            ids.add(folder.id);
+        }
+        sFolderEntries.keySet().retainAll(ids);
+        sFolderContent.keySet().retainAll(ids);
+        ZuiFolderCells.forgetGone(ids);
     }
 
     private static void applyFolderIcon(Context ctx, Object info, Item folder, int sizePx) {
@@ -885,18 +908,13 @@ public final class NativeDrawerHooks {
         // ZUI's own refresh: onAppsUpdated fills the list again from ZUI's app store and lays it
         // out (updateAdapterItems, where ours is applied). Laid out alone, the list was the one
         // our last pass left - without the apps that were in folders, so an app taken out of one
-        // stayed missing until ZUX Home restarted. Our after-hook is held off for it: one pass.
-        sRefreshing.set(Boolean.TRUE);
-        try {
-            for (Object list : lists) {
-                try {
-                    Reflect.call(list, "onAppsUpdated");
-                } catch (Throwable t) {
-                    L.d("native drawer: a list not refreshed (" + t + ")");
-                }
+        // stayed missing until ZUX Home restarted.
+        for (Object list : lists) {
+            try {
+                Reflect.call(list, "onAppsUpdated");
+            } catch (Throwable t) {
+                L.d("native drawer: a list not refreshed (" + t + ")");
             }
-        } finally {
-            sRefreshing.set(Boolean.FALSE);
         }
     }
 

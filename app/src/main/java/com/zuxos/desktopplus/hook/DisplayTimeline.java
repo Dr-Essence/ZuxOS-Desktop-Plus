@@ -14,6 +14,7 @@ import android.view.Display;
 
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
+import com.zuxos.desktopplus.core.glass.ScreenBackdrop;
 import com.zuxos.desktopplus.hook.home.StartAnimation;
 
 import java.util.ArrayDeque;
@@ -66,6 +67,8 @@ public final class DisplayTimeline {
                     LAST.remove(displayId);
                     // A replug is a new connect: the start animation plays again (#8).
                     StartAnimation.forget(displayId);
+                    // Each connect gets a new id: the screen's glass seed goes with it.
+                    ScreenBackdrop.forget(displayId);
                     add("display " + displayId + " removed");
                 }
 

@@ -101,7 +101,6 @@ public final class TaskbarTray {
         TaskbarRunning.install();
         ZuiBarDrop.install(loader);
         HomeBarDrop.install(loader);
-        HomeDragTrace.install(loader);
         ZuiThemeFollow.install(loader);
         com.zuxos.desktopplus.hook.home.SettingsRestart.onLive(TaskbarTray::reapplyAll);
         NavKeysHold.install(loader);
@@ -583,6 +582,8 @@ public final class TaskbarTray {
 
         private SysState mState;
         private boolean mVisible;
+        /** Its display is on; see {@link #onScreenStateChanged}. */
+        private boolean mScreenOn = true;
         /**
          * The clock's formats, made again only when what they were made for changes: the
          * 12/24-hour setting, the language, or the time zone (a format keeps the zone it was
@@ -760,6 +761,9 @@ public final class TaskbarTray {
         @Override
         protected void onAttachedToWindow() {
             super.onAttachedToWindow();
+            // Put up while its screen is off: told only when the screen next changes.
+            android.view.Display display = getDisplay();
+            mScreenOn = display == null || display.getState() != android.view.Display.STATE_OFF;
             try {
                 mState = SysState.get(getContext());
                 mState.addListener(mOnChanged);
@@ -774,8 +778,25 @@ public final class TaskbarTray {
         public void onVisibilityAggregated(boolean isVisible) {
             super.onVisibilityAggregated(isVisible);
             mVisible = isVisible;
+            showing();
+        }
+
+        /**
+         * Its screen turned off or on. Android keeps a view shown while its display is dark, so
+         * the clock ticked and the temperatures were read whenever the tablet was awake with its
+         * screen off.
+         */
+        @Override
+        public void onScreenStateChanged(int screenState) {
+            super.onScreenStateChanged(screenState);
+            mScreenOn = screenState == SCREEN_STATE_ON;
+            showing();
+        }
+
+        /** The clock ticks, and the temperatures are read, only while the tray can be seen. */
+        private void showing() {
             removeCallbacks(mTick);
-            if (isVisible) {
+            if (mVisible && mScreenOn) {
                 mTick.run();
             }
             watchTemps();
@@ -784,7 +805,8 @@ public final class TaskbarTray {
         /** Temperatures are read only while a tray that shows them can be seen. */
         private void watchTemps() {
             if (mState != null) {
-                mState.watchTemps(this, mVisible && isAttachedToWindow() && Cfg.taskbarTemps());
+                mState.watchTemps(this, mVisible && mScreenOn && isAttachedToWindow()
+                        && Cfg.taskbarTemps());
             }
         }
 

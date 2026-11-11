@@ -132,24 +132,7 @@ public final class ZuiFolderModel {
                             && DrawerArrange.takeOut(order, folders, key, at + 1);
                 });
         if (!done) {
-            // No drawer list seen yet since ZUX Home started (the bar's folder, held first): the
-            // folder alone loses the app, and the drawer sorts it in when it next lays out.
-            Context ctx = AppCtx.get();
-            DrawerStore store = ctx == null ? null : DrawerStore.shared(ctx);
-            Item folder = store == null ? null : store.folderContaining(key);
-            if (folder != null) {
-                folder.children.remove(child);
-                if (folder.children.size() <= 1) {
-                    // One app left is not a folder: both go back to the list.
-                    folder.children.clear();
-                    store.folders().remove(folder);
-                }
-                store.save();
-                NativeDrawerHooks.refreshList();
-                L.i("zui folders: took " + key + " out of its folder, before any drawer was seen");
-            } else {
-                L.i("zui folders: " + key + " not taken out - no folder holds it");
-            }
+            L.i("zui folders: " + key + " not taken out - no folder holds it");
         }
         closeOpenFolders();
     }
@@ -394,7 +377,7 @@ public final class ZuiFolderModel {
     }
 
     /** Our folder's ZUI icons are kept as they are for its new contents: ZUI shows them already. */
-    private static void keepBuilt(Item folder) {
+    static void keepBuilt(Item folder) {
         String content = ZuiFolders.contentOf(folder);
         for (Map<String, ZuiFolders.Built> mine : ZuiFolders.BUILT.values()) {
             ZuiFolders.Built built = mine.get(folder.id);

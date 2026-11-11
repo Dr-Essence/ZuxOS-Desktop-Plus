@@ -53,11 +53,15 @@ public final class MonitorStatusBar {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) {
                     try {
+                        Object display = param.args[param.args.length - 1];
                         if (!Cfg.hideMonitorStatusBar()) {
+                            // ZUI builds this screen's bar again: its title bars go by it too.
+                            if (display instanceof Display) {
+                                HIDDEN.remove(((Display) display).getDisplayId());
+                            }
                             return;
                         }
                         param.setResult(null);
-                        Object display = param.args[param.args.length - 1];
                         if (display instanceof Display) {
                             HIDDEN.add(((Display) display).getDisplayId());
                         }

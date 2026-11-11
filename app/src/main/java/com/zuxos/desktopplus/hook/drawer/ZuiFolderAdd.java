@@ -3,8 +3,6 @@ package com.zuxos.desktopplus.hook.drawer;
 import android.app.Dialog;
 import android.content.ComponentName;
 import android.content.Context;
-import android.os.UserHandle;
-import android.os.UserManager;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -12,7 +10,8 @@ import android.view.WindowManager;
 import com.zuxos.desktopplus.core.AppCtx;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
-import com.zuxos.desktopplus.model.DrawerStore;
+import com.zuxos.desktopplus.hook.IconInfo;
+import com.zuxos.desktopplus.logic.DrawerArrange;
 import com.zuxos.desktopplus.model.Item;
 
 import java.lang.reflect.Method;
@@ -185,7 +184,10 @@ final class ZuiFolderAdd {
 
     /**
      * ZUI's OK, {@code (adapter, launcher, text, folderInfo, folderIcon, folder, view, button)}:
-     * for our folder, the choice goes to our model; true when it did.
+     * for our folder, the choice goes to our model by the drawer's own rules
+     * ({@link DrawerArrange}), as a drop and "Remove from folder" go: an app picked leaves the
+     * drawer's order or the other folder it was in, and a folder left with one app gives its
+     * place to it; an app unpicked goes to the place after the folder. True when it was ours.
      */
     private static boolean picked(Object[] args) {
         try {
@@ -201,10 +203,9 @@ final class ZuiFolderAdd {
                 close(args);
                 return true;
             }
-            Object zuiFolder = args[5];
-            List<Object> added = new ArrayList<>();
-            List<Object> removed = new ArrayList<>();
-            DrawerStore store = DrawerStore.shared(ctx);
+            List<Item> in = new ArrayList<>();
+            List<Object> inZui = new ArrayList<>();
+            List<Item> out = new ArrayList<>();
             for (Object choice : (List<?>) Reflect.call(args[0], "getSelectedItemInfos")) {
                 Object status = Reflect.field(choice, "bigFolderStatus");
                 Object item = Reflect.field(choice, "itemInfo");
@@ -213,62 +214,105 @@ final class ZuiFolderAdd {
                     continue;
                 }
                 if ((Integer) status == ADD) {
-                    Item other = store.folderContaining(app.key());
-                    if (other != null) {
-                        other.children.removeIf(child -> child.key().equals(app.key()));
-                    }
-                    folder.children.add(app);
-                    Object shown = item.getClass().getConstructor(item.getClass())
-                            .newInstance(item);
-                    setInt(shown, "container", (Integer) id);
-                    ZuiFolderModel.noteChild(shown, app);
-                    added.add(shown);
+                    in.add(app);
+                    inZui.add(item);
                 } else if ((Integer) status == DELETE) {
-                    folder.children.removeIf(child -> child.key().equals(app.key()));
-                    Object inFolder = matchIn(folderInfo, app);
-                    if (inFolder != null) {
-                        removed.add(inFolder);
-                    }
+                    out.add(app);
                 }
             }
-            store.folders().removeIf(f -> f != folder && f.children.size() <= 1);
-            if (folder.children.size() <= 1) {
-                // One app left is not a folder: back to the list, as when one is taken out.
-                folder.children.clear();
-                store.folders().remove(folder);
-                store.save();
+            String folderId = folder.id;
+            boolean[] stays = {true};
+            // The store's own folder, as the change finds it.
+            Item[] changedIn = {folder};
+            NativeDrawerHooks.rearrange("Add apps: " + in.size() + " in, " + out.size()
+                    + " out of " + folder.label, (order, folders) -> {
+                        Item f = null;
+                        for (Item candidate : folders) {
+                            if (candidate.id.equals(folderId)) {
+                                f = candidate;
+                            }
+                        }
+                        if (f == null) {
+                            return false;
+                        }
+                        changedIn[0] = f;
+                        boolean changed = false;
+                        for (Item app : in) {
+                            changed |= DrawerArrange.fileInto(order, folders, f, app);
+                        }
+                        int at = order.indexOf(f.key());
+                        int next = at < 0 ? order.size() : at + 1;
+                        for (Item app : out) {
+                            if (DrawerArrange.folderOf(folders, app.key()) == f
+                                    && DrawerArrange.takeOut(order, folders, app.key(), next)) {
+                                changed = true;
+                                next++;
+                            }
+                        }
+                        stays[0] = folders.contains(f);
+                        if (stays[0]) {
+                            // ZUI's open folder shows the change itself, below.
+                            ZuiFolderModel.keepBuilt(f);
+                        }
+                        return changed;
+                    });
+            if (!stays[0]) {
+                // One app left is not a folder: it took the folder's place in the drawer.
                 close(args);
                 ZuiFolderModel.closeOpenFolders();
-                NativeDrawerHooks.refreshList();
                 return true;
             }
-            for (Object item : added) {
-                zuiFolder.getClass().getMethod("addFolderContent",
-                        Class.forName("com.android.launcher3.model.data.ItemInfo", false,
-                                zuiFolder.getClass().getClassLoader())).invoke(zuiFolder, item);
+            Object zuiFolder = args[5];
+            Class<?> itemInfo = Class.forName("com.android.launcher3.model.data.ItemInfo", false,
+                    zuiFolder.getClass().getClassLoader());
+            int shown = 0;
+            Item now = changedIn[0];
+            for (int i = 0; i < in.size(); i++) {
+                Item child = childIn(now, in.get(i));
+                Object item = inZui.get(i);
+                if (child == null) {
+                    continue;
+                }
+                Object copy = item.getClass().getConstructor(item.getClass()).newInstance(item);
+                setInt(copy, "container", (Integer) id);
+                ZuiFolderModel.noteChild(copy, child);
+                zuiFolder.getClass().getMethod("addFolderContent", itemInfo)
+                        .invoke(zuiFolder, copy);
+                shown++;
+            }
+            List<Object> removed = new ArrayList<>();
+            for (Item app : out) {
+                Object inFolder = childIn(now, app) == null ? matchIn(folderInfo, app) : null;
+                if (inFolder != null) {
+                    removed.add(inFolder);
+                }
             }
             if (!removed.isEmpty()) {
-                Object array = java.lang.reflect.Array.newInstance(Class.forName(
-                        "com.android.launcher3.model.data.ItemInfo", false,
-                        zuiFolder.getClass().getClassLoader()), removed.size());
+                Object array = java.lang.reflect.Array.newInstance(itemInfo, removed.size());
                 for (int i = 0; i < removed.size(); i++) {
                     java.lang.reflect.Array.set(array, i, removed.get(i));
                 }
                 zuiFolder.getClass().getMethod("removeFolderContent", boolean.class,
                         array.getClass()).invoke(zuiFolder, false, array);
             }
-            // Shown already by ZUI's folder: saved without rebuilding it, the list around it
-            // brought up to date.
-            ZuiFolderModel.saveKeepingIcons(ctx, folder);
             close(args);
-            NativeDrawerHooks.refreshList();
-            L.i("zui folder add: " + added.size() + " in, " + removed.size() + " out of "
+            L.i("zui folder add: " + shown + " in, " + removed.size() + " out of "
                     + folder.label + " - kept in our model");
             return true;
         } catch (Throwable t) {
             L.w("zui folder add: the choice not kept (" + t + ")");
             return false;
         }
+    }
+
+    /** Our folder's own entry for an app, now that the change is made; null when not in it. */
+    private static Item childIn(Item folder, Item app) {
+        for (Item child : folder.children) {
+            if (child.key().equals(app.key())) {
+                return child;
+            }
+        }
+        return null;
     }
 
     /** ZUI's picker closes with its own motion, as its Cancel does. */
@@ -283,14 +327,9 @@ final class ZuiFolderAdd {
             return null;
         }
         ComponentName cn = (ComponentName) component;
-        Object user = Reflect.field(item, "user");
-        long serial = 0L;
-        UserManager users = ctx.getSystemService(UserManager.class);
-        if (users != null && user instanceof UserHandle) {
-            serial = users.getSerialNumberForUser((UserHandle) user);
-        }
         Object title = Reflect.field(item, "title");
-        return Item.app(cn.getPackageName(), cn.getClassName(), serial,
+        return Item.app(cn.getPackageName(), cn.getClassName(),
+                IconInfo.serialOf(ctx, IconInfo.userOf(item)),
                 title != null ? title.toString() : cn.getPackageName());
     }
 

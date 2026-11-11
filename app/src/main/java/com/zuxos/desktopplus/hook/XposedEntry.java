@@ -30,7 +30,6 @@ import com.zuxos.desktopplus.hook.system.SystemFullscreen;
 import com.zuxos.desktopplus.hook.system.SystemGamepad;
 import com.zuxos.desktopplus.hook.system.SystemKeepAlive;
 import com.zuxos.desktopplus.hook.system.SystemNewWindow;
-import com.zuxos.desktopplus.hook.system.SystemTrace;
 import com.zuxos.desktopplus.hook.system.TouchScreens;
 import com.zuxos.desktopplus.hook.systemui.CaptionFollow;
 import com.zuxos.desktopplus.hook.systemui.ClosedWindowInfo;
@@ -70,7 +69,6 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     SystemNewWindow.install(lpparam.classLoader);
                     SystemFullscreen.install(lpparam.classLoader);
                     SystemDrag.install(lpparam.classLoader);
-                    SystemTrace.install(lpparam.classLoader);
                     // Its switches are read as the buttons come: Home's, and L1 and R1's.
                     SystemGamepad.install(lpparam.classLoader);
                     TouchScreens.install(lpparam.classLoader);

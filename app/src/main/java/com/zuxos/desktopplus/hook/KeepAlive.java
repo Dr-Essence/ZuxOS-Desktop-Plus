@@ -69,9 +69,16 @@ public final class KeepAlive {
      * them with the ones added, and shows only the added: these are never ours to take off.
      */
     private static final String CLEANER_CONFIG = "/system/etc/ZuiMemCleanerConfig.xml";
-    /** The launcher's own file: what this put in ZUI's lists, one set per list. */
+    /**
+     * The launcher's own file: what this put in ZUI's lists, one set per list, and the apps it
+     * exempted and allowed in the background. The system keeps those across reboots, so the
+     * record does too: a ZUX Home restarted while an app was on the monitor would otherwise find
+     * it already exempt, take it for the user's choice, and never give it back.
+     */
     private static final String RECORD = "zux_keep_alive";
     private static final String KEY_RECORD = "zui_list_";
+    private static final String KEY_EXEMPTED = "exempted";
+    private static final String KEY_PROTECTED = "protected";
 
     private static boolean sStarted;
     private static Context sCtx;
@@ -95,7 +102,33 @@ public final class KeepAlive {
         }
         sStarted = true;
         sCtx = ctx.getApplicationContext() != null ? ctx.getApplicationContext() : ctx;
-        MAIN.postDelayed(KeepAlive::tick, 2000L);
+        // What an earlier run of ZUX Home left protected, read off the main thread: the first
+        // pass takes back whatever of it is no longer on the monitor.
+        IO.execute(() -> {
+            Set<String> exempted = Collections.emptySet();
+            Set<String> held = Collections.emptySet();
+            try {
+                SharedPreferences record = sCtx.getSharedPreferences(RECORD,
+                        Context.MODE_PRIVATE);
+                exempted = new LinkedHashSet<>(record.getStringSet(KEY_EXEMPTED,
+                        Collections.emptySet()));
+                held = new LinkedHashSet<>(record.getStringSet(KEY_PROTECTED,
+                        Collections.emptySet()));
+            } catch (Throwable t) {
+                L.d("keep alive: record unreadable (" + t + ")");
+            }
+            Set<String> left = exempted;
+            Set<String> before = held;
+            MAIN.post(() -> {
+                ADDED.addAll(left);
+                PROTECTED.addAll(before);
+                if (!before.isEmpty()) {
+                    L.i("keep alive: " + before.size() + " app(s) protected before ZUX Home"
+                            + " started, looked at again");
+                }
+                MAIN.postDelayed(KeepAlive::tick, 2000L);
+            });
+        });
     }
 
     private static void tick() {
@@ -191,8 +224,21 @@ public final class KeepAlive {
         if (cmd.length() > 0) {
             KeyShell.run(cmd.toString());
         }
+        remember();
         L.i("keep alive: protecting " + now.size() + " app(s) on the monitor (root)"
                 + (now.isEmpty() ? "" : ": " + now));
+    }
+
+    /** What is protected now and what of it this exempted, kept for the next start. */
+    private static void remember() {
+        try {
+            sCtx.getSharedPreferences(RECORD, Context.MODE_PRIVATE).edit()
+                    .putStringSet(KEY_EXEMPTED, new LinkedHashSet<>(ADDED))
+                    .putStringSet(KEY_PROTECTED, new LinkedHashSet<>(PROTECTED))
+                    .apply();
+        } catch (Throwable t) {
+            L.d("keep alive: record not written (" + t + ")");
+        }
     }
 
     /**

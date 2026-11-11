@@ -73,6 +73,18 @@ public final class ZuiFolderCells {
         }
     }
 
+    /**
+     * ZUI's icons for folders no longer in the drawer let go, in the drawers' contexts. The bar's
+     * are left: a folder pinned there stays the bar's when the drawer's is broken up.
+     */
+    static void forgetGone(java.util.Set<String> ids) {
+        for (Map.Entry<Object, Map<String, ZuiFolders.Built>> e : ZuiFolders.BUILT.entrySet()) {
+            if (!ZuiFolders.isBar(e.getKey())) {
+                e.getValue().keySet().retainAll(ids);
+            }
+        }
+    }
+
     /** Whether the list ZUI is building now is a drawer's on the tablet, for its items' birth. */
     private static final ThreadLocal<Boolean> TABLET_LIST = new ThreadLocal<>();
 

@@ -119,6 +119,11 @@ public final class ScreenBackdrop {
         StringBuilder sb = new StringBuilder("\nliquid glass\n");
         sb.append("  live capture: ").append(sState == WORKS ? "works"
                 : sState == REFUSED ? "refused (" + sReason + ")" : "not tried yet").append('\n');
+        sb.append("  seeds kept for displays:");
+        for (int i = 0; i < SEEDS.size(); i++) {
+            sb.append(' ').append(SEEDS.keyAt(i));
+        }
+        sb.append(SEEDS.size() == 0 ? " none\n" : "\n");
         java.util.List<Session> sessions = new java.util.ArrayList<>(SESSIONS);
         if (sessions.isEmpty()) {
             sb.append("  no pane is capturing\n");
@@ -164,6 +169,24 @@ public final class ScreenBackdrop {
             SEEDS.put(display, seed);
         }
         return seed;
+    }
+
+    /**
+     * A display went: its seed goes with it. Every connect of a monitor gets a new id, and a seed
+     * kept for each old one held its pictures until ZUX Home restarted. Main thread.
+     */
+    public static void forget(int display) {
+        Seed seed = SEEDS.get(display);
+        if (seed == null) {
+            return;
+        }
+        SEEDS.remove(display);
+        for (Bitmap b : seed.retired) {
+            b.recycle();
+        }
+        seed.retired.clear();
+        // The current picture may be in the last frame a pane there drew: left to the collector.
+        seed.bitmap = null;
     }
 
     /** The screen is changing: renew every seed after {@code delayMs}. */
@@ -439,9 +462,16 @@ public final class ScreenBackdrop {
             }
         }
 
+        /**
+         * On screen: attached, shown, laid out, and its display not off. Android keeps a view
+         * shown while its display is dark, and the pane kept capturing whenever the tablet was
+         * awake with its screen off.
+         */
         private boolean showing() {
+            android.view.Display display = mPane.getDisplay();
             return mPane.isAttachedToWindow() && mPane.isShown()
-                    && mPane.getWidth() > 0 && mPane.getHeight() > 0;
+                    && mPane.getWidth() > 0 && mPane.getHeight() > 0
+                    && (display == null || display.getState() != android.view.Display.STATE_OFF);
         }
 
         @Override

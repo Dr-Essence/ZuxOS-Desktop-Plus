@@ -1114,7 +1114,6 @@ Checked 2026-10-09. Every hook below matches by name and parameters, unless mark
 | New window | `ActivityStarter.getReusableTask` | **missing**: it is `resolveReusableTask(boolean)` here. The owner's log says "task reuse x0". The hook is gone; `setInitialState` alone does the job, confirmed on 1.0.91 |
 | Drag | `DragState.isValidDropTarget(WindowState, boolean, boolean)`, fields `mFlags`, `mUid`; `WindowState.getOwningUid()` | found |
 | Controller | `PhoneWindowManager.interceptKeyBeforeDispatching(IBinder, KeyEvent, int)`; fields `mTopFocusedDisplayId`, `mDefaultDisplayPolicy`; `isKeyguardShowingAndNotOccluded()`, `DisplayPolicy.topAppHidesSystemBar(int)` (0.0.283, read on L1/R1) | found |
-| Trace | `WindowOrganizerController.applyTransaction`, `applySyncTransaction`, `startTransition` | found. `startLegacyTransition` is not, which only drops one traced name. From 1.0.165 the overloads taking an `ActionChain` are left out: they are the system's own step inside a call, under its own uid. The shell's `startNewTransition` goes through `startTransition(int, IBinder, …)`, so its type is in the line |
 
 ## The roadmap rows against ZUI's code
 

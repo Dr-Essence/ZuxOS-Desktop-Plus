@@ -219,6 +219,8 @@ public final class Su {
      * every other root request on the device dropped for the whole forty seconds.
      */
     private static Outcome runAll(String... commands) {
+        // A command that times out sets no output: the last request's must not stand in for it.
+        LAST_OUTPUT.set("");
         boolean any = false;
         boolean timedOut = false;
         for (String command : commands) {

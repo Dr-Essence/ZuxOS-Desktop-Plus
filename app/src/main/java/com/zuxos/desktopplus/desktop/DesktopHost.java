@@ -12,6 +12,7 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -30,6 +31,7 @@ import com.zuxos.desktopplus.core.motion.FrameRate;
 import com.zuxos.desktopplus.core.theme.Bevel;
 import com.zuxos.desktopplus.core.theme.Theme;
 import com.zuxos.desktopplus.drawer.DrawerPanel;
+import com.zuxos.desktopplus.hook.Detached;
 import com.zuxos.desktopplus.hook.DisplayTimeline;
 import com.zuxos.desktopplus.hook.KeepAlive;
 import com.zuxos.desktopplus.hook.PowerProbe;
@@ -948,7 +950,7 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
      * already found - a field read or two.
      */
     private void followRecents() {
-        mRoot.getViewTreeObserver().addOnPreDrawListener(() -> {
+        ViewTreeObserver.OnPreDrawListener follow = () -> {
             boolean showing = overviewShowing();
             int want = showing ? View.INVISIBLE : View.VISIBLE;
             if (mRoot.getVisibility() != want) {
@@ -958,6 +960,19 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
                 mRoot.setVisibility(want);
             }
             return true;
+        };
+        // The launcher window's own observer, once attached: the desktop can be taken off while
+        // the window stays (a display-mode change), and the listener would then hold the whole
+        // desktop and run on every frame of that window. It goes with the desktop.
+        ViewTreeObserver observer = mRoot.getViewTreeObserver();
+        observer.addOnPreDrawListener(follow);
+        Detached.then(mRoot, () -> {
+            for (ViewTreeObserver o : new ViewTreeObserver[]{observer,
+                    mRoot.getViewTreeObserver()}) {
+                if (o.isAlive()) {
+                    o.removeOnPreDrawListener(follow);
+                }
+            }
         });
     }
 

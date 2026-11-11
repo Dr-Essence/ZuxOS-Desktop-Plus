@@ -817,6 +817,35 @@ final class TaskbarStart {
             shown(drawerUp(display), recentsUp(display));
             mRobot.setSleeps(Cfg.robotSleep());
             mRobot.setBreathes(Cfg.robotBreath());
+            android.view.Display screen = getDisplay();
+            mScreenOn = screen == null || screen.getState() != android.view.Display.STATE_OFF;
+            if (!mScreenOn) {
+                mRobot.setVisible(false, false);
+            }
+        }
+
+        /** Its display is on; see {@link #onScreenStateChanged}. */
+        private boolean mScreenOn = true;
+
+        /**
+         * Its screen turned off or on. Android keeps a view shown while its display is dark, so
+         * the robot went on breathing - about thirty frames a second - whenever the tablet was
+         * awake with its screen off. Off, it stops; on, it wakes, as it does for a press.
+         */
+        @Override
+        public void onScreenStateChanged(int screenState) {
+            super.onScreenStateChanged(screenState);
+            mScreenOn = screenState == SCREEN_STATE_ON;
+            mRobot.setVisible(mScreenOn && isShown(), false);
+        }
+
+        /** ZUI's own showing and hiding of the bar, kept from waking the robot in the dark. */
+        @Override
+        public void onVisibilityAggregated(boolean isVisible) {
+            super.onVisibilityAggregated(isVisible);
+            if (!mScreenOn) {
+                mRobot.setVisible(false, false);
+            }
         }
 
         /** Takes ZUI's button: what a press presses, and the icon size to match. */
@@ -838,6 +867,10 @@ final class TaskbarStart {
             setBackground(null);
             Drawable icon = robot ? mRobot : copyOfZuiIcon(zui);
             setImageDrawable(icon != null ? icon : mRobot);
+            if (!mScreenOn) {
+                // Set as the image, it is made visible again: not in the dark.
+                mRobot.setVisible(false, false);
+            }
             // The same margin round the icon as ZUI's button keeps round its own.
             int inset = iconWidth > 0 && zui.getWidth() > iconWidth
                     ? (zui.getWidth() - iconWidth) / 2 : 0;
