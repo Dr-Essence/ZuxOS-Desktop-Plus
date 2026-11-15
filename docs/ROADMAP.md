@@ -5,6 +5,9 @@ in a fresh session: it is the project's memory.
 
 **Goal:** the best desktop mode on Android, for the Lenovo Legion Tab Gen 5 on ZuxOS 2.x.
 
+**Development paused by the owner on 2026-11-15, to come back; README says so.** 0.0.302 is the
+last build and still awaits the owner's test - pick up from its row and the Open table.
+
 **Where we are (2026-11-11, build 0.0.302): early alpha, experimental.** Builds are numbered 0.0.<commit count> from 0.0.214; earlier ones were 1.0.1-1.0.213 (the same count, so installing over them keeps every setting and folder). Made mainly for the owner's tablet; anyone may try it at their own risk, and feedback is welcome, never required. No public release until
 it is fully stable on the owner's tablet; then alpha testers on every ZuxOS device (#26). The current work is moving every feature onto ZUI's
 own code paths ("Through ZUI's own path" below), one at a time:
