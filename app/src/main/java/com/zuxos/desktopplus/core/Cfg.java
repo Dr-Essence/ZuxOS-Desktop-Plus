@@ -396,6 +396,11 @@ public final class Cfg {
         return getBool(Const.KEY_CAPTION_FOLLOW, true);
     }
 
+    /** Minimise, maximise and close on the monitor's title bars, without the "…" menu. */
+    public static boolean windowButtons() {
+        return getBool(Const.KEY_WINDOW_BUTTONS, true);
+    }
+
     /** Apps' windows and the keyboard end at the taskbar, never under it, while it takes room. */
     public static boolean barClearance() {
         return getBool(Const.KEY_BAR_CLEARANCE, true);

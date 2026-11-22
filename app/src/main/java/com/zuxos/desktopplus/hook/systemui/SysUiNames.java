@@ -79,6 +79,40 @@ final class SysUiNames {
     static final String M_IS_CAPTION_VISIBLE = "mIsCaptionVisible";
     static final String M_IS_INSET_SOURCE = "mIsInsetSource";
     static final String M_LAYOUT_RES_ID = "mLayoutResId";
+    static final String M_CAPTION_WIDTH_ID = "mCaptionWidthId";
+    static final String M_CAPTION_HEIGHT_ID = "mCaptionHeightId";
+    /** The parts of a title bar that keep their touches over an app's own header. */
+    static final String M_OCCLUDING_CAPTION_ELEMENTS = "mOccludingCaptionElements";
+    static final String OCCLUDING_CAPTION_ELEMENT =
+            "com.android.wm.shell.windowdecor.WindowDecoration$RelayoutParams"
+                    + "$OccludingCaptionElement";
+    static final String OCCLUDING_CAPTION_ALIGNMENT = OCCLUDING_CAPTION_ELEMENT + "$Alignment";
+    static final String M_RECT = "mRect";
+    static final String M_ALIGNMENT = "mAlignment";
+    static final String CUSTOMIZE = "CUSTOMIZE";
+    static final String OV_DESKTOP_MODE_WINDOW_DECOR_PAD = "ov_desktop_mode_window_decor_pad";
+    /** A task's bounds: {@code TaskInfo.getConfiguration().windowConfiguration.getBounds()}. */
+    static final String GET_CONFIGURATION = "getConfiguration";
+    static final String WINDOW_CONFIGURATION = "windowConfiguration";
+    static final String GET_BOUNDS = "getBounds";
+    static final String GET_WINDOWING_MODE = "getWindowingMode";
+
+    // The monitor's title bar (ZUI's pill), and the "…" menu items its buttons are.
+    static final String OV_DESKTOP_MODE_WINDOW_DECORATION_VIEW_HOLDER =
+            "com.android.wm.shell.windowdecor.viewholder.OvDesktopModeWindowDecorationViewHolder";
+    static final String BIND_DATA = "bindData";
+    static final String CAPTION_VIEW = "captionView";
+    static final String OVC_WD_HANDLE_MENU_ITEM_MINIMIZE = "ovc_wd_handle_menu_item_minimize";
+    static final String OVC_WD_HANDLE_MENU_ITEM_FULLSCREEN = "ovc_wd_handle_menu_item_fullscreen";
+    static final String OVC_WD_HANDLE_MENU_ITEM_FREEFORM = "ovc_wd_handle_menu_item_freeform";
+    static final String OVC_WD_HANDLE_MENU_ITEM_CLOSE = "ovc_wd_handle_menu_item_close";
+    /** ZUI's desktop-mode title bar buttons: a shade's prefix, then the button. */
+    static final String ZUI_DESKTOPMODE_NORMAL = "zui_desktopmode_normal_";
+    static final String ZUI_DESKTOPMODE_DARK = "zui_desktopmode_dark_";
+    static final String PICTURE_MINIMIZE = "minimize";
+    static final String PICTURE_MAX = "max";
+    static final String PICTURE_FREEFORM = "freeform";
+    static final String PICTURE_CLOSE = "close";
     static final String M_RESULT = "mResult";
     static final String M_ROOT_VIEW = "mRootView";
 

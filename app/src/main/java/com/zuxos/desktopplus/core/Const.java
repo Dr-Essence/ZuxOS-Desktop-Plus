@@ -166,6 +166,8 @@ public final class Const {
     public static final String KEY_MONITOR_TOUCH = "monitor_touch";
     /** A window's title bar and "…" menu follow the window to the screen it moved to. */
     public static final String KEY_CAPTION_FOLLOW = "caption_follow";
+    /** Minimise, maximise and close on the monitor's title bars, without the "…" menu. */
+    public static final String KEY_WINDOW_BUTTONS = "window_buttons";
     /** Apps' windows and the keyboard end at the taskbar, on both screens, while it takes room. */
     public static final String KEY_BAR_CLEARANCE = "bar_clearance";
     /** Full screen on the monitor: no taskbar or title bar until the pointer reaches an edge. */

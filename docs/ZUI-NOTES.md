@@ -310,6 +310,21 @@ What Full screen (0.0.305) stands on. ZUX Home 18.2.0.0375, System UI 16.
   intent itself on Allow; 2 denied - its blocked alert. `ZuiAmAutoRunManager.isAllowStart` reads
   the same status for process starts by services and broadcasts (0 allowed only from the app in
   front). 0.0.309 reads 0 as 1 inside `isAllowRelativeStart` only.
+- **Title bars on each screen** (SystemUI, read 2026-11-23). `DesktopModeWindowDecoration.updateRelayoutParams`
+  picks the layout: PC mode `pcmode_window_decor`, ZUI's tablet desktop mode
+  `zui_desktop_window_decor(_freeform)` (both through `OvcPcModeUtils.getLayoutResId`, -1 in any
+  other mode), otherwise in ZUI's normal mode the pill `ov_desktop_mode_window_decor_pad` - the
+  tablet and the monitor alike. `relayout` builds the holder by that id and throws "Unexpected
+  layout resource id" for a ZUI layout outside its mode; `OvPcModeAppControlsWindowDecorationViewHolder`
+  makes its maximise button (`ZuiDesktopModeMaximizeButtonView`) only in tablet desktop mode and
+  uses it in `bindData` otherwise. The pill bar's "…" menu items are view ids on the bar's own
+  click listener (`DesktopModeTouchEventListener.onClick` → `OvDesktopModeWindowDecorViewModelInjector`):
+  `ovc_wd_handle_menu_item_minimize` (`minimizeTask`), `_fullscreen` (floating → `moveToFullscreen`),
+  `_freeform` (maximised → `onToDesktop`), `_close` (`onDesktopWindowClose`, the task closed); a
+  disabled item gives ZUI's "not supported" toast. A maximised window's pill bar is the pill's width
+  (`ov_window_decor_caption_bar_width_pad`), a floating one's the window's (width id 0). Its touches
+  are limited to its occluding elements when the app asks for a see-through caption bar
+  (`mLimitTouchRegionToSystemAreas`). 0.0.311 adds the three items as buttons on the monitor's bars.
 - **The taskbar's drawer: how it opens** (ZUX Home, read 2026-11-23). Every way in - ZUI's
   all-apps button (`TaskbarViewCallbacks` → `uiController.toggleAllApps(false)`), the Windows key
   (`TaskbarManager.toggleAllAppsSearch` → `toggleAllApps(true)`), our start button and a
@@ -1302,6 +1317,7 @@ Checked 2026-10-09. Every hook below matches by name and parameters, unless mark
 | Bar back with the drawer in Full screen (0.0.310) | before `TaskbarAllAppsController.toggle()`, `toggleSearch()`; `isOpen()`; field `TaskbarControllers.taskbarAllAppsController` (ZUX Home) | found |
 | The keyboard in game mode (0.0.308) | after `TaskbarInsetsController.k(InsetsFrameProvider, int, int)`; `getGameMode()`; `InsetsFrameProvider.getType`, `getInsetsSize`, `get/setInsetsSizeOverrides`, `InsetsSizeOverride(int, Insets)` (ZUX Home) | found |
 | No association launch prompt (0.0.309) | around `ZuiWmAutoRunManager.isAllowRelativeStart(...)`; after `android.app.ZuiSecurityManager.getRelativeAppStatus(String, String)` | found |
+| Window buttons (0.0.311, SystemUI) | after the `OvDesktopModeWindowDecorationViewHolder` constructors and `bindData(OvHandleData)`, field `captionView`; after `DesktopModeWindowDecoration.updateRelayoutParams`, fields `RelayoutParams.mLayoutResId`, `mIsCaptionVisible`, `mCaptionWidthId`, `mCaptionHeightId`, `mOccludingCaptionElements`, `OccludingCaptionElement.mRect`, `mAlignment`, `Alignment.CUSTOMIZE`; resources by name | found in the decompile, not yet on the device |
 | Taskbar with the drawer over full-screen apps (0.0.310) | after `InsetsPolicy.getNavControlTargetInner_ov(WindowState, boolean)`; fields `InsetsPolicy.mShowingTransientControlTarget`, `WindowState.mAttrs` | found in the decompile, not yet on the device |
 | No game prompt (0.0.308) | before `OvGameTipDialogManager.canShowOvGameDialog(String, TaskDisplayArea)` | found |
 | Game launcher full screen (0.0.308) | the `calculate` hook above; fields `ActivityRecord.packageName`, `launchedFromPackage`, `LaunchParams.mPreferredTaskDisplayArea`; after `ActivityStarter.startActivityInner`, `mTargetTask` | found |

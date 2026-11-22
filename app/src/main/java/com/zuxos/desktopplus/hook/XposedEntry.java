@@ -43,6 +43,7 @@ import com.zuxos.desktopplus.hook.systemui.FullScreenMenu;
 import com.zuxos.desktopplus.hook.systemui.MonitorStatusBar;
 import com.zuxos.desktopplus.hook.systemui.ShellDropBar;
 import com.zuxos.desktopplus.hook.systemui.StableBounds;
+import com.zuxos.desktopplus.hook.systemui.WindowButtons;
 import com.zuxos.desktopplus.hook.systemui.WindowCaptions;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarKeys;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarLaunch;
@@ -99,6 +100,9 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     StableBounds.install(lpparam.classLoader);
                     ClosedWindowInfo.install(lpparam.classLoader);
                     CaptionFollow.install(lpparam.classLoader);
+                    if (Cfg.windowButtons()) {
+                        WindowButtons.install(lpparam.classLoader);
+                    }
                     ShellDropBar.install(lpparam.classLoader);
                     if (Cfg.fullScreen()) {
                         FullScreenMenu.install(lpparam.classLoader);
