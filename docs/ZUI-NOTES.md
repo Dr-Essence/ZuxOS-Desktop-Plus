@@ -227,8 +227,25 @@ What Full screen (0.0.305) stands on. ZUX Home 18.2.0.0375, System UI 16.
   is set (`relayout` → `updateRelayoutParams`). `OvCaptionBarObserver.mInstance` holds the view
   model (`mDesktopModeWindowDecorViewModel`). On unlock, ZUI relays out every visible decoration
   with `relayout(mTaskInfo, mHasGlobalFocus, mExclusionRegion)`.
-  - Whether a shown full-screen title bar takes room from the app (`mIsInsetSource`) could not
-    be read from the decompile. 0.0.305's trace logs it.
+  - Whether a shown full-screen title bar takes room from the app: in
+    `updateRelayoutParams`, `mIsInsetSource = !(z11 || z5) || ...`, and then, with
+    `OvcPcModeUtils.isInZuiDesktopModeStatus()` and a full-screen window,
+    `mIsInsetSource = false`. So in ZUI's desktop mode a full-screen window's title bar floats
+    over the app, in the status bar's strip. `WindowDecoration.updateCaptionInsets` adds the
+    caption inset (`captionBar`, and `mandatorySystemGestures`) only when the title bar is shown
+    and `mIsInsetSource` is set. A full-screen window's inset is not kept across relayouts
+    (`mIsNotRemoveOvCaptionSource` is for floating and split windows only), but it is not taken
+    off either while the decision stands. 0.0.306 sets it on the monitor without a status bar;
+    the trace logs whether it applied (`mWindowDecorationInsets`).
+- **How the system lays a window out** (`services.jar`, `framework.jar`):
+  `DisplayPolicy.layoutWindowLw(WindowState, WindowState, DisplayFrames)` calls
+  `WindowLayout.computeFrames(attrs.forRotation(rotation), win.getInsetsState(), ...,
+  win.getBounds(), ...)`. That takes the frame in from the bounds by
+  `state.calculateInsets(bounds, attrs.getFitInsetsTypes(),
+  attrs.isFitInsetsIgnoringVisibility())` on the sides `getFitInsetsSides()` names. An
+  edge-to-edge app fits none, so its frame runs under the taskbar. `WindowManager.LayoutParams`
+  keeps the types in `mFitInsetsTypes` (`setFitInsetsTypes` also sets a private flag);
+  `WindowState.mAttrs` is public final.
 - **Permissions both sides hold:** `STATUS_BAR_SERVICE` (signature). SystemUI also holds
   `INJECT_EVENTS`, `MONITOR_INPUT` and `MANAGE_ACTIVITY_TASKS`. ZUX Home also holds
   `START_TASKS_FROM_RECENTS`, `MANAGE_ACTIVITY_TASKS` and `MONITOR_INPUT`.
@@ -1181,6 +1198,7 @@ Checked 2026-10-09. Every hook below matches by name and parameters, unless mark
 | New window | `ActivityStarter.getReusableTask` | **missing**: it is `resolveReusableTask(boolean)` here. The owner's log says "task reuse x0". The hook is gone; `setInitialState` alone does the job, confirmed on 1.0.91 |
 | Drag | `DragState.isValidDropTarget(WindowState, boolean, boolean)`, fields `mFlags`, `mUid`; `WindowState.getOwningUid()` | found |
 | Controller | `PhoneWindowManager.interceptKeyBeforeDispatching(IBinder, KeyEvent, int)`; fields `mTopFocusedDisplayId`, `mDefaultDisplayPolicy`; `isKeyguardShowingAndNotOccluded()`, `DisplayPolicy.topAppHidesSystemBar(int)` (0.0.283, read on L1/R1) | found |
+| Apps stop at the taskbar (0.0.306) | `DisplayPolicy.layoutWindowLw(WindowState, WindowState, DisplayFrames)`; fields `WindowState.mAttrs`, `WindowManager.LayoutParams.mFitInsetsTypes`; `WindowState.getActivityType()`, `getInsetsState()`, `getBounds()`, `InsetsState.calculateInsets(Rect, int, boolean)` | found in the decompile, not yet on the device |
 
 ## The roadmap rows against ZUI's code
 

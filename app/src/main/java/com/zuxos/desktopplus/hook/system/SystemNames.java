@@ -37,6 +37,10 @@ final class SystemNames {
     static final String TASK = "com.android.server.wm.Task";
     static final String SET_WINDOWING_MODE = "setWindowingMode";
     static final String WINDOW_STATE = "com.android.server.wm.WindowState";
+    static final String M_ATTRS = "mAttrs";
+    static final String GET_ACTIVITY_TYPE = "getActivityType";
+    static final String GET_INSETS_STATE = "getInsetsState";
+    static final String GET_BOUNDS = "getBounds";
     static final String GET_OWNING_UID = "getOwningUid";
     static final String IS_VISIBLE = "isVisible";
 
@@ -48,6 +52,8 @@ final class SystemNames {
     static final String IS_KEYGUARD_SHOWING_AND_NOT_OCCLUDED = "isKeyguardShowingAndNotOccluded";
     static final String TOP_APP_HIDES_SYSTEM_BAR = "topAppHidesSystemBar";
     static final String M_DISPLAY_CONTENT = "mDisplayContent";
+    static final String DISPLAY_POLICY = "com.android.server.wm.DisplayPolicy";
+    static final String LAYOUT_WINDOW_LW = "layoutWindowLw";
     /** {@code DisplayContent}'s. */
     static final String M_INPUT_METHOD_WINDOW = "mInputMethodWindow";
 
@@ -100,6 +106,12 @@ final class SystemNames {
     static final String SYSTEM_PROPERTIES = "android.os.SystemProperties";
     static final String GET = "get";
     static final String SET = "set";
+
+    // The view side of the framework (android.view): a window's layout.
+    /** {@code WindowManager.LayoutParams}'s. */
+    static final String M_FIT_INSETS_TYPES = "mFitInsetsTypes";
+    static final String INSETS_STATE = "android.view.InsetsState";
+    static final String CALCULATE_INSETS = "calculateInsets";
 
     private SystemNames() {
     }

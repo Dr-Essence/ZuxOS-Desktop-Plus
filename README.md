@@ -6,8 +6,8 @@ a taskbar of the apps that are actually open. It also fixes a handful of bugs in
 mode along the way.
 
 > **Development is paused (November 2026) - it will be back.** Only what the owner asks for comes
-> out until then (0.0.305: Full screen on the monitor); problems reported in the meantime are read
-> when work starts again.
+> out until then (0.0.305-0.0.306: Full screen on the monitor and the owner's fixes); problems
+> reported in the meantime are read when work starts again.
 
 > **Early alpha - experimental, made for one tablet.** This module is built mainly for its
 > developer's own Lenovo Legion Tab Gen 5 and, while it is being worked on, changes several times
@@ -46,7 +46,7 @@ other ZuxOS devices, will be built from. After a ZuxOS update, see
 | Launcher | `com.zui.launcher`, desktop activity `SecondaryDisplayLauncher` |
 | Needs | Root, LSPosed, and the module scoped to the home app |
 
-**Status (2026-11-22, build 0.0.305, during the pause)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
+**Status (2026-11-22, build 0.0.306, during the pause)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
 
 The work now is making every feature run through ZUI's own code - its folders, menus, drag, animations and grids - so it looks and moves like ZUI itself.
 
@@ -258,6 +258,7 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   - Apps you have open inside a folder get an icon of their own, and the folder gets a mark.
   - ZUI's recent and recommended apps never reach the bar: the call that adds them on every
     launch and close is skipped, so nothing flashes.
+- **Right-click** an app on the bar, in a folder, on the desktop or in the drawer for its menu.
 - **Pins.** Drop an app or a folder on the bar to pin it.
   - Hold a pin and move it to reorder: the other pins slide aside to open a gap.
   - Hold and let go, or right-click, for its menu.
@@ -283,8 +284,13 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
 - **Taskbar at the top** (optional, monitor only), over the monitor's status bar strip. Menus,
   panels, pop-ups and previews open below it, and maximised windows start under it.
 - **No status bar on the monitor.** ZUI's bar there only shows icons; the tray does its job, and
-  apps get the strip back. Maximised windows keep their buttons. Needs System UI ticked in
-  LSPosed, which also keeps windows clear of the taskbar wherever it is.
+  apps get the strip back. Maximised windows keep their buttons, and their title bar takes its own
+  room, so it never covers the app's top menus. Needs System UI ticked in LSPosed, which also
+  keeps windows clear of the taskbar wherever it is.
+- **Apps stop at the taskbar** (optional, on by default, both screens). Apps made for Android 15
+  and later draw under the bars and many leave their content there; their windows now end where
+  the bar starts, and have its strip only while the bar is hidden. Needs System Framework ticked
+  in LSPosed.
 - **Full screen on the monitor, as on DeX** (optional, on by default). "Full screen" in a window's
   "…" menu and in the taskbar's app menu: the app fills the whole monitor, its title bar hides, and
   the taskbar slides away. Rest the pointer on the bottom edge (the top, for a bar at the top) and

@@ -49,6 +49,8 @@ public final class TouchScreens {
     private static String sLast;
     /** The touchscreens we tied, by descriptor, to the screen's unique id. Under its own lock. */
     private static final Map<String, String> TIED = new HashMap<>();
+    /** What each tied device is, for the log: its name and sources. Under {@link #TIED}'s lock. */
+    private static final Map<String, String> NAMES = new HashMap<>();
     private static Field sViewports;
     private static Method sAdd;
     private static Method sRemove;
@@ -116,10 +118,12 @@ public final class TouchScreens {
         try {
             String screen = Cfg.monitorTouch() ? externalScreen(input) : null;
             List<String> touch = new ArrayList<>();
+            Map<String, String> names = new HashMap<>();
             for (InputDevice device : (InputDevice[]) input.getClass()
                     .getMethod(SystemNames.GET_INPUT_DEVICES).invoke(input)) {
                 if (onTheMonitor(device)) {
                     touch.add(device.getDescriptor());
+                    names.put(device.getDescriptor(), describe(device));
                 }
             }
             synchronized (TIED) {
@@ -127,7 +131,8 @@ public final class TouchScreens {
                     if (screen == null || !touch.contains(descriptor)) {
                         call(sRemove, input, descriptor);
                         TIED.remove(descriptor);
-                        L.i("touch screens: a touchscreen untied - the screen or the device went");
+                        L.i("touch screens: untied - the screen or the device went: "
+                                + NAMES.remove(descriptor));
                     }
                 }
                 if (screen == null) {
@@ -137,8 +142,11 @@ public final class TouchScreens {
                     if (!screen.equals(TIED.get(descriptor))) {
                         call(sAdd, input, descriptor, screen);
                         TIED.put(descriptor, screen);
-                        L.i("touch screens: a wired touchscreen or pen tied to the monitor ("
-                                + screen + ")");
+                        NAMES.put(descriptor, names.get(descriptor));
+                        // Named, with what else the device is: a mouse's receiver that also
+                        // reports touch or a pen would take the mouse to the monitor with it.
+                        L.i("touch screens: tied to the monitor (" + screen + "): "
+                                + names.get(descriptor));
                     }
                 }
             }
@@ -159,6 +167,13 @@ public final class TouchScreens {
                 && Reflect.call(device, SystemNames.GET_BLUETOOTH_ADDRESS) == null
                 && (device.supportsSource(InputDevice.SOURCE_TOUCHSCREEN)
                 || device.supportsSource(InputDevice.SOURCE_STYLUS));
+    }
+
+    /** A device for the log: its name, its sources, and whether it is also a mouse. */
+    private static String describe(InputDevice device) {
+        return device.getName() + ", sources 0x" + Integer.toHexString(device.getSources())
+                + (device.supportsSource(InputDevice.SOURCE_MOUSE) ? ", also a mouse" : "")
+                + (device.supportsSource(InputDevice.SOURCE_TOUCHPAD) ? ", also a touchpad" : "");
     }
 
     /** The one valid external screen's unique id, or null for none or more than one. */

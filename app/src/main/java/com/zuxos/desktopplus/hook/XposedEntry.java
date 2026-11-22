@@ -24,6 +24,7 @@ import com.zuxos.desktopplus.hook.home.StockUnlockHooks;
 import com.zuxos.desktopplus.hook.keyboard.HeliPad;
 import com.zuxos.desktopplus.hook.recents.RecentsRoute;
 import com.zuxos.desktopplus.hook.sidebar.SidebarAiWait;
+import com.zuxos.desktopplus.hook.system.BarClearance;
 import com.zuxos.desktopplus.hook.system.SystemBridge;
 import com.zuxos.desktopplus.hook.system.SystemDrag;
 import com.zuxos.desktopplus.hook.system.SystemFullscreen;
@@ -73,6 +74,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     // Its switches are read as the buttons come: Home's, and L1 and R1's.
                     SystemGamepad.install(lpparam.classLoader);
                     TouchScreens.install(lpparam.classLoader);
+                    BarClearance.install(lpparam.classLoader);
                 }
                 return;
             }

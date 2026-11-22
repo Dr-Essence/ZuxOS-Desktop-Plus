@@ -9,6 +9,8 @@ import android.os.Binder;
 import android.os.Handler;
 import android.os.HandlerThread;
 
+import com.zuxos.desktopplus.core.Cfg;
+import com.zuxos.desktopplus.core.Const;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.core.Threads;
@@ -19,7 +21,8 @@ import com.zuxos.desktopplus.hook.Targets;
  * to the back (minimise), which needs a permission the launcher is not given.
  *
  * <p>Only the launchers this module runs in, the shell and root may ask; the request names a task
- * and nothing else.
+ * and nothing else. Its thread also reads the system side's switches again when the settings
+ * change, for those that must not be read where they are used ({@link BarClearance}).
  */
 public final class SystemBridge {
 
@@ -56,6 +59,9 @@ public final class SystemBridge {
                 try {
                     IntentFilter filter = new IntentFilter(ACTION_MINIMIZE);
                     filter.addAction(ACTION_CLOSE_TASK);
+                    // The settings app saying a switch changed: the system side's switches that
+                    // are read off their hot paths are read again here, on this thread.
+                    filter.addAction(Const.ACTION_SETTINGS_CHANGED);
                     ctx.registerReceiver(new Receiver(ctx), filter, null, handler,
                             Context.RECEIVER_EXPORTED);
                     L.i("system bridge: minimise is available to the launcher");
@@ -76,6 +82,12 @@ public final class SystemBridge {
         @Override
         public void onReceive(Context context, Intent intent) {
             try {
+                if (Const.ACTION_SETTINGS_CHANGED.equals(intent.getAction())) {
+                    // Anyone may ask; all it does is read our own switches again.
+                    Cfg.reload();
+                    BarClearance.reread();
+                    return;
+                }
                 if (!allowed(getSentFromPackage(), getSentFromUid())) {
                     L.w("system bridge: refused a request from " + getSentFromPackage());
                     return;

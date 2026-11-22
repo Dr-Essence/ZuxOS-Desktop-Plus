@@ -72,7 +72,9 @@ final class SysUiNames {
     static final String M_DESKTOP_MODE_WINDOW_DECOR_VIEW_MODEL =
             "mDesktopModeWindowDecorViewModel";
 
-    // The relayout's decision for a title bar, and what it made, read by the trace.
+    // The relayout's decision for a title bar, and what it made.
+    static final String UPDATE_RELAYOUT_PARAMS = "updateRelayoutParams";
+    static final String M_WINDOW_DECORATION_INSETS = "mWindowDecorationInsets";
     static final String M_RELAYOUT_PARAMS = "mRelayoutParams";
     static final String M_IS_CAPTION_VISIBLE = "mIsCaptionVisible";
     static final String M_IS_INSET_SOURCE = "mIsInsetSource";

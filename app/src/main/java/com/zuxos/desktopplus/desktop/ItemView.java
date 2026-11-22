@@ -51,6 +51,8 @@ public class ItemView extends LinearLayout {
     private boolean mGestureHandled;
     private float mDownX;
     private float mDownY;
+    /** A right-click opened the menu at its press: the context click after it is the same one. */
+    private boolean mMenuByButton;
 
     private final Runnable mHoldTimeout = new Runnable() {
         @Override
@@ -123,6 +125,17 @@ public class ItemView extends LinearLayout {
                 mDownX = event.getX();
                 mDownY = event.getY();
                 mHeld = false;
+                mMenuByButton = (event.getButtonState() & MotionEvent.BUTTON_SECONDARY) != 0;
+                if (mMenuByButton) {
+                    // A right-click: the menu at once - the view's own context menu where it has
+                    // one, else the hold's - and nothing at the release, which used to open the
+                    // app as a tap.
+                    mGestureHandled = true;
+                    if (!super.performContextClick(event.getX(), event.getY())) {
+                        mGestures.onItemMenu(this);
+                    }
+                    return true;
+                }
                 mGestureHandled = false;
                 setPressed(true);
                 postDelayed(mHoldTimeout, ViewConfiguration.getLongPressTimeout());
@@ -170,6 +183,16 @@ public class ItemView extends LinearLayout {
             default:
                 return super.onTouchEvent(event);
         }
+    }
+
+    /** The context click Android sends after a right-click's press: its menu is already open. */
+    @Override
+    public boolean performContextClick(float x, float y) {
+        if (mMenuByButton) {
+            mMenuByButton = false;
+            return true;
+        }
+        return super.performContextClick(x, y);
     }
 
     private void releaseGesture() {

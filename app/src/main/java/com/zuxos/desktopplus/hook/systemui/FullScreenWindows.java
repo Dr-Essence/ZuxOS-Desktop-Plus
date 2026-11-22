@@ -224,8 +224,10 @@ final class FullScreenWindows {
             Object layout = Reflect.field(params, SysUiNames.M_LAYOUT_RES_ID);
             Object root = Reflect.field(Reflect.field(decoration, SysUiNames.M_RESULT),
                     SysUiNames.M_ROOT_VIEW);
+            boolean applied = Reflect.field(decoration,
+                    SysUiNames.M_WINDOW_DECORATION_INSETS) != null;
             boolean full = MARKED.contains(task.taskId);
-            String key = "FullScreenWindows.trace." + full + visible + inset + layout;
+            String key = "FullScreenWindows.trace." + full + visible + inset + applied + layout;
             if (!L.once(key)) {
                 return;
             }
@@ -237,7 +239,8 @@ final class FullScreenWindows {
             L.i("full screen windows: trace: " + (full ? "full-screen" : "maximised")
                     + " window " + task.taskId + " on display " + displayOf(task)
                     + " - title bar " + (Boolean.TRUE.equals(visible) ? "shown" : "hidden")
-                    + ", takes room from the app " + inset + ", layout " + name + ", root "
+                    + ", takes room from the app " + inset + " (applied " + applied
+                    + "), layout " + name + ", root "
                     + (root == null ? "none" : root.getClass().getSimpleName()));
         } catch (Throwable t) {
             L.d("full screen windows: trace unread (" + t + ")");

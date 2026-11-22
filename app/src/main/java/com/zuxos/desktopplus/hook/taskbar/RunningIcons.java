@@ -186,9 +186,7 @@ public final class RunningIcons {
             switch (e.getActionMasked()) {
                 case android.view.MotionEvent.ACTION_DOWN: {
                     TaskbarPreview.pressed(v);
-                    if (e.isFromSource(android.view.InputDevice.SOURCE_MOUSE)
-                            && (e.getButtonState()
-                            & android.view.MotionEvent.BUTTON_SECONDARY) != 0) {
+                    if ((e.getButtonState() & android.view.MotionEvent.BUTTON_SECONDARY) != 0) {
                         mMenu.run();
                         return true;
                     }
@@ -290,6 +288,24 @@ public final class RunningIcons {
      */
     public static final class Press implements View.OnTouchListener {
 
+        /** Whether a right-click opens the view's hold menu instead of acting as a tap. */
+        private final boolean mMenuOnRightClick;
+        /** This gesture is a right-click: its menu is open, and nothing else may happen. */
+        private boolean mRightClick;
+
+        public Press() {
+            this(false);
+        }
+
+        private Press(boolean menuOnRightClick) {
+            mMenuOnRightClick = menuOnRightClick;
+        }
+
+        /** For an icon whose hold opens its menu: a right-click opens it too, never the app. */
+        static Press withMenuOnRightClick() {
+            return new Press(true);
+        }
+
         static void down(View v) {
             TaskbarPreview.pressed(v);
             if (Theme.of(v).retro()) {
@@ -311,13 +327,29 @@ public final class RunningIcons {
         public boolean onTouch(View v, android.view.MotionEvent e) {
             switch (e.getActionMasked()) {
                 case android.view.MotionEvent.ACTION_DOWN:
+                    mRightClick = mMenuOnRightClick && (e.getButtonState()
+                            & android.view.MotionEvent.BUTTON_SECONDARY) != 0;
+                    if (mRightClick) {
+                        // A right-click: the icon's own menu, the one its hold opens, at once -
+                        // and the gesture kept, so its release opens nothing.
+                        TaskbarPreview.pressed(v);
+                        v.performLongClick();
+                        return true;
+                    }
                     down(v);
                     break;
                 case android.view.MotionEvent.ACTION_UP:
                 case android.view.MotionEvent.ACTION_CANCEL:
+                    if (mRightClick) {
+                        mRightClick = false;
+                        return true;
+                    }
                     up(v);
                     break;
                 default:
+                    if (mRightClick) {
+                        return true;
+                    }
                     break;
             }
             // Only watching: the click and the hold menu still happen as before.
@@ -388,7 +420,7 @@ public final class RunningIcons {
             view.setOnLongClickListener(v -> TaskbarApps.showMenu(v, pkg,
                     android.os.Process.myUserHandle(), displayId,
                     taskId >= 0 ? taskId : RunningTasks.firstWindow(pkg, displayId)));
-            view.setOnTouchListener(new Press());
+            view.setOnTouchListener(Press.withMenuOnRightClick());
             TaskbarPreview.attach(view, pkg, displayId, taskId);
             TaskbarKeys.focusable(view, displayId);
             return view;

@@ -30,6 +30,12 @@ import de.robv.android.xposed.XposedBridge;
  * its buttons; everything else keeps them. Relayouts come with task and inset changes, so nothing
  * is watched.
  *
+ * <p>A title bar kept this way takes its room from the app. In its desktop mode ZUI lays a
+ * full-screen window's title bar over the app ({@code updateRelayoutParams}: not an inset
+ * source), in the strip the status bar keeps clear; with no status bar it lay over the app's own
+ * top row, and neither could be pressed. So there it is made an inset source, as a floating
+ * window's is, and the app starts below it.
+ *
  * <p>A window made full screen on the monitor ({@link FullScreenWindows}) gets "no status bar",
  * on any monitor, whatever our status-bar setting: ZUI's own rule then hides its title bar, and
  * the app has the whole screen.
@@ -40,7 +46,11 @@ public final class WindowCaptions {
             SysUiNames.DESKTOP_MODE_WINDOW_DECORATION, SysUiNames.CAPTION_WINDOW_DECORATION,
     };
 
+    private static final int WINDOWING_MODE_FULLSCREEN = 1;
+
     private static Field sStatusBarVisible;
+    private static Field sCaptionVisible;
+    private static Field sInsetSource;
 
     private WindowCaptions() {
     }
@@ -99,6 +109,7 @@ public final class WindowCaptions {
                 return;
             }
             L.i("window captions: watching ZUI's relayout x" + hooked);
+            hookTakesRoom(loader);
         } catch (Throwable t) {
             L.e("window captions: could not install", t);
         }
@@ -130,6 +141,67 @@ public final class WindowCaptions {
         if (showing && L.once("WindowCaptions")) {
             L.i("window captions: buttons kept on display " + display
                     + " - no status bar there, and the app did not ask to hide it");
+        }
+    }
+
+    /**
+     * After ZUI's {@code updateRelayoutParams}, for the title bar a missing status bar left
+     * shown on a full-screen window: an inset source, so the app gets the room under it.
+     */
+    private static void hookTakesRoom(ClassLoader loader) {
+        Class<?> decoration = Reflect.findClass(SysUiNames.DESKTOP_MODE_WINDOW_DECORATION, loader);
+        Method update = null;
+        if (decoration != null) {
+            for (Method m : decoration.getDeclaredMethods()) {
+                Class<?>[] types = m.getParameterTypes();
+                if (m.getName().equals(SysUiNames.UPDATE_RELAYOUT_PARAMS) && types.length > 2
+                        && types[2] == ActivityManager.RunningTaskInfo.class) {
+                    update = m;
+                }
+            }
+        }
+        try {
+            Class<?> params = update == null ? null : update.getParameterTypes()[0];
+            sCaptionVisible = params == null ? null
+                    : params.getField(SysUiNames.M_IS_CAPTION_VISIBLE);
+            sInsetSource = params == null ? null : params.getField(SysUiNames.M_IS_INSET_SOURCE);
+        } catch (Throwable t) {
+            sCaptionVisible = null;
+        }
+        if (update == null || sCaptionVisible == null || sInsetSource == null) {
+            L.w("window captions: ZUI's title-bar decision not found - on a monitor without a "
+                    + "status bar a maximised window's title bar stays over the app");
+            return;
+        }
+        XposedBridge.hookMethod(update, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                try {
+                    takeRoom(param.args[0], param.args[2]);
+                } catch (Throwable t) {
+                    L.d("window captions: the title bar's room left to ZUI (" + t + ")");
+                }
+            }
+        });
+    }
+
+    private static void takeRoom(Object params, Object arg) throws IllegalAccessException {
+        if (!(arg instanceof ActivityManager.RunningTaskInfo) || params == null) {
+            return;
+        }
+        ActivityManager.RunningTaskInfo task = (ActivityManager.RunningTaskInfo) arg;
+        int display = FullScreenWindows.displayOf(task);
+        if (display == Display.DEFAULT_DISPLAY || !MonitorStatusBar.hiddenOn(display)
+                || FullScreenWindows.has(task.taskId)
+                || !Integer.valueOf(WINDOWING_MODE_FULLSCREEN).equals(
+                        Reflect.call(task, "getWindowingMode"))
+                || !sCaptionVisible.getBoolean(params) || sInsetSource.getBoolean(params)) {
+            return;
+        }
+        sInsetSource.setBoolean(params, true);
+        if (L.once("WindowCaptions.room")) {
+            L.i("window captions: a maximised window's title bar on display " + display
+                    + " takes its room - the app starts below it");
         }
     }
 

@@ -396,6 +396,11 @@ public final class Cfg {
         return getBool(Const.KEY_CAPTION_FOLLOW, true);
     }
 
+    /** Apps' windows end at the taskbar, never under it, while it takes room. */
+    public static boolean barClearance() {
+        return getBool(Const.KEY_BAR_CLEARANCE, true);
+    }
+
     /** Full screen in the monitor's menus, with the taskbar and title bar out of the way. */
     public static boolean fullScreen() {
         return getBool(Const.KEY_FULL_SCREEN, true);

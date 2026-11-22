@@ -166,6 +166,8 @@ public final class Const {
     public static final String KEY_MONITOR_TOUCH = "monitor_touch";
     /** A window's title bar and "…" menu follow the window to the screen it moved to. */
     public static final String KEY_CAPTION_FOLLOW = "caption_follow";
+    /** Apps' windows end at the taskbar, on both screens, while it takes room. */
+    public static final String KEY_BAR_CLEARANCE = "bar_clearance";
     /** Full screen on the monitor: no taskbar or title bar until the pointer reaches an edge. */
     public static final String KEY_FULL_SCREEN = "full_screen";
     /** The tablet taskbar drawer's app list ends at the bar instead of under its icons. */
