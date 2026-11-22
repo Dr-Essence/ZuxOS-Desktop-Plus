@@ -93,6 +93,10 @@ final class SystemNames {
     static final String LAYOUT_WINDOW_LW = "layoutWindowLw";
     /** {@code DisplayContent}'s. */
     static final String M_INPUT_METHOD_WINDOW = "mInputMethodWindow";
+    /** Who holds the navigation bar - the taskbar - on a display, and so whether it shows. */
+    static final String INSETS_POLICY = "com.android.server.wm.InsetsPolicy";
+    static final String GET_NAV_CONTROL_TARGET_INNER_OV = "getNavControlTargetInner_ov";
+    static final String M_SHOWING_TRANSIENT_CONTROL_TARGET = "mShowingTransientControlTarget";
 
     // Activity manager (com.android.server.am).
     static final String PROCESS_STATE_RECORD = "com.android.server.am.ProcessStateRecord";

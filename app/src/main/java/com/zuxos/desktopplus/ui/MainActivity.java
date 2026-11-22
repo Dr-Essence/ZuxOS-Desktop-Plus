@@ -379,6 +379,11 @@ public class MainActivity extends Activity {
                         + "reaches the bottom of the screen. Needs System UI ticked for this "
                         + "module in LSPosed for the \u2026 menu and the title bar",
                 Const.KEY_FULL_SCREEN, true);
+        addSwitch("Taskbar comes back with the drawer over full-screen apps",
+                "Over a game or video that hides the bars, the taskbar shows while its drawer, "
+                        + "a folder or a panel of it is open, and hides again when you go back "
+                        + "to the app. Needs System Framework ticked for this module in LSPosed",
+                Const.KEY_BAR_WITH_DRAWER, true);
         addSwitch("Tablet drawer ends at the taskbar",
                 "The taskbar drawer's apps scroll up to the bar and stop there, instead of "
                         + "passing under the bar's icons",

@@ -17,6 +17,15 @@ final class TaskbarNames {
     static final String IS_TASKBAR_WINDOW_FULLSCREEN = "isTaskbarWindowFullscreen";
     static final String GET_DRAG_LAYER = "getDragLayer";
 
+    // The bar's drawer: every way it opens (ZUI's button, ours, the Windows key, a controller's
+    // Home) ends at its controller's toggle or toggleSearch.
+    static final String TASKBAR_ALL_APPS_CONTROLLER_CLASS =
+            "com.android.launcher3.taskbar.allapps.TaskbarAllAppsController";
+    static final String TASKBAR_ALL_APPS_CONTROLLER = "taskbarAllAppsController";
+    static final String TOGGLE = "toggle";
+    static final String TOGGLE_SEARCH = "toggleSearch";
+    static final String IS_OPEN = "isOpen";
+
     // A tap on an app of the bar's drawer or its folders: ZUI's launch, and its launch from an
     // app (startItemInfoActivity, obfuscated).
     static final String LAUNCH_FROM_TASKBAR = "launchFromTaskbar";

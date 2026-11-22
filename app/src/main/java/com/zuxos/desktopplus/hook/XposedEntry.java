@@ -26,6 +26,7 @@ import com.zuxos.desktopplus.hook.keyboard.HeliWindow;
 import com.zuxos.desktopplus.hook.recents.RecentsRoute;
 import com.zuxos.desktopplus.hook.sidebar.SidebarAiWait;
 import com.zuxos.desktopplus.hook.system.BarClearance;
+import com.zuxos.desktopplus.hook.system.BarWithDrawer;
 import com.zuxos.desktopplus.hook.system.GameTipOff;
 import com.zuxos.desktopplus.hook.system.LaunchPromptOff;
 import com.zuxos.desktopplus.hook.system.LaunchTrace;
@@ -81,6 +82,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     TouchScreens.install(lpparam.classLoader);
                     BarClearance.install(lpparam.classLoader);
                     GameTipOff.install(lpparam.classLoader);
+                    BarWithDrawer.install(lpparam.classLoader);
                     LaunchPromptOff.install(lpparam.classLoader);
                     LaunchTrace.install(lpparam.classLoader);
                 }

@@ -297,7 +297,12 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   the taskbar slides away. Rest the pointer on the bottom edge (the top, for a bar at the top) and
   the bar slides back over the app; it stays while a menu, the drawer or a panel of it is open.
   "Exit full screen" in either menu gives the bar back with the window maximised. The "…" menu and
-  the hidden title bar need System UI ticked in LSPosed.
+  the hidden title bar need System UI ticked in LSPosed. The drawer, however it opens (the
+  Windows key too), brings the bar back with it.
+- **Taskbar comes back with the drawer over full-screen apps** (optional, on by default). Over a
+  game or video that hides the bars, the taskbar shows while its drawer, a folder or a panel of it
+  is open, and hides again when you go back to the app, which is not resized. Needs System
+  Framework ticked in LSPosed.
 - **Game launcher** (optional). Pick one in the settings, such as Wave Launcher: on the monitor it
   and every game or app it opens start in Full screen, and the controller's Home button opens it
   on the screen in use instead of the drawer. Needs System Framework ticked in LSPosed.

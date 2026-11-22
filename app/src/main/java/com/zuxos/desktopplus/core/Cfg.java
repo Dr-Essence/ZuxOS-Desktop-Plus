@@ -421,6 +421,11 @@ public final class Cfg {
         return getBool(Const.KEY_NO_LAUNCH_PROMPT, true);
     }
 
+    /** Over an app that hides the bars, the taskbar shows with the drawer and its panels. */
+    public static boolean barWithDrawer() {
+        return getBool(Const.KEY_BAR_WITH_DRAWER, true);
+    }
+
     /** The chosen game launcher's package, or empty for none. */
     public static String gameLauncher() {
         return getString(Const.KEY_GAME_LAUNCHER, "");

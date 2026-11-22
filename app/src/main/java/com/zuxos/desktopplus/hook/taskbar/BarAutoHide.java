@@ -106,6 +106,7 @@ final class BarAutoHide {
                     }).size();
             hookKeyboardSize(insets);
         }
+        hookDrawer(loader);
         Health.hooked("taskbar: full screen, the monitor's bar out of the way", hooked,
                 () -> Cfg.enabled() && Cfg.fullScreen());
         if (hooked == 0) {
@@ -182,6 +183,48 @@ final class BarAutoHide {
                 .invoke(provider, (Object) overrides);
         if (L.once("BarAutoHide.keyboard")) {
             L.i("bar auto-hide: in game mode the keyboard is told the bar's size apps are told");
+        }
+    }
+
+    /**
+     * ZUI's drawer opening, however it is asked for - its button, ours, the Windows key, a
+     * controller's Home - brings the bar out of the way with it: every one of them ends at the
+     * drawer controller's toggle or toggleSearch. Once open, the drawer's window holds the bar
+     * up ({@link #held}) until it closes.
+     */
+    private static void hookDrawer(ClassLoader loader) {
+        Class<?> drawer = Reflect.findClass(TaskbarNames.TASKBAR_ALL_APPS_CONTROLLER_CLASS, loader);
+        if (drawer == null) {
+            L.w("bar auto-hide: ZUI's drawer controller not found - in Full screen the drawer "
+                    + "opened by a key comes without the bar");
+            return;
+        }
+        XC_MethodHook opening = new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                try {
+                    if (BARS.isEmpty() || Boolean.TRUE.equals(
+                            Reflect.call(param.thisObject, TaskbarNames.IS_OPEN))) {
+                        return;
+                    }
+                    for (Bar bar : BARS.values()) {
+                        ViewGroup layer = bar.layer();
+                        if (layer != null && param.thisObject == Reflect.field(Reflect.field(
+                                activityContext(layer), TaskbarNames.M_CONTROLLERS),
+                                TaskbarNames.TASKBAR_ALL_APPS_CONTROLLER)) {
+                            show(bar.display);
+                        }
+                    }
+                } catch (Throwable t) {
+                    L.d("bar auto-hide: the bar left as it is for the drawer (" + t + ")");
+                }
+            }
+        };
+        int hooked = XposedBridge.hookAllMethods(drawer, TaskbarNames.TOGGLE, opening).size()
+                + XposedBridge.hookAllMethods(drawer, TaskbarNames.TOGGLE_SEARCH, opening).size();
+        if (hooked == 0) {
+            L.w("bar auto-hide: ZUI's drawer has no toggle - in Full screen the drawer opened "
+                    + "by a key comes without the bar");
         }
     }
 
@@ -290,7 +333,7 @@ final class BarAutoHide {
     }
 
     /** Brought back for something opened from it without the pointer: the drawer by a key. */
-    static void show(int display) {
+    private static void show(int display) {
         Bar bar = BARS.get(display);
         if (bar != null && bar.engaged && !bar.revealed) {
             safely(() -> {

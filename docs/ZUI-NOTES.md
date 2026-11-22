@@ -310,6 +310,28 @@ What Full screen (0.0.305) stands on. ZUX Home 18.2.0.0375, System UI 16.
   intent itself on Allow; 2 denied - its blocked alert. `ZuiAmAutoRunManager.isAllowStart` reads
   the same status for process starts by services and broadcasts (0 allowed only from the app in
   front). 0.0.309 reads 0 as 1 inside `isAllowRelativeStart` only.
+- **The taskbar's drawer: how it opens** (ZUX Home, read 2026-11-23). Every way in - ZUI's
+  all-apps button (`TaskbarViewCallbacks` → `uiController.toggleAllApps(false)`), the Windows key
+  (`TaskbarManager.toggleAllAppsSearch` → `toggleAllApps(true)`), our start button and a
+  controller's Home - ends at `TaskbarAllAppsController.toggle()` or `toggleSearch()`, then `e`,
+  then `d`, which asks `TaskbarOverlayController.requestWindow` for its window: type 2038, titled
+  "Taskbar Overlay", focusable. `init(…, true)` reopens it after a rebuild through `c`.
+  0.0.310 brings our slid-away bar back before `toggle`/`toggleSearch` open it.
+- **Who shows the taskbar while another window has the focus** (`services.jar`, read
+  2026-11-23). The window holding the navigation bar decides whether it shows
+  (`InsetsPolicy.updateBarControlTarget` → `getNavControlTarget` → `getNavControlTargetInner`,
+  ZUI's `_ov` variant when `OvcFeatureFlags.enableOvStatusBar()`). In order: a visible keyboard
+  (a showing holder), a transient show, the shade or the bar's own window, forced shown,
+  forced transient, forced hidden; then, when the focused window cannot be a full-screen app
+  window (`canBeTopFullscreenOpaqueWindow`: type 1-99, full screen, not transparent, not in
+  multi-window) and the top full-screen app hides the bar (`DisplayPolicy.topAppHidesSystemBar`),
+  the bar goes to that app - so a drawer or panel over a game that hides the bars comes without
+  the bar. Only the notification shade is let off. A swipe from the edge, or the pointer resting
+  on it for 500 ms (`onMouseHoverAtBottom` → `mOnSwipeFromBottom`), calls
+  `DisplayPolicy.requestTransientBars` → `InsetsPolicy.showTransient`, which hands the bar to
+  `mShowingTransientControlTarget` (requests the bars shown); `updateBarControlTarget` then gives
+  the app a stand-in (`mFakeNavControlTarget`) so it is not laid out again. 0.0.310 gives the bar
+  to that holder in the "top app hides it" branch while a ZUX Home overlay window has the focus.
 - **ZUI's memory of each app's window** (`services.jar`, read 2026-11-22).
   `Task.saveLaunchingStateIfNeeded` (leaf task, has been visible, mode 1 or 5, a freeform
   display area or ZUI's desktop or PC mode) calls `LaunchParamsPersister.saveTask`, which keeps
@@ -1277,8 +1299,10 @@ Checked 2026-10-09. Every hook below matches by name and parameters, unless mark
 | Apps stop at the taskbar (0.0.306) | `DisplayPolicy.layoutWindowLw(WindowState, WindowState, DisplayFrames)`; fields `WindowState.mAttrs`, `WindowManager.LayoutParams.mFitInsetsTypes`; `WindowState.getActivityType()`, `getInsetsState()`, `getBounds()`, `InsetsState.calculateInsets(Rect, int, boolean)` | found in the decompile, not yet on the device |
 | The keyboard stops at the taskbar (0.0.307; moved to HeliBoard in 0.0.308) | HeliBoard: after `LatinIME.onCreate`, the window's `setFitInsetsSides` | public API |
 | Taskbar taps always open the app (0.0.308) | before `TaskbarActivityContext.launchFromTaskbar(RecentsView, View, List)`; `w1(ItemInfo, Task)`, `isInDesktopMode()` (ZUX Home) | found |
+| Bar back with the drawer in Full screen (0.0.310) | before `TaskbarAllAppsController.toggle()`, `toggleSearch()`; `isOpen()`; field `TaskbarControllers.taskbarAllAppsController` (ZUX Home) | found |
 | The keyboard in game mode (0.0.308) | after `TaskbarInsetsController.k(InsetsFrameProvider, int, int)`; `getGameMode()`; `InsetsFrameProvider.getType`, `getInsetsSize`, `get/setInsetsSizeOverrides`, `InsetsSizeOverride(int, Insets)` (ZUX Home) | found |
 | No association launch prompt (0.0.309) | around `ZuiWmAutoRunManager.isAllowRelativeStart(...)`; after `android.app.ZuiSecurityManager.getRelativeAppStatus(String, String)` | found |
+| Taskbar with the drawer over full-screen apps (0.0.310) | after `InsetsPolicy.getNavControlTargetInner_ov(WindowState, boolean)`; fields `InsetsPolicy.mShowingTransientControlTarget`, `WindowState.mAttrs` | found in the decompile, not yet on the device |
 | No game prompt (0.0.308) | before `OvGameTipDialogManager.canShowOvGameDialog(String, TaskDisplayArea)` | found |
 | Game launcher full screen (0.0.308) | the `calculate` hook above; fields `ActivityRecord.packageName`, `launchedFromPackage`, `LaunchParams.mPreferredTaskDisplayArea`; after `ActivityStarter.startActivityInner`, `mTargetTask` | found |
 | Launch trace (0.0.307, read only) | after `ActivityStarter.startActivityInner(ActivityRecord, ActivityRecord, ..., BalVerdict, NeededUriGrants, int)`; fields `mRootWindowContainer`, `mPreferredTaskDisplayArea`, `ActivityRecord.shortComponentName`, `launchedFromPackage`, `Task.mTaskId`; `getTask()`, `getDisplayId()`, `getWindowingMode()`, `RootWindowContainer.getTopFocusedDisplayContent()`, static `OVDesktopController.isUnderExternalDisplayDesktopMode()`; after `LaunchParamsPersister.saveTask(Task, DisplayContent)`, fields `Task.realActivity`, `mLastNonFullscreenBounds` (0.0.308); after `LaunchParamsPersister.getLaunchParams(Task, ActivityRecord, LaunchParams)`, field `ActivityRecord.mActivityComponent` (0.0.309) | found |

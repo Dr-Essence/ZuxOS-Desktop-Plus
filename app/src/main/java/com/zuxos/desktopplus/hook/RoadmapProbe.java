@@ -126,6 +126,11 @@ public final class RoadmapProbe {
             dumpsys input 2>/dev/null | grep -i -E 'Device [0-9]+:|Enabled:|Sources:|PointerChoreographer|MouseDisplay|PointerDisplay|DefaultMouse' | head -120
             echo "--- who holds the pointer: touch state, pointer capture, gesture monitors (a mouse that stops until replugged)"
             dumpsys input 2>/dev/null | grep -i -E 'TouchStates|TouchedWindow|touchedWindows|Window:|PointerCapture|pointer capture|Capture|GestureMonitor|Monitors|FocusedWindow|FocusedDisplay|pilfer' | head -80
+            echo "--- each USB device asleep or awake (a mouse put to sleep when idle that never wakes)"
+            for d in /sys/bus/usb/devices/*; do
+              [ -f "$d/product" ] && echo "$(cat "$d/product" 2>/dev/null): control $(cat "$d/power/control" 2>/dev/null), now $(cat "$d/power/runtime_status" 2>/dev/null), wakeup $(cat "$d/power/wakeup" 2>/dev/null), sleeps after $(cat "$d/power/autosuspend_delay_ms" 2>/dev/null) ms"
+            done | head -20
+            echo "ZUI's touchpad on the tablet: $(dumpsys activity activities 2>/dev/null | grep -c 'touchpad.TouchPadActivity') record(s)"
             echo "--- resource overlays on SystemUI (#10 window looks, #16)"
             cmd overlay list com.android.systemui 2>/dev/null | head -30
             echo "fabricated overlays offered: $(cmd overlay help 2>/dev/null | grep -c fabricate)"
