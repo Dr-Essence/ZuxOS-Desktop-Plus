@@ -260,8 +260,11 @@ What Full screen (0.0.305) stands on. ZUX Home 18.2.0.0375, System UI 16.
   (`TaskbarInsetsController.k()`): `taskbar_ime_size`, 60 dp, as tall as `taskbar_size`, in
   three-button navigation, kept in game mode, where apps are told 1 px. A keyboard's height to
   an app is its frame inside the app's (`InsetsSource.calculateInsets`, IME case: the
-  intersection's height). 0.0.307 has the keyboard fit the bottom too while the display's bar
-  takes room (`DisplayFrames.mInsetsState`, as apps see it).
+  intersection's height). 0.0.307 had the keyboard fit the bottom in the system only, and it fell
+  back under the bar after a while: a window also works out its own frame on the app side
+  (`ViewRootImpl`: `WindowLayout.computeFrames` from its own attributes, then `relayoutAsync`)
+  and keeps the one it worked out. 0.0.308 changes the attributes in HeliBoard itself
+  (`HeliWindow`), and in game mode has ZUX Home give the type-2011 override the size apps get.
 - **Which screen a launch goes to with the monitor's desktop on** (`services.jar`, read
   2026-11-22). `ActivityStarter.resolveReusableTask`, under
   `OVDesktopController.isUnderExternalDisplayDesktopMode()`, reads the screen the system has
@@ -276,6 +279,33 @@ What Full screen (0.0.305) stands on. ZUX Home 18.2.0.0375, System UI 16.
   and with a touch on a window that can take focus (`onPointerDownOutsideFocusLocked`); a touch
   on the taskbar, whose window takes none, leaves it where it was - so ZUI's own Back and Home on
   the tablet's bar acted on the monitor after the monitor was used.
+- **Taps that ZUI's taskbar drops** (ZUX Home, read 2026-11-22). A drawer app (`a1`) or a folder
+  app (`Z0`) tapped on the tablet's bar goes to `TaskbarActivityContext.launchFromTaskbar(
+  RecentsView, View, List)`; outside ZUI's desktop mode (`isInDesktopMode`, its field `Y`) and
+  with no app in front it launches through the recents view (`n1`), and with none returns at
+  once ("launchFromOverviewTaskbar, force return"); with an app in front it calls `m1`, which
+  launches through `w1` (startItemInfoActivity: a plain `startActivity` with the bar's display)
+  only with a recents view, desktop mode or `ENABLE_TASKBAR_CONNECTED_DISPLAYS`. The recents view
+  comes from the bar's UI controller; when the activity holding it is destroyed, `TaskbarManager`
+  sets `TaskbarUIController.DEFAULT`, whose `getRecentsView()` is null. With the monitor
+  connected the taps first pass `DpItemClickHelper.processClickItemInNormal`, which asks to
+  restart an app already running on the monitor ("dpmode_restart_app"), else goes on.
+- **ZUI's "two high-performance apps" prompt** (`services.jar`, read 2026-11-22).
+  `ActivityStartInterceptor.intercept` first calls `interceptGameTipIfNeeded`: when
+  `OvGameTipDialogManager.canShowOvGameDialog(package, display area)` says so - a game (ZUI's
+  compat list) opened while another visible app is also flagged, once per pair, persisted - the
+  start becomes SystemUI's `SHOW_OV_GAME_TIP` ("Opening %1$s and %2$s, two high-performance
+  apps, at the same time may cause your device to lag or overheat. Do you want to continue?").
+  Continue sends the original intent with `setGameTipConfirmed(true)` and windowing mode 5
+  (`createGameIntentSenderForOriginalIntent`), unless in split: the app opens floating.
+- **ZUI's memory of each app's window** (`services.jar`, read 2026-11-22).
+  `Task.saveLaunchingStateIfNeeded` (leaf task, has been visible, mode 1 or 5, a freeform
+  display area or ZUI's desktop or PC mode) calls `LaunchParamsPersister.saveTask`, which keeps
+  per app three slots: 0 the tablet, 1 PC mode or the monitor's desktop, 2 ZUI's tablet desktop
+  mode - mode, `mLastNonFullscreenBounds` (or ZUI's scaled bounds), display - unless
+  `OVDesktopController.canSaveTaskLaunchParam` refuses. `getLaunchParams` hands the slot back at
+  the next launch. Only `clearLaunchParamsForPackages` (by the task permission) removes a record;
+  a force stop does not.
 - **Permissions both sides hold:** `STATUS_BAR_SERVICE` (signature). SystemUI also holds
   `INJECT_EVENTS`, `MONITOR_INPUT` and `MANAGE_ACTIVITY_TASKS`. ZUX Home also holds
   `START_TASKS_FROM_RECENTS`, `MANAGE_ACTIVITY_TASKS` and `MONITOR_INPUT`.
@@ -1229,8 +1259,12 @@ Checked 2026-10-09. Every hook below matches by name and parameters, unless mark
 | Drag | `DragState.isValidDropTarget(WindowState, boolean, boolean)`, fields `mFlags`, `mUid`; `WindowState.getOwningUid()` | found |
 | Controller | `PhoneWindowManager.interceptKeyBeforeDispatching(IBinder, KeyEvent, int)`; fields `mTopFocusedDisplayId`, `mDefaultDisplayPolicy`; `isKeyguardShowingAndNotOccluded()`, `DisplayPolicy.topAppHidesSystemBar(int)` (0.0.283, read on L1/R1) | found |
 | Apps stop at the taskbar (0.0.306) | `DisplayPolicy.layoutWindowLw(WindowState, WindowState, DisplayFrames)`; fields `WindowState.mAttrs`, `WindowManager.LayoutParams.mFitInsetsTypes`; `WindowState.getActivityType()`, `getInsetsState()`, `getBounds()`, `InsetsState.calculateInsets(Rect, int, boolean)` | found in the decompile, not yet on the device |
-| The keyboard stops at the taskbar (0.0.307) | the same hook; fields `WindowManager.LayoutParams.mFitInsetsSides`, `DisplayFrames.mInsetsState` | found |
-| Launch trace (0.0.307, read only) | after `ActivityStarter.startActivityInner(ActivityRecord, ActivityRecord, ..., BalVerdict, NeededUriGrants, int)`; fields `mRootWindowContainer`, `mPreferredTaskDisplayArea`, `ActivityRecord.shortComponentName`, `launchedFromPackage`, `Task.mTaskId`; `getTask()`, `getDisplayId()`, `getWindowingMode()`, `RootWindowContainer.getTopFocusedDisplayContent()`, static `OVDesktopController.isUnderExternalDisplayDesktopMode()` | found |
+| The keyboard stops at the taskbar (0.0.307; moved to HeliBoard in 0.0.308) | HeliBoard: after `LatinIME.onCreate`, the window's `setFitInsetsSides` | public API |
+| Taskbar taps always open the app (0.0.308) | before `TaskbarActivityContext.launchFromTaskbar(RecentsView, View, List)`; `w1(ItemInfo, Task)`, `isInDesktopMode()` (ZUX Home) | found |
+| The keyboard in game mode (0.0.308) | after `TaskbarInsetsController.k(InsetsFrameProvider, int, int)`; `getGameMode()`; `InsetsFrameProvider.getType`, `getInsetsSize`, `get/setInsetsSizeOverrides`, `InsetsSizeOverride(int, Insets)` (ZUX Home) | found |
+| No game prompt (0.0.308) | before `OvGameTipDialogManager.canShowOvGameDialog(String, TaskDisplayArea)` | found |
+| Game launcher full screen (0.0.308) | the `calculate` hook above; fields `ActivityRecord.packageName`, `launchedFromPackage`, `LaunchParams.mPreferredTaskDisplayArea`; after `ActivityStarter.startActivityInner`, `mTargetTask` | found |
+| Launch trace (0.0.307, read only) | after `ActivityStarter.startActivityInner(ActivityRecord, ActivityRecord, ..., BalVerdict, NeededUriGrants, int)`; fields `mRootWindowContainer`, `mPreferredTaskDisplayArea`, `ActivityRecord.shortComponentName`, `launchedFromPackage`, `Task.mTaskId`; `getTask()`, `getDisplayId()`, `getWindowingMode()`, `RootWindowContainer.getTopFocusedDisplayContent()`, static `OVDesktopController.isUnderExternalDisplayDesktopMode()`; after `LaunchParamsPersister.saveTask(Task, DisplayContent)`, fields `Task.realActivity`, `mLastNonFullscreenBounds` (0.0.308) | found |
 
 ## The roadmap rows against ZUI's code
 

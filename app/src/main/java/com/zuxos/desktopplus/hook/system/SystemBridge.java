@@ -8,6 +8,8 @@ import android.content.IntentFilter;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Process;
+import android.os.UserHandle;
 
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.Const;
@@ -22,7 +24,8 @@ import com.zuxos.desktopplus.hook.Targets;
  *
  * <p>Only the launchers this module runs in, the shell and root may ask; the request names a task
  * and nothing else. Its thread also reads the system side's switches again when the settings
- * change, for those that must not be read where they are used ({@link BarClearance}).
+ * change, for those that must not be read where they are used ({@link BarClearance},
+ * {@link GameTipOff}).
  */
 public final class SystemBridge {
 
@@ -86,6 +89,7 @@ public final class SystemBridge {
                     // Anyone may ask; all it does is read our own switches again.
                     Cfg.reload();
                     BarClearance.reread();
+                    GameTipOff.reread();
                     return;
                 }
                 if (!allowed(getSentFromPackage(), getSentFromUid())) {
@@ -166,5 +170,33 @@ public final class SystemBridge {
         } catch (Throwable t) {
             return null;
         }
+    }
+
+    /**
+     * ZUX Home told something by the system, as the user in front. Never from under the window
+     * manager's lock: a broadcast takes the activity manager's, which comes before it.
+     */
+    static void toZuxHome(Intent intent) {
+        Context ctx = systemContext();
+        if (ctx != null) {
+            ctx.sendBroadcastAsUser(intent.setPackage(SystemNames.ZUX_HOME)
+                    .addFlags(Intent.FLAG_RECEIVER_FOREGROUND), currentUser());
+        }
+    }
+
+    /**
+     * The user in front ({@code UserHandle.CURRENT}, not in the public SDK the module is built
+     * with); this process's own if it cannot be read.
+     */
+    private static UserHandle currentUser() {
+        try {
+            Object current = UserHandle.class.getField(SystemNames.CURRENT).get(null);
+            if (current instanceof UserHandle) {
+                return (UserHandle) current;
+            }
+        } catch (Throwable t) {
+            // This process's own below.
+        }
+        return Process.myUserHandle();
     }
 }

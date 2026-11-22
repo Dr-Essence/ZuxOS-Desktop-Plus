@@ -166,10 +166,20 @@ public final class Const {
     public static final String KEY_MONITOR_TOUCH = "monitor_touch";
     /** A window's title bar and "…" menu follow the window to the screen it moved to. */
     public static final String KEY_CAPTION_FOLLOW = "caption_follow";
-    /** Apps' windows end at the taskbar, on both screens, while it takes room. */
+    /** Apps' windows and the keyboard end at the taskbar, on both screens, while it takes room. */
     public static final String KEY_BAR_CLEARANCE = "bar_clearance";
     /** Full screen on the monitor: no taskbar or title bar until the pointer reaches an edge. */
     public static final String KEY_FULL_SCREEN = "full_screen";
+    /** A taskbar tap ZUI would drop for want of its recents view opens the app anyway. */
+    public static final String KEY_TASKBAR_TAPS = "taskbar_taps_launch";
+    /** ZUI's "two high-performance apps" prompt, and the floating window after it, left out. */
+    public static final String KEY_NO_GAME_TIP = "no_game_tip";
+    /** The game launcher chosen in the settings: a package name, or empty for none. */
+    public static final String KEY_GAME_LAUNCHER = "game_launcher";
+    /** The controller's Home button opens the game launcher instead of the drawer. */
+    public static final String KEY_GAME_LAUNCHER_HOME = "game_launcher_home";
+    /** The game launcher, and what it opens, in Full screen on the monitor. */
+    public static final String KEY_GAME_LAUNCHER_FULL_SCREEN = "game_launcher_full_screen";
     /** The tablet taskbar drawer's app list ends at the bar instead of under its icons. */
     public static final String KEY_DRAWER_ABOVE_BAR = "drawer_above_bar";
     /** Show notifications in the quick panel, through the module's own listener. */

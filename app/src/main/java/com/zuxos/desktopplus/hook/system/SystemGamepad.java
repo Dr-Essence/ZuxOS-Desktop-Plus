@@ -1,12 +1,9 @@
 package com.zuxos.desktopplus.hook.system;
 
-import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.os.Process;
-import android.os.UserHandle;
 import android.view.InputDevice;
 import android.view.InputEvent;
 import android.view.KeyEvent;
@@ -336,7 +333,8 @@ public final class SystemGamepad {
     private static void readSettings() {
         try {
             boolean on = Cfg.enabled();
-            sHomeOn = on && Cfg.gamepadDrawer();
+            sHomeOn = on && (Cfg.gamepadDrawer()
+                    || (Cfg.gameLauncherHome() && !Cfg.gameLauncher().isEmpty()));
             sBarOn = on && Cfg.gamepadBar() && Cfg.gamepadShoulders();
         } catch (Throwable t) {
             // The last values stand.
@@ -370,22 +368,6 @@ public final class SystemGamepad {
         sHeld = false;
     }
 
-    /**
-     * The user in front ({@code UserHandle.CURRENT}, not in the public SDK the module is built
-     * with); this process's own if it cannot be read.
-     */
-    private static UserHandle currentUser() {
-        try {
-            Object current = UserHandle.class.getField(SystemNames.CURRENT).get(null);
-            if (current instanceof UserHandle) {
-                return (UserHandle) current;
-            }
-        } catch (Throwable t) {
-            // This process's own below.
-        }
-        return Process.myUserHandle();
-    }
-
     /** ZUX Home told to open or close its drawer. */
     private static void tell(int display) {
         send(new Intent(ACTION_DRAWER).putExtra(EXTRA_DISPLAY, display));
@@ -406,12 +388,7 @@ public final class SystemGamepad {
 
     private static void send(Intent intent) {
         try {
-            Context ctx = SystemBridge.systemContext();
-            if (ctx == null) {
-                return;
-            }
-            ctx.sendBroadcastAsUser(intent.setPackage(SystemNames.ZUX_HOME)
-                    .addFlags(Intent.FLAG_RECEIVER_FOREGROUND), currentUser());
+            SystemBridge.toZuxHome(intent);
         } catch (Throwable t) {
             L.w("system gamepad: ZUX Home not told (" + t + ")");
         }

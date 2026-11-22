@@ -4,6 +4,8 @@ import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -18,10 +20,16 @@ import de.robv.android.xposed.XposedBridge;
  * desktop is on is written to the module's log, which keeps the whole boot: the app, who
  * launched it, the screen of the window it came from, the screen in focus, ZUI's choice, where it
  * landed and the result. Nothing is changed, and the lines stop after {@link #MAX_LINES}.
+ *
+ * <p>Each line also has the window's size as it opened, and each size ZUI keeps for an app's
+ * next window on the monitor is written down as it is kept ({@code LaunchParamsPersister
+ * .saveTask}): the owner's windows came back at ZUI's default size after a force stop, and
+ * neither log says whether ZUI kept the size or did not hand it back.
  */
 public final class LaunchTrace {
 
     private static final int MAX_LINES = 60;
+    private static final int MAX_SAVES = 40;
     private static final int MAX_ERRORS = 20;
     /** How much of the background-start verdict is kept: its code and reason come first. */
     private static final int VERDICT_CHARS = 90;
@@ -29,6 +37,9 @@ public final class LaunchTrace {
     private static boolean sInstalled;
     private static Method sDesktopOn;
     private static int sLines;
+    private static int sSaves;
+    /** The last size written down for each app's window, so an unchanged one is not again. */
+    private static final Map<String, String> SAVED = new HashMap<>();
     private static int sErrors;
 
     private LaunchTrace() {
@@ -48,6 +59,13 @@ public final class LaunchTrace {
                 if (m.getName().equals(SystemNames.START_ACTIVITY_INNER)
                         && m.getReturnType() == int.class) {
                     XposedBridge.hookMethod(m, AFTER);
+                    hooked++;
+                }
+            }
+            Class<?> persister = Class.forName(SystemNames.LAUNCH_PARAMS_PERSISTER, false, loader);
+            for (Method m : persister.getDeclaredMethods()) {
+                if (m.getName().equals(SystemNames.SAVE_TASK) && m.getParameterCount() == 2) {
+                    XposedBridge.hookMethod(m, SAVED_SIZE);
                     hooked++;
                 }
             }
@@ -82,6 +100,37 @@ public final class LaunchTrace {
         }
     };
 
+    /** A size ZUI keeps for an app's next window on the monitor, when it changed. */
+    private static final XC_MethodHook SAVED_SIZE = new XC_MethodHook() {
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) {
+            if (sSaves >= MAX_SAVES || sErrors > MAX_ERRORS) {
+                return;
+            }
+            try {
+                Object task = param.args[0];
+                Object display = Reflect.call(param.args[1], SystemNames.GET_DISPLAY_ID);
+                if (!Boolean.TRUE.equals(sDesktopOn.invoke(null)) || !(display instanceof Integer)
+                        || (Integer) display == 0) {
+                    return;
+                }
+                String app = text(Reflect.field(task, SystemNames.REAL_ACTIVITY));
+                String kept = "mode " + text(Reflect.call(task, SystemNames.GET_WINDOWING_MODE))
+                        + ", size " + text(Reflect.field(task,
+                                SystemNames.M_LAST_NON_FULLSCREEN_BOUNDS));
+                if (kept.equals(SAVED.put(app, kept))) {
+                    return;
+                }
+                L.i("launch trace: ZUI keeps " + app + "'s window on display " + display + ": "
+                        + kept + (++sSaves == MAX_SAVES ? " (the last line of this boot)" : ""));
+            } catch (Throwable t) {
+                if (++sErrors == MAX_ERRORS) {
+                    L.w("launch trace: stopped for this boot (" + t + ")");
+                }
+            }
+        }
+    };
+
     private static String describe(Object starter, Object[] args, Object result) {
         Object record = args.length > 0 ? args[0] : null;
         Object source = args.length > 1 ? args[1] : null;
@@ -97,6 +146,7 @@ public final class LaunchTrace {
                 + ", landed on " + displayOf(record)
                 + " (task " + text(Reflect.field(task, SystemNames.M_TASK_ID))
                 + ", mode " + text(Reflect.call(task, SystemNames.GET_WINDOWING_MODE))
+                + ", size " + text(Reflect.call(task, SystemNames.GET_BOUNDS))
                 + "), result " + outcome(result) + verdict(args);
     }
 

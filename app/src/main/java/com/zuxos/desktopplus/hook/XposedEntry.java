@@ -22,9 +22,11 @@ import com.zuxos.desktopplus.hook.home.PinRequestHooks;
 import com.zuxos.desktopplus.hook.home.SettingsRestart;
 import com.zuxos.desktopplus.hook.home.StockUnlockHooks;
 import com.zuxos.desktopplus.hook.keyboard.HeliPad;
+import com.zuxos.desktopplus.hook.keyboard.HeliWindow;
 import com.zuxos.desktopplus.hook.recents.RecentsRoute;
 import com.zuxos.desktopplus.hook.sidebar.SidebarAiWait;
 import com.zuxos.desktopplus.hook.system.BarClearance;
+import com.zuxos.desktopplus.hook.system.GameTipOff;
 import com.zuxos.desktopplus.hook.system.LaunchTrace;
 import com.zuxos.desktopplus.hook.system.SystemBridge;
 import com.zuxos.desktopplus.hook.system.SystemDrag;
@@ -41,6 +43,7 @@ import com.zuxos.desktopplus.hook.systemui.ShellDropBar;
 import com.zuxos.desktopplus.hook.systemui.StableBounds;
 import com.zuxos.desktopplus.hook.systemui.WindowCaptions;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarKeys;
+import com.zuxos.desktopplus.hook.taskbar.TaskbarLaunch;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarTray;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
@@ -76,6 +79,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     SystemGamepad.install(lpparam.classLoader);
                     TouchScreens.install(lpparam.classLoader);
                     BarClearance.install(lpparam.classLoader);
+                    GameTipOff.install(lpparam.classLoader);
                     LaunchTrace.install(lpparam.classLoader);
                 }
                 return;
@@ -99,11 +103,16 @@ public class XposedEntry implements IXposedHookLoadPackage {
                 return;
             }
             if (HELIBOARD.equals(lpparam.packageName)) {
-                // HeliBoard, the owner's keyboard - ticked in LSPosed: the controller on its keys.
+                // HeliBoard, the owner's keyboard - ticked in LSPosed: the controller on its keys,
+                // and its window above the taskbar.
                 Cfg.reload();
-                if (HELIBOARD.equals(lpparam.processName) && Cfg.enabled()
-                        && Cfg.gamepadKeyboard()) {
-                    HeliPad.install(lpparam.classLoader);
+                if (HELIBOARD.equals(lpparam.processName) && Cfg.enabled()) {
+                    if (Cfg.gamepadKeyboard()) {
+                        HeliPad.install(lpparam.classLoader);
+                    }
+                    if (Cfg.barClearance()) {
+                        HeliWindow.install(lpparam.classLoader);
+                    }
                 }
                 return;
             }
@@ -137,6 +146,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
             DrawerStick.install(lpparam.classLoader);
             DrawerFromTop.install(lpparam.classLoader);
             RecentsRoute.install(lpparam.classLoader);
+            TaskbarLaunch.install(lpparam.classLoader);
             DetachGuard.install();
             if (Cfg.unlockStock()) {
                 StockUnlockHooks.install(lpparam.classLoader);

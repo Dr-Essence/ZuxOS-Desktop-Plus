@@ -35,7 +35,8 @@ import de.robv.android.xposed.XposedBridge;
  * whenever either changes: after the screens are handed to the input system, and after the input
  * devices change. Only with one external screen, only wired touchscreens and pens - the tablet's
  * own are internal or Bluetooth - and taken off again when the screen goes, so the next one is
- * tied afresh. The screens handed over are written to the log at each change. Nothing runs at load
+ * tied afresh. The screens handed over are written to the log at each change, and so are the
+ * mice (they are never tied: they follow the pointer's screen). Nothing runs at load
  * time but the hooks; everything is in try/catch, on the threads the system already runs these
  * on.
  */
@@ -47,6 +48,8 @@ public final class TouchScreens {
     private static boolean sInstalled;
     /** The list last written, so an unchanged one is not written again. */
     private static String sLast;
+    /** The mice last written, so the log has each one coming, going or turned off, once. */
+    private static String sMice = "";
     /** The touchscreens we tied, by descriptor, to the screen's unique id. Under its own lock. */
     private static final Map<String, String> TIED = new HashMap<>();
     /** What each tied device is, for the log: its name and sources. Under {@link #TIED}'s lock. */
@@ -119,13 +122,20 @@ public final class TouchScreens {
             String screen = Cfg.monitorTouch() ? externalScreen(input) : null;
             List<String> touch = new ArrayList<>();
             Map<String, String> names = new HashMap<>();
+            StringBuilder mice = new StringBuilder();
             for (InputDevice device : (InputDevice[]) input.getClass()
                     .getMethod(SystemNames.GET_INPUT_DEVICES).invoke(input)) {
                 if (onTheMonitor(device)) {
                     touch.add(device.getDescriptor());
                     names.put(device.getDescriptor(), describe(device));
                 }
+                if (device != null && device.isExternal() && !device.isVirtual()
+                        && device.supportsSource(InputDevice.SOURCE_MOUSE)) {
+                    mice.append("\n  ").append(device.getName()).append(", id ")
+                            .append(device.getId()).append(device.isEnabled() ? "" : ", OFF");
+                }
             }
+            writeMice(mice.toString());
             synchronized (TIED) {
                 for (String descriptor : new ArrayList<>(TIED.keySet())) {
                     if (screen == null || !touch.contains(descriptor)) {
@@ -153,6 +163,18 @@ public final class TouchScreens {
         } catch (Throwable t) {
             L.d("touch screens: left as Android has them (" + t + ")");
         }
+    }
+
+    /**
+     * The mice, written down as they come, go or are turned off: one stopped until it was
+     * replugged, and neither log said whether Android still had it, or had turned it off.
+     */
+    private static synchronized void writeMice(String now) {
+        if (now.equals(sMice)) {
+            return;
+        }
+        sMice = now;
+        L.i("touch screens: the mice are now" + (now.isEmpty() ? " none" : now));
     }
 
     /**

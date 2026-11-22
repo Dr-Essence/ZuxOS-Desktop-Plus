@@ -1,14 +1,16 @@
 package com.zuxos.desktopplus.hook.keyboard;
 
 /**
- * Every name of HeliBoard's that {@link HeliPad} reaches, in one place: when HeliBoard changes,
- * these are the ones to check against its source. Read from HeliBoard 4.3-beta1, built without
- * obfuscation, so its names are its source's. Each constant is its name in capitals.
+ * Every name of HeliBoard's that {@link HeliPad} and {@link HeliWindow} reach, in one place: when
+ * HeliBoard changes, these are the ones to check against its source. Read from HeliBoard
+ * 4.3-beta1, built without obfuscation, so its names are its source's. Each constant is its name
+ * in capitals.
  */
 final class HeliNames {
 
     // The input method service.
     static final String LATIN_IME = "helium314.keyboard.latin.LatinIME";
+    static final String ON_CREATE = "onCreate";
     static final String ON_KEY_DOWN = "onKeyDown";
     static final String ON_KEY_UP = "onKeyUp";
     static final String ON_FINISH_INPUT_VIEW = "onFinishInputView";

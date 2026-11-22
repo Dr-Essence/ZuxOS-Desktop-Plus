@@ -15,6 +15,9 @@ import com.zuxos.desktopplus.hook.system.SystemGamepad;
  *
  * <p>A press of Home opens and closes ZUI's drawer, as a tap on our start button does, on the
  * screen the button was pressed for, and on the tablet's when that one has no button showing.
+ * With a game launcher chosen in the settings, a press opens that launcher on that screen
+ * instead, as the owner had Keymapper do; on the monitor it opens full screen
+ * ({@code SystemFullscreen}).
  * Held, it presses the bar's own Home key there, so ZUI goes home its own way and puts the
  * taskbar's drawer away with it. L1 and R1 take the controller onto the tablet's bar, or one icon
  * along it ({@link TaskbarKeys#shoulder}). Only the system may ask ({@link #SENDER}).
@@ -32,7 +35,8 @@ final class GamepadButtons {
 
     /** Listens once per process, from the first start button made. Main thread. */
     static void listen(Context ctx) {
-        if (sListening || !(Cfg.gamepadDrawer() || Cfg.gamepadShoulders()) || ctx == null) {
+        if (sListening || !(Cfg.gamepadDrawer() || Cfg.gamepadShoulders() || launcherOnHome())
+                || ctx == null) {
             return;
         }
         Context app = ctx.getApplicationContext();
@@ -68,6 +72,9 @@ final class GamepadButtons {
                     }
                     return;
                 }
+                if (SystemGamepad.ACTION_DRAWER.equals(action) && openLauncher(context, display)) {
+                    return;
+                }
                 if (!Cfg.gamepadDrawer()) {
                     return;
                 }
@@ -87,6 +94,37 @@ final class GamepadButtons {
                 L.w("gamepad buttons: the button left as it is (" + t + ")");
             }
         }
+    }
+
+    /** Whether Home opens the game launcher: one is chosen, and the switch is on. */
+    private static boolean launcherOnHome() {
+        return Cfg.gameLauncherHome() && !Cfg.gameLauncher().isEmpty();
+    }
+
+    /** Home pressed with a game launcher chosen: the launcher, brought up on that screen. */
+    private static boolean openLauncher(Context context, int display) {
+        if (!launcherOnHome()) {
+            return false;
+        }
+        String pkg = Cfg.gameLauncher();
+        Intent launch = context.getPackageManager().getLaunchIntentForPackage(pkg);
+        if (launch == null) {
+            if (L.once("GamepadButtons.launcher")) {
+                L.i("gamepad buttons: the game launcher " + pkg + " has nothing to open - "
+                        + "Home opens the drawer");
+            }
+            return false;
+        }
+        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        context.startActivity(launch,
+                ActivityOptions.makeBasic().setLaunchDisplayId(display).toBundle());
+        if (sSaid < 3) {
+            sSaid++;
+            L.i("gamepad buttons: Home on a controller - " + pkg + " opened on display "
+                    + display);
+        }
+        return true;
     }
 
     /** Home held: the bar's own Home key, or Android's home where there is no bar. */

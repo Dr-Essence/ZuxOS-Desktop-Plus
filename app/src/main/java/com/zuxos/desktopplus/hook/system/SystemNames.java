@@ -19,17 +19,30 @@ final class SystemNames {
     static final String M_LAUNCH_FLAGS = "mLaunchFlags";
     static final String SET_INITIAL_STATE = "setInitialState";
     static final String START_ACTIVITY_INNER = "startActivityInner";
+    /** Also {@code LaunchParams}'s. */
     static final String M_PREFERRED_TASK_DISPLAY_AREA = "mPreferredTaskDisplayArea";
     static final String M_ROOT_WINDOW_CONTAINER = "mRootWindowContainer";
+    static final String M_TARGET_TASK = "mTargetTask";
     /** {@code RootWindowContainer}'s. */
     static final String GET_TOP_FOCUSED_DISPLAY_CONTENT = "getTopFocusedDisplayContent";
     /** {@code ActivityRecord}'s. */
     static final String SHORT_COMPONENT_NAME = "shortComponentName";
     static final String LAUNCHED_FROM_PACKAGE = "launchedFromPackage";
+    static final String PACKAGE_NAME = "packageName";
+    static final String IS_ACTIVITY_TYPE_HOME = "isActivityTypeHome";
     static final String GET_TASK = "getTask";
     /** {@code Task}'s. */
     static final String M_TASK_ID = "mTaskId";
+    static final String REAL_ACTIVITY = "realActivity";
+    static final String M_LAST_NON_FULLSCREEN_BOUNDS = "mLastNonFullscreenBounds";
+    /** ZUI's memory of each app's last window, handed back at its next launch. */
+    static final String LAUNCH_PARAMS_PERSISTER = "com.android.server.wm.LaunchParamsPersister";
+    static final String SAVE_TASK = "saveTask";
     static final String GET_WINDOWING_MODE = "getWindowingMode";
+    /** ZUI's "two high-performance apps" prompt, held before a start. */
+    static final String OV_GAME_TIP_DIALOG_MANAGER =
+            "com.android.server.wm.OvGameTipDialogManager";
+    static final String CAN_SHOW_OV_GAME_DIALOG = "canShowOvGameDialog";
     /** ZUI's monitor desktop, its "extended" mode. */
     static final String OV_DESKTOP_CONTROLLER = "com.android.server.wm.OVDesktopController";
     static final String IS_UNDER_EXTERNAL_DISPLAY_DESKTOP_MODE =
@@ -70,8 +83,6 @@ final class SystemNames {
     static final String M_DISPLAY_CONTENT = "mDisplayContent";
     static final String DISPLAY_POLICY = "com.android.server.wm.DisplayPolicy";
     static final String LAYOUT_WINDOW_LW = "layoutWindowLw";
-    /** {@code DisplayFrames}'s: the display's own insets, as apps see them. */
-    static final String M_INSETS_STATE = "mInsetsState";
     /** {@code DisplayContent}'s. */
     static final String M_INPUT_METHOD_WINDOW = "mInputMethodWindow";
 
@@ -128,7 +139,6 @@ final class SystemNames {
     // The view side of the framework (android.view): a window's layout.
     /** {@code WindowManager.LayoutParams}'s. */
     static final String M_FIT_INSETS_TYPES = "mFitInsetsTypes";
-    static final String M_FIT_INSETS_SIDES = "mFitInsetsSides";
     static final String INSETS_STATE = "android.view.InsetsState";
     static final String CALCULATE_INSETS = "calculateInsets";
 

@@ -298,6 +298,15 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   the bar slides back over the app; it stays while a menu, the drawer or a panel of it is open.
   "Exit full screen" in either menu gives the bar back with the window maximised. The "…" menu and
   the hidden title bar need System UI ticked in LSPosed.
+- **Game launcher** (optional). Pick one in the settings, such as Wave Launcher: on the monitor it
+  and every game or app it opens start in Full screen, and the controller's Home button opens it
+  on the screen in use instead of the drawer. Needs System Framework ticked in LSPosed.
+- **No "two high-performance apps" prompt** (optional, on by default). ZUI asked before opening a
+  game while another heavy app was in sight, then opened it as a small floating window; now the
+  app just opens as asked. Needs System Framework ticked in LSPosed.
+- **Taskbar taps always open the app** (optional, on by default). With another home app on the
+  tablet, ZUI's taskbar could lose its recents screen and then closed its drawer without opening
+  the app tapped; it opens now.
 
 ### Game controller (tablet)
 

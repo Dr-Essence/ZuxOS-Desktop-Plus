@@ -2,7 +2,10 @@ package com.zuxos.desktopplus.ui;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -30,6 +33,9 @@ import com.zuxos.desktopplus.core.Tone;
 import com.zuxos.desktopplus.core.Ui;
 import com.zuxos.desktopplus.core.theme.Theme;
 import com.zuxos.desktopplus.notify.TestNotifications;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /** Settings for the module, plus a short explanation of what to expect on the device. */
 public class MainActivity extends Activity {
@@ -259,12 +265,29 @@ public class MainActivity extends Activity {
                         + "edge of a larger drawer icon went nowhere. Applies after ZUX Home "
                         + "restarts",
                 Const.KEY_DRAWER_TAPS, true);
+        addSwitch("Taskbar taps always open the app",
+                "An app tapped in the tablet taskbar's drawer or one of its folders opens even "
+                        + "when ZUI has lost its recents screen - with another home app on the "
+                        + "tablet, ZUI closed the drawer and opened nothing",
+                Const.KEY_TASKBAR_TAPS, true);
         addSwitch("Game controller's Home button opens the drawer",
                 "Press it to open or close the app drawer, then move with the stick or D-pad, "
                         + "A to open, B to go back. Folders are reached too. Hold it to go to "
                         + "the home screen. Off, the button is Android's again from its next "
                         + "press",
                 Const.KEY_GAMEPAD_DRAWER, true);
+        addAppPicker("Game launcher",
+                "A launcher of games, such as Wave Launcher, for the two switches below",
+                Const.KEY_GAME_LAUNCHER);
+        addSwitch("Game controller's Home button opens the game launcher",
+                "With a game launcher chosen, Home opens it on the screen in use, in place of "
+                        + "the drawer. Hold Home to go to the home screen",
+                Const.KEY_GAME_LAUNCHER_HOME, true);
+        addSwitch("Game launcher and its games open full screen on the monitor",
+                "The game launcher, and every app or game it opens, fills the monitor with the "
+                        + "taskbar and title bar out of the way, as Full screen does. Needs "
+                        + "System Framework ticked for this module in LSPosed",
+                Const.KEY_GAME_LAUNCHER_FULL_SCREEN, true);
         addSwitch("Game controller's Triangle opens menus",
                 "In the drawers and on the home screen, Triangle opens the menu of the app or "
                         + "folder the controller is on, as a hold does, without floating window "
@@ -339,6 +362,12 @@ public class MainActivity extends Activity {
                         + "Needs System Framework ticked for this module in LSPosed and a "
                         + "reboot once",
                 Const.KEY_BAR_CLEARANCE, true);
+        addSwitch("No \"two high-performance apps\" prompt",
+                "ZUI asks before opening a game while another heavy app is in sight - a game "
+                        + "from a game launcher, every time - and then opens it as a small "
+                        + "floating window. Off, the app just opens as asked. Needs System "
+                        + "Framework ticked for this module in LSPosed",
+                Const.KEY_NO_GAME_TIP, true);
         addSwitch("Full screen on the monitor",
                 "Full screen in a window's \u2026 menu and in the taskbar's app menu: the app "
                         + "fills the monitor, and the taskbar slides away until the pointer "
@@ -519,6 +548,62 @@ public class MainActivity extends Activity {
         edit.commit();
         // To every launcher the module is in: each listens for itself.
         sendBroadcast(new android.content.Intent(Const.ACTION_SETTINGS_CHANGED));
+    }
+
+    /** A row naming the app chosen for {@code key}; a tap lists the apps that can be opened. */
+    private void addAppPicker(String title, String summary, String key) {
+        TextView tv = new TextView(this);
+        tv.setTextSize(16);
+        tv.setPadding(0, Ui.dp(this, 10), 0, summary == null ? Ui.dp(this, 10) : 0);
+        Runnable show = () -> tv.setText(title + ": " + appLabel(mPrefs.getString(key, "")));
+        show.run();
+        tv.setOnClickListener(v -> pickApp(title, key, show));
+        mRoot.addView(tv, rowParams());
+        if (summary != null) {
+            addSummary(summary);
+        }
+    }
+
+    private String appLabel(String pkg) {
+        if (pkg.isEmpty()) {
+            return "none";
+        }
+        try {
+            PackageManager pm = getPackageManager();
+            return pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();
+        } catch (Throwable t) {
+            return pkg;
+        }
+    }
+
+    /** The apps with an icon to open, by name, and "None" first. */
+    private void pickApp(String title, String key, Runnable chosen) {
+        PackageManager pm = getPackageManager();
+        List<String[]> apps = new ArrayList<>();
+        for (ResolveInfo info : pm.queryIntentActivities(
+                new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)) {
+            String pkg = info.activityInfo.packageName;
+            boolean seen = false;
+            for (String[] app : apps) {
+                seen |= app[1].equals(pkg);
+            }
+            if (!seen) {
+                apps.add(new String[]{String.valueOf(info.loadLabel(pm)), pkg});
+            }
+        }
+        apps.sort((a, b) -> a[0].compareToIgnoreCase(b[0]));
+        apps.add(0, new String[]{"None", ""});
+        String[] labels = new String[apps.size()];
+        for (int i = 0; i < labels.length; i++) {
+            labels[i] = apps.get(i)[0];
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setItems(labels, (dialog, which) -> {
+                    save(key, mPrefs.edit().putString(key, apps.get(which)[1]));
+                    chosen.run();
+                })
+                .show();
     }
 
     private void addSummary(String summary) {

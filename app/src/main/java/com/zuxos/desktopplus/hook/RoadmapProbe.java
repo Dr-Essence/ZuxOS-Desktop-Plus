@@ -124,6 +124,8 @@ public final class RoadmapProbe {
             dumpsys input 2>/dev/null | grep -i -E 'viewport|Device [0-9]+:|IsExternal|AssociatedDisplay|associated display|Input port|DeviceMode|DisplayId|Touch Input Mapper|uniqueId' | head -90
             echo "--- each device on or off, and the mouse's screen (a mouse that stops until replugged)"
             dumpsys input 2>/dev/null | grep -i -E 'Device [0-9]+:|Enabled:|Sources:|PointerChoreographer|MouseDisplay|PointerDisplay|DefaultMouse' | head -120
+            echo "--- who holds the pointer: touch state, pointer capture, gesture monitors (a mouse that stops until replugged)"
+            dumpsys input 2>/dev/null | grep -i -E 'TouchStates|TouchedWindow|touchedWindows|Window:|PointerCapture|pointer capture|Capture|GestureMonitor|Monitors|FocusedWindow|FocusedDisplay|pilfer' | head -80
             echo "--- resource overlays on SystemUI (#10 window looks, #16)"
             cmd overlay list com.android.systemui 2>/dev/null | head -30
             echo "fabricated overlays offered: $(cmd overlay help 2>/dev/null | grep -c fabricate)"

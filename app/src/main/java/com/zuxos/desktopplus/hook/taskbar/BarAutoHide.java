@@ -3,6 +3,7 @@ package com.zuxos.desktopplus.hook.taskbar;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.graphics.Insets;
 import android.graphics.Region;
 import android.os.Handler;
 import android.os.Looper;
@@ -10,6 +11,8 @@ import android.view.InputDevice;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 
 import com.zuxos.desktopplus.core.Cfg;
@@ -21,6 +24,7 @@ import com.zuxos.desktopplus.hook.Windows;
 import com.zuxos.desktopplus.logic.EdgeMath;
 
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -100,12 +104,84 @@ final class BarAutoHide {
                             }
                         }
                     }).size();
+            hookKeyboardSize(insets);
         }
         Health.hooked("taskbar: full screen, the monitor's bar out of the way", hooked,
                 () -> Cfg.enabled() && Cfg.fullScreen());
         if (hooked == 0) {
             L.w("bar auto-hide: ZUI's touch region not found - over a full-screen window the "
                     + "monitor's bar stays");
+        }
+    }
+
+    /**
+     * The keyboard told the bar is as small as apps are told, in ZUI's game mode.
+     *
+     * <p>ZUI's game mode tells apps the bar is 1 px, so they take the screen under it, but keeps
+     * telling keyboards its full height ({@code TaskbarInsetsController.k}: the override for the
+     * keyboard's window type is left as it was). A keyboard that ends at the bar
+     * ({@code HeliWindow}) then stopped a bar's height above the bottom of a full-screen app,
+     * over nothing. So in game mode the navigation bar's override for keyboards takes the size
+     * apps are given.
+     */
+    private static void hookKeyboardSize(Class<?> insets) {
+        Method size = null;
+        Class<?> provider = Reflect.findClass(TaskbarNames.INSETS_FRAME_PROVIDER,
+                insets.getClassLoader());
+        for (Method m : insets.getDeclaredMethods()) {
+            Class<?>[] types = m.getParameterTypes();
+            if (m.getName().equals(TaskbarNames.SIZE_PROVIDER) && types.length == 3
+                    && types[0] == provider) {
+                size = m;
+            }
+        }
+        if (size == null) {
+            L.w("bar auto-hide: ZUI's inset sizing not found - in Full screen the keyboard "
+                    + "stops a bar's height above the bottom");
+            return;
+        }
+        XposedBridge.hookMethod(size, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                try {
+                    if (Boolean.TRUE.equals(Reflect.call(param.thisObject,
+                            TaskbarNames.GET_GAME_MODE)) && Cfg.barClearance()) {
+                        keyboardAsApps(param.args[0]);
+                    }
+                } catch (Throwable t) {
+                    L.d("bar auto-hide: the keyboard's size of the bar left to ZUI (" + t + ")");
+                }
+            }
+        });
+    }
+
+    private static void keyboardAsApps(Object provider) throws Exception {
+        Object type = Reflect.call(provider, TaskbarNames.GET_TYPE);
+        Object size = Reflect.call(provider, TaskbarNames.GET_INSETS_SIZE);
+        Object held = Reflect.call(provider, TaskbarNames.GET_INSETS_SIZE_OVERRIDES);
+        if (!Integer.valueOf(WindowInsets.Type.navigationBars()).equals(type)
+                || !(size instanceof Insets) || !(held instanceof Object[])) {
+            return;
+        }
+        Object[] overrides = ((Object[]) held).clone();
+        boolean changed = false;
+        for (int i = 0; i < overrides.length; i++) {
+            Object o = overrides[i];
+            if (o != null && Integer.valueOf(WindowManager.LayoutParams.TYPE_INPUT_METHOD)
+                    .equals(Reflect.call(o, TaskbarNames.GET_WINDOW_TYPE))
+                    && !size.equals(Reflect.call(o, TaskbarNames.GET_INSETS_SIZE))) {
+                overrides[i] = o.getClass().getConstructor(int.class, Insets.class)
+                        .newInstance(WindowManager.LayoutParams.TYPE_INPUT_METHOD, size);
+                changed = true;
+            }
+        }
+        if (!changed) {
+            return;
+        }
+        provider.getClass().getMethod(TaskbarNames.SET_INSETS_SIZE_OVERRIDES, held.getClass())
+                .invoke(provider, (Object) overrides);
+        if (L.once("BarAutoHide.keyboard")) {
+            L.i("bar auto-hide: in game mode the keyboard is told the bar's size apps are told");
         }
     }
 

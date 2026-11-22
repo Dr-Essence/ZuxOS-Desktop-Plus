@@ -406,6 +406,31 @@ public final class Cfg {
         return getBool(Const.KEY_FULL_SCREEN, true);
     }
 
+    /** A taskbar tap ZUI would drop for want of its recents view opens the app anyway. */
+    public static boolean taskbarTapsLaunch() {
+        return getBool(Const.KEY_TASKBAR_TAPS, true);
+    }
+
+    /** ZUI's "two high-performance apps" prompt is not shown, and the app opens as asked. */
+    public static boolean noGameTip() {
+        return getBool(Const.KEY_NO_GAME_TIP, true);
+    }
+
+    /** The chosen game launcher's package, or empty for none. */
+    public static String gameLauncher() {
+        return getString(Const.KEY_GAME_LAUNCHER, "");
+    }
+
+    /** The controller's Home button opens the game launcher, when one is chosen. */
+    public static boolean gameLauncherHome() {
+        return getBool(Const.KEY_GAME_LAUNCHER_HOME, true);
+    }
+
+    /** The game launcher and what it opens go Full screen on the monitor. */
+    public static boolean gameLauncherFullScreen() {
+        return getBool(Const.KEY_GAME_LAUNCHER_FULL_SCREEN, true);
+    }
+
     /** The tablet taskbar drawer's app list ends at the bar, not under its icons. */
     public static boolean drawerAboveBar() {
         return getBool(Const.KEY_DRAWER_ABOVE_BAR, true);

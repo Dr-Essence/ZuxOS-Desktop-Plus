@@ -6,9 +6,10 @@ package com.zuxos.desktopplus.core;
  * <p>ZUX Home keeps which windows are full screen: its taskbar is the one that gets out of their
  * way. SystemUI has the window "…" menu that offers Full screen, and the title bars that hide
  * for those windows. So SystemUI asks ZUX Home to toggle a window, and ZUX Home tells SystemUI
- * every change. Each side registers for the other's messages with {@link #SENDER}, a permission
- * the system grants only to apps signed with the platform's key: both of these hold it, and no
- * app from a store can.
+ * every change. The system itself asks ZUX Home for the game launcher's windows. Each side
+ * registers for the other's messages with {@link #SENDER}, a permission the system grants only to
+ * apps signed with the platform's key: both of these hold it, as does the system, and no app from
+ * a store can.
  */
 public final class FullScreenWire {
 
@@ -26,6 +27,11 @@ public final class FullScreenWire {
     public static final String ACTION_ASK = "com.zuxos.desktopplus.FULL_SCREEN_ASK";
     /** ZUX Home to SystemUI: the full-screen windows, {@link #EXTRA_TASKS}. */
     public static final String ACTION_STATE = "com.zuxos.desktopplus.FULL_SCREEN_STATE";
+    /**
+     * The system to ZUX Home: {@link #EXTRA_TASK} on {@link #EXTRA_DISPLAY} opens full screen -
+     * the game launcher, and what it opens.
+     */
+    public static final String ACTION_ENTER = "com.zuxos.desktopplus.FULL_SCREEN_ENTER";
 
     /** The menus' words: the same in ZUI's window menu and in the taskbar's. */
     public static final String ENTER = "Full screen";

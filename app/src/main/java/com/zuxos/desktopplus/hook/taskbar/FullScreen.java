@@ -48,6 +48,9 @@ public final class FullScreen {
     private static final long[] SETTLE_MS = {350L, 900L, 1600L};
     /** How long a window just made full screen may still read as floating. */
     private static final long GRACE_MS = 2000L;
+    /** The system's word for a window not yet in the task list: looked for this often. */
+    private static final int ENTER_TRIES = 4;
+    private static final long ENTER_RETRY_MS = 250L;
 
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
     private static final Runnable EVALUATE = FullScreen::evaluate;
@@ -120,6 +123,25 @@ public final class FullScreen {
         changed();
         for (long ms : SETTLE_MS) {
             MAIN.postDelayed(EVALUATE, ms);
+        }
+    }
+
+    /**
+     * The system's word that a window opens full screen - the game launcher, and what it opens.
+     * The task can be a moment behind the word; it is looked for again a few times.
+     */
+    private static void enter(Context ctx, int id, int display, int tries) {
+        if (!offered(display) || MARKED.containsKey(id)) {
+            return;
+        }
+        List<ActivityManager.RunningTaskInfo> tasks = TaskbarApps.tasksOn(ctx, display);
+        ActivityManager.RunningTaskInfo task = byId(tasks, id);
+        if (task != null) {
+            toggle(ctx, tasks, task, display);
+        } else if (tries > 1) {
+            MAIN.postDelayed(() -> enter(ctx, id, display, tries - 1), ENTER_RETRY_MS);
+        } else {
+            L.i("full screen: task " + id + " never showed on display " + display);
         }
     }
 
@@ -220,7 +242,8 @@ public final class FullScreen {
     /**
      * Hears SystemUI, once per process, from the monitor's first bar: its window menu's Full
      * screen, a full-screen window it saw leave full screen, and its asking for the state - and
-     * tells it the state at once, which after a restart of ZUX Home is that nothing is.
+     * tells it the state at once, which after a restart of ZUX Home is that nothing is. Hears the
+     * system too: the game launcher's windows, to open full screen.
      */
     static void listen(Context ctx) {
         if (sListening || ctx == null || !Cfg.enabled() || !Cfg.fullScreen()) {
@@ -236,6 +259,7 @@ public final class FullScreen {
             IntentFilter filter = new IntentFilter(FullScreenWire.ACTION_TOGGLE);
             filter.addAction(FullScreenWire.ACTION_LEFT);
             filter.addAction(FullScreenWire.ACTION_ASK);
+            filter.addAction(FullScreenWire.ACTION_ENTER);
             app.registerReceiver(new Receiver(), filter, FullScreenWire.SENDER, MAIN,
                     Context.RECEIVER_EXPORTED);
             L.i("full screen: offered on the monitor, in the taskbar's menus and SystemUI's");
@@ -301,6 +325,9 @@ public final class FullScreen {
                         return;
                     }
                     toggle(context, tasks, task, display);
+                } else if (FullScreenWire.ACTION_ENTER.equals(action) && id >= 0) {
+                    enter(context, id, intent.getIntExtra(FullScreenWire.EXTRA_DISPLAY, -1),
+                            ENTER_TRIES);
                 }
             } catch (Throwable t) {
                 L.w("full screen: SystemUI's request not taken (" + t + ")");

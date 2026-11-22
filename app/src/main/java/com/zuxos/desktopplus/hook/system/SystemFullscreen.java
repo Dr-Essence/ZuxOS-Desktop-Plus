@@ -2,8 +2,14 @@ package com.zuxos.desktopplus.hook.system;
 
 import android.content.Intent;
 import android.graphics.Rect;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.Display;
 
+import com.zuxos.desktopplus.core.Cfg;
+import com.zuxos.desktopplus.core.FullScreenWire;
 import com.zuxos.desktopplus.core.L;
+import com.zuxos.desktopplus.core.Reflect;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -22,13 +28,25 @@ import de.robv.android.xposed.XposedBridge;
  * <p>So for a launch carrying the mark, and only for one, the window the system worked out is
  * replaced by full screen, and nothing turns the task back into a window afterwards. Every other
  * launch, from anywhere, is left exactly as it was.
+ *
+ * <p>The game launcher chosen in the settings gets the mark on the monitor, for itself and for
+ * everything it opens: games came up as small windows, and the launcher too. Once such a launch
+ * has its task, ZUX Home is told to make it our Full screen (taskbar and title bar out of the
+ * way), as its menus do.
  */
 public final class SystemFullscreen {
 
     /** The mark on a launch that must be full screen. */
     public static final String EXTRA = "com.zuxos.desktopplus.FULLSCREEN";
+    /** The mark on a launch of, or from, the game launcher: our Full screen once it is up. */
+    private static final String EXTRA_GAME = "com.zuxos.desktopplus.GAME_LAUNCHER";
+    private static final int START_SUCCESS = 0;
+    private static final int START_TASK_TO_FRONT = 2;
+    private static final int START_DELIVERED_TO_TOP = 3;
 
     private static final int FULLSCREEN = 1;
+
+    private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
     private static boolean sInstalled;
     private static Class<?> sActivityRecord;
@@ -82,6 +100,19 @@ public final class SystemFullscreen {
         } catch (Throwable t) {
             L.i("system fullscreen: task mode not reachable (" + t + ")");
         }
+        try {
+            Class<?> starter = Class.forName(SystemNames.ACTIVITY_STARTER, false, loader);
+            for (Method m : starter.getDeclaredMethods()) {
+                if (m.getName().equals(SystemNames.START_ACTIVITY_INNER)
+                        && m.getReturnType() == int.class) {
+                    XposedBridge.hookMethod(m, STARTED);
+                    hooked++;
+                }
+            }
+        } catch (Throwable t) {
+            L.i("system fullscreen: starts not reachable, the game launcher keeps the taskbar ("
+                    + t + ")");
+        }
         L.i("system fullscreen: watching marked launches x" + hooked);
     }
 
@@ -127,8 +158,12 @@ public final class SystemFullscreen {
                         result = a;
                     }
                 }
-                if (record == null || result == null
-                        || !marked(sRecordIntent.get(record))) {
+                if (record == null || result == null) {
+                    return;
+                }
+                markGame(record, result);
+                Object intent = sRecordIntent.get(record);
+                if (!marked(intent) && !(intent instanceof Intent && gameMarked((Intent) intent))) {
                     return;
                 }
                 if (sMode.getInt(result) != FULLSCREEN) {
@@ -140,6 +175,86 @@ public final class SystemFullscreen {
                 if (bounds instanceof Rect) {
                     ((Rect) bounds).setEmpty();
                 }
+            } catch (Throwable t) {
+                sErrors++;
+            }
+        }
+    };
+
+    /**
+     * A launch on the monitor of the game launcher, or from it, marked as the game launcher's: it
+     * opens full screen. The mark is on the launch's own intent, so its task keeps it; unlike
+     * {@link #EXTRA} it does not hold the window there, so it can still be made a window later.
+     * A home screen opened from the launcher is left alone.
+     */
+    private static void markGame(Object record, Object result) throws IllegalAccessException {
+        String launcher = Cfg.gameLauncher();
+        if (launcher.isEmpty() || !Cfg.gameLauncherFullScreen()) {
+            return;
+        }
+        Object area = Reflect.field(result, SystemNames.M_PREFERRED_TASK_DISPLAY_AREA);
+        Object display = Reflect.call(area, SystemNames.GET_DISPLAY_ID);
+        Object intent = sRecordIntent.get(record);
+        if (!(display instanceof Integer) || (Integer) display == Display.DEFAULT_DISPLAY
+                || !(intent instanceof Intent)
+                || Boolean.TRUE.equals(Reflect.call(record, SystemNames.IS_ACTIVITY_TYPE_HOME))
+                || !(launcher.equals(Reflect.field(record, SystemNames.PACKAGE_NAME))
+                        || launcher.equals(Reflect.field(record,
+                                SystemNames.LAUNCHED_FROM_PACKAGE)))) {
+            return;
+        }
+        if (!gameMarked((Intent) intent)) {
+            ((Intent) intent).putExtra(EXTRA_GAME, true);
+            L.i("system fullscreen: " + ((Intent) intent).getComponent()
+                    + " is the game launcher's - full screen on display " + display);
+        }
+    }
+
+    /**
+     * After the start: the game launcher's window, now with a task, made our Full screen by ZUX
+     * Home. Told from the main thread, never from under the window manager's lock.
+     */
+    private static final XC_MethodHook STARTED = new XC_MethodHook() {
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) {
+            if (sErrors > 20) {
+                return;
+            }
+            try {
+                Object result = param.getResult();
+                Object intent = param.args.length > 0 && sActivityRecord.isInstance(param.args[0])
+                        ? sRecordIntent.get(param.args[0]) : null;
+                if (!(result instanceof Integer) || !(intent instanceof Intent)
+                        || !gameMarked((Intent) intent)) {
+                    return;
+                }
+                int code = (Integer) result;
+                if (code != START_SUCCESS && code != START_TASK_TO_FRONT
+                        && code != START_DELIVERED_TO_TOP) {
+                    return;
+                }
+                Object task = Reflect.call(param.args[0], SystemNames.GET_TASK);
+                if (task == null) {
+                    // Brought to the front: the task the start went to.
+                    task = Reflect.field(param.thisObject, SystemNames.M_TARGET_TASK);
+                }
+                Object id = Reflect.field(task, SystemNames.M_TASK_ID);
+                Object display = Reflect.call(task, SystemNames.GET_DISPLAY_ID);
+                if (!(id instanceof Integer) || !(display instanceof Integer)
+                        || (Integer) display == Display.DEFAULT_DISPLAY) {
+                    return;
+                }
+                Intent enter = new Intent(FullScreenWire.ACTION_ENTER)
+                        .putExtra(FullScreenWire.EXTRA_TASK, (Integer) id)
+                        .putExtra(FullScreenWire.EXTRA_DISPLAY, (Integer) display);
+                MAIN.post(() -> {
+                    try {
+                        SystemBridge.toZuxHome(enter);
+                    } catch (Throwable t) {
+                        L.w("system fullscreen: ZUX Home not told of task " + id + " (" + t
+                                + ")");
+                    }
+                });
             } catch (Throwable t) {
                 sErrors++;
             }
@@ -167,6 +282,14 @@ public final class SystemFullscreen {
             }
         }
     };
+
+    private static boolean gameMarked(Intent intent) {
+        try {
+            return intent.hasExtra(EXTRA_GAME);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
 
     private static boolean marked(Object intent) {
         try {
