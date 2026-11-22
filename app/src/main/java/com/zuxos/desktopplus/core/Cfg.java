@@ -416,6 +416,11 @@ public final class Cfg {
         return getBool(Const.KEY_NO_GAME_TIP, true);
     }
 
+    /** ZUI's "Association Launch App Prompt" is not shown: an app opens another as asked. */
+    public static boolean noLaunchPrompt() {
+        return getBool(Const.KEY_NO_LAUNCH_PROMPT, true);
+    }
+
     /** The chosen game launcher's package, or empty for none. */
     public static String gameLauncher() {
         return getString(Const.KEY_GAME_LAUNCHER, "");

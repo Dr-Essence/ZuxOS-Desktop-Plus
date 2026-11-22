@@ -301,6 +301,10 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
 - **Game launcher** (optional). Pick one in the settings, such as Wave Launcher: on the monitor it
   and every game or app it opens start in Full screen, and the controller's Home button opens it
   on the screen in use instead of the drawer. Needs System Framework ticked in LSPosed.
+- **No "Association Launch App Prompt"** (optional, on by default). ZUI asked "A is attempting to
+  launch B, allow?" whenever an app other than the home screen opened another, every game from a
+  game launcher included; now the app opens as asked. Pairs denied in ZUI's Security Center stay
+  denied. Needs System Framework ticked in LSPosed.
 - **No "two high-performance apps" prompt** (optional, on by default). ZUI asked before opening a
   game while another heavy app was in sight, then opened it as a small floating window; now the
   app just opens as asked. Needs System Framework ticked in LSPosed.

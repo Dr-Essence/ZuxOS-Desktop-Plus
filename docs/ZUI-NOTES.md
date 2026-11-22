@@ -298,6 +298,18 @@ What Full screen (0.0.305) stands on. ZUX Home 18.2.0.0375, System UI 16.
   apps, at the same time may cause your device to lag or overheat. Do you want to continue?").
   Continue sends the original intent with `setGameTipConfirmed(true)` and windowing mode 5
   (`createGameIntentSenderForOriginalIntent`), unless in split: the app opens floating.
+- **ZUI's "Association Launch App Prompt"** (`services.jar`, read 2026-11-23).
+  `ActivityTaskManagerService.startActivityAsUser`, while `mAutorunEnabled`, returns 102 when
+  `ZuiWmAutoRunManager.isAllowRelativeStart(...)` says no. That passes test mode, no white list
+  or Security Center not ready, a white-listed target (`ZuiSecurityManager.getAutorunWhiteList`),
+  a system app on either side, the default home app as caller, and a self-start; otherwise it
+  reads `ZuiSecurityManager.getRelativeAppStatus(caller, target)` (a call to Security Center,
+  1 on any failure): 1 allowed; 0 ask - `notifyRelativeStarted(..., 0)`, then on its
+  "AutoRunAlertWindow" thread a `MessageDialog` on the window manager's UI context
+  (framework-res `auto_run_title`, `auto_run_alert_message`), returning false and starting the
+  intent itself on Allow; 2 denied - its blocked alert. `ZuiAmAutoRunManager.isAllowStart` reads
+  the same status for process starts by services and broadcasts (0 allowed only from the app in
+  front). 0.0.309 reads 0 as 1 inside `isAllowRelativeStart` only.
 - **ZUI's memory of each app's window** (`services.jar`, read 2026-11-22).
   `Task.saveLaunchingStateIfNeeded` (leaf task, has been visible, mode 1 or 5, a freeform
   display area or ZUI's desktop or PC mode) calls `LaunchParamsPersister.saveTask`, which keeps
@@ -305,7 +317,11 @@ What Full screen (0.0.305) stands on. ZUX Home 18.2.0.0375, System UI 16.
   mode - mode, `mLastNonFullscreenBounds` (or ZUI's scaled bounds), display - unless
   `OVDesktopController.canSaveTaskLaunchParam` refuses. `getLaunchParams` hands the slot back at
   the next launch. Only `clearLaunchParamsForPackages` (by the task permission) removes a record;
-  a force stop does not.
+  a force stop does not. `getLaunchParams` looks a new task up by the launch's
+  `mActivityComponent` - an alias's own name - while `saveTask` keeps it under the task's
+  `realActivity`, the alias's target; and on the monitor's desktop it hands nothing back
+  ("ZuiDesktop: outParams reset") when the screen the record was kept on is not the one in focus
+  (unless the focus is ZUI's touchpad).
 - **Permissions both sides hold:** `STATUS_BAR_SERVICE` (signature). SystemUI also holds
   `INJECT_EVENTS`, `MONITOR_INPUT` and `MANAGE_ACTIVITY_TASKS`. ZUX Home also holds
   `START_TASKS_FROM_RECENTS`, `MANAGE_ACTIVITY_TASKS` and `MONITOR_INPUT`.
@@ -1262,9 +1278,10 @@ Checked 2026-10-09. Every hook below matches by name and parameters, unless mark
 | The keyboard stops at the taskbar (0.0.307; moved to HeliBoard in 0.0.308) | HeliBoard: after `LatinIME.onCreate`, the window's `setFitInsetsSides` | public API |
 | Taskbar taps always open the app (0.0.308) | before `TaskbarActivityContext.launchFromTaskbar(RecentsView, View, List)`; `w1(ItemInfo, Task)`, `isInDesktopMode()` (ZUX Home) | found |
 | The keyboard in game mode (0.0.308) | after `TaskbarInsetsController.k(InsetsFrameProvider, int, int)`; `getGameMode()`; `InsetsFrameProvider.getType`, `getInsetsSize`, `get/setInsetsSizeOverrides`, `InsetsSizeOverride(int, Insets)` (ZUX Home) | found |
+| No association launch prompt (0.0.309) | around `ZuiWmAutoRunManager.isAllowRelativeStart(...)`; after `android.app.ZuiSecurityManager.getRelativeAppStatus(String, String)` | found |
 | No game prompt (0.0.308) | before `OvGameTipDialogManager.canShowOvGameDialog(String, TaskDisplayArea)` | found |
 | Game launcher full screen (0.0.308) | the `calculate` hook above; fields `ActivityRecord.packageName`, `launchedFromPackage`, `LaunchParams.mPreferredTaskDisplayArea`; after `ActivityStarter.startActivityInner`, `mTargetTask` | found |
-| Launch trace (0.0.307, read only) | after `ActivityStarter.startActivityInner(ActivityRecord, ActivityRecord, ..., BalVerdict, NeededUriGrants, int)`; fields `mRootWindowContainer`, `mPreferredTaskDisplayArea`, `ActivityRecord.shortComponentName`, `launchedFromPackage`, `Task.mTaskId`; `getTask()`, `getDisplayId()`, `getWindowingMode()`, `RootWindowContainer.getTopFocusedDisplayContent()`, static `OVDesktopController.isUnderExternalDisplayDesktopMode()`; after `LaunchParamsPersister.saveTask(Task, DisplayContent)`, fields `Task.realActivity`, `mLastNonFullscreenBounds` (0.0.308) | found |
+| Launch trace (0.0.307, read only) | after `ActivityStarter.startActivityInner(ActivityRecord, ActivityRecord, ..., BalVerdict, NeededUriGrants, int)`; fields `mRootWindowContainer`, `mPreferredTaskDisplayArea`, `ActivityRecord.shortComponentName`, `launchedFromPackage`, `Task.mTaskId`; `getTask()`, `getDisplayId()`, `getWindowingMode()`, `RootWindowContainer.getTopFocusedDisplayContent()`, static `OVDesktopController.isUnderExternalDisplayDesktopMode()`; after `LaunchParamsPersister.saveTask(Task, DisplayContent)`, fields `Task.realActivity`, `mLastNonFullscreenBounds` (0.0.308); after `LaunchParamsPersister.getLaunchParams(Task, ActivityRecord, LaunchParams)`, field `ActivityRecord.mActivityComponent` (0.0.309) | found |
 
 ## The roadmap rows against ZUI's code
 

@@ -174,6 +174,8 @@ public final class Const {
     public static final String KEY_TASKBAR_TAPS = "taskbar_taps_launch";
     /** ZUI's "two high-performance apps" prompt, and the floating window after it, left out. */
     public static final String KEY_NO_GAME_TIP = "no_game_tip";
+    /** ZUI's "Association Launch App Prompt" left out: an app may open another as asked. */
+    public static final String KEY_NO_LAUNCH_PROMPT = "no_launch_prompt";
     /** The game launcher chosen in the settings: a package name, or empty for none. */
     public static final String KEY_GAME_LAUNCHER = "game_launcher";
     /** The controller's Home button opens the game launcher instead of the drawer. */

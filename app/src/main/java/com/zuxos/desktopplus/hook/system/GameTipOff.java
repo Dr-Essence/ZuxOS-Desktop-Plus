@@ -10,13 +10,12 @@ import de.robv.android.xposed.XposedBridge;
  * Inside the system: ZUI's "two high-performance apps" prompt left out, and the floating window
  * that came after it.
  *
- * <p>When an app ZUI counts as high-performance is opened while another one is in sight - a game
- * from a game launcher, every time - ZUI holds the start ({@code ActivityStartInterceptor
- * .interceptGameTipIfNeeded}) and shows "Opening A and B, two high-performance apps, at the same
- * time may cause your device to lag or overheat. Do you want to continue?". Continue then starts
- * the app as a floating window, whatever it was asked to be
- * ({@code createGameIntentSenderForOriginalIntent}: windowing mode 5), which is why games opened
- * from the owner's game launcher came up small.
+ * <p>When an app ZUI counts as high-performance is opened while another one is in sight, ZUI
+ * holds the start ({@code ActivityStartInterceptor.interceptGameTipIfNeeded}) and shows "Opening
+ * A and B, two high-performance apps, at the same time may cause your device to lag or overheat.
+ * Do you want to continue?". Continue then starts the app as a floating window, whatever it was
+ * asked to be ({@code createGameIntentSenderForOriginalIntent}: windowing mode 5). ZUI's other
+ * prompt, before one app opens another, is {@link LaunchPromptOff}'s.
  *
  * <p>ZUI's own decision is answered no ({@code OvGameTipDialogManager.canShowOvGameDialog}), so
  * the start goes on exactly as asked. The switch is read at boot and again when the settings

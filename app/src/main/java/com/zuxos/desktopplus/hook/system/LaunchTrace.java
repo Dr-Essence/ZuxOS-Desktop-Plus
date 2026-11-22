@@ -1,5 +1,7 @@
 package com.zuxos.desktopplus.hook.system;
 
+import android.graphics.Rect;
+
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 
@@ -23,8 +25,10 @@ import de.robv.android.xposed.XposedBridge;
  *
  * <p>Each line also has the window's size as it opened, and each size ZUI keeps for an app's
  * next window on the monitor is written down as it is kept ({@code LaunchParamsPersister
- * .saveTask}): the owner's windows came back at ZUI's default size after a force stop, and
- * neither log says whether ZUI kept the size or did not hand it back.
+ * .saveTask}), as is what ZUI hands back at a launch ({@code getLaunchParams}): the owner's
+ * windows came back at ZUI's default size after a force stop, and neither log says whether ZUI
+ * kept the size, looked it up under another name (an app opened through an alias), or would not
+ * hand it back (ZUI resets it when the screen it was kept on is not the one in focus).
  */
 public final class LaunchTrace {
 
@@ -66,6 +70,10 @@ public final class LaunchTrace {
             for (Method m : persister.getDeclaredMethods()) {
                 if (m.getName().equals(SystemNames.SAVE_TASK) && m.getParameterCount() == 2) {
                     XposedBridge.hookMethod(m, SAVED_SIZE);
+                    hooked++;
+                } else if (m.getName().equals(SystemNames.GET_LAUNCH_PARAMS)
+                        && m.getParameterCount() == 3) {
+                    XposedBridge.hookMethod(m, HANDED_BACK);
                     hooked++;
                 }
             }
@@ -123,6 +131,40 @@ public final class LaunchTrace {
                 }
                 L.i("launch trace: ZUI keeps " + app + "'s window on display " + display + ": "
                         + kept + (++sSaves == MAX_SAVES ? " (the last line of this boot)" : ""));
+            } catch (Throwable t) {
+                if (++sErrors == MAX_ERRORS) {
+                    L.w("launch trace: stopped for this boot (" + t + ")");
+                }
+            }
+        }
+    };
+
+    /** What ZUI hands back for a launch on the monitor, from its memory of the app's window. */
+    private static final XC_MethodHook HANDED_BACK = new XC_MethodHook() {
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) {
+            if (sSaves >= MAX_SAVES || sErrors > MAX_ERRORS) {
+                return;
+            }
+            try {
+                if (!Boolean.TRUE.equals(sDesktopOn.invoke(null))) {
+                    return;
+                }
+                Object task = param.args[0];
+                // ZUI's own key: the task's activity, or for a new task the launch's component.
+                String app = text(task != null
+                        ? Reflect.field(task, SystemNames.REAL_ACTIVITY)
+                        : Reflect.field(param.args[1], SystemNames.M_ACTIVITY_COMPONENT));
+                Object mode = Reflect.field(param.args[2], SystemNames.M_WINDOWING_MODE);
+                Object bounds = Reflect.field(param.args[2], SystemNames.M_BOUNDS);
+                String back = Integer.valueOf(0).equals(mode)
+                        && (!(bounds instanceof Rect) || ((Rect) bounds).isEmpty())
+                        ? "nothing" : "mode " + text(mode) + ", size " + text(bounds);
+                if (back.equals(SAVED.put("back:" + app, back))) {
+                    return;
+                }
+                L.i("launch trace: ZUI hands " + app + " back " + back
+                        + (++sSaves == MAX_SAVES ? " (the last line of this boot)" : ""));
             } catch (Throwable t) {
                 if (++sErrors == MAX_ERRORS) {
                     L.w("launch trace: stopped for this boot (" + t + ")");

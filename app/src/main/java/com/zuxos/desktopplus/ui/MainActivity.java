@@ -362,11 +362,16 @@ public class MainActivity extends Activity {
                         + "Needs System Framework ticked for this module in LSPosed and a "
                         + "reboot once",
                 Const.KEY_BAR_CLEARANCE, true);
+        addSwitch("No \"Association Launch App Prompt\"",
+                "ZUI asks \"A is attempting to launch B, allow?\" whenever an app other than the "
+                        + "home screen opens another, a game launcher's every game included. "
+                        + "On, the app opens as asked; pairs denied in ZUI's Security Center stay "
+                        + "denied. Needs System Framework ticked for this module in LSPosed",
+                Const.KEY_NO_LAUNCH_PROMPT, true);
         addSwitch("No \"two high-performance apps\" prompt",
-                "ZUI asks before opening a game while another heavy app is in sight - a game "
-                        + "from a game launcher, every time - and then opens it as a small "
-                        + "floating window. Off, the app just opens as asked. Needs System "
-                        + "Framework ticked for this module in LSPosed",
+                "ZUI asks before opening a game while another heavy app is in sight, and then "
+                        + "opens it as a small floating window. On, the app just opens as asked. "
+                        + "Needs System Framework ticked for this module in LSPosed",
                 Const.KEY_NO_GAME_TIP, true);
         addSwitch("Full screen on the monitor",
                 "Full screen in a window's \u2026 menu and in the taskbar's app menu: the app "

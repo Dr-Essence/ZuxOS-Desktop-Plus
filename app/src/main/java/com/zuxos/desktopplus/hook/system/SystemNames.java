@@ -30,6 +30,7 @@ final class SystemNames {
     static final String LAUNCHED_FROM_PACKAGE = "launchedFromPackage";
     static final String PACKAGE_NAME = "packageName";
     static final String IS_ACTIVITY_TYPE_HOME = "isActivityTypeHome";
+    static final String M_ACTIVITY_COMPONENT = "mActivityComponent";
     static final String GET_TASK = "getTask";
     /** {@code Task}'s. */
     static final String M_TASK_ID = "mTaskId";
@@ -38,7 +39,14 @@ final class SystemNames {
     /** ZUI's memory of each app's last window, handed back at its next launch. */
     static final String LAUNCH_PARAMS_PERSISTER = "com.android.server.wm.LaunchParamsPersister";
     static final String SAVE_TASK = "saveTask";
+    static final String GET_LAUNCH_PARAMS = "getLaunchParams";
     static final String GET_WINDOWING_MODE = "getWindowingMode";
+    /** ZUI's "Association Launch App Prompt", asked before one app opens another. */
+    static final String ZUI_WM_AUTO_RUN_MANAGER = "com.android.server.wm.ZuiWmAutoRunManager";
+    static final String IS_ALLOW_RELATIVE_START = "isAllowRelativeStart";
+    /** Its answer from ZUI's Security Center, per pair of apps: 0 ask, 1 allowed, 2 denied. */
+    static final String ZUI_SECURITY_MANAGER = "android.app.ZuiSecurityManager";
+    static final String GET_RELATIVE_APP_STATUS = "getRelativeAppStatus";
     /** ZUI's "two high-performance apps" prompt, held before a start. */
     static final String OV_GAME_TIP_DIALOG_MANAGER =
             "com.android.server.wm.OvGameTipDialogManager";
