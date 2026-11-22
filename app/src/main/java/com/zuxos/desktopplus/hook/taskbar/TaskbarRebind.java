@@ -175,6 +175,7 @@ public final class TaskbarRebind {
                         String name = method.getName();
                         if (TASK_EVENTS.contains(name)) {
                             TaskbarRunning.soon();
+                            FullScreen.onTasks();
                         }
                         switch (name) {
                             case "equals":

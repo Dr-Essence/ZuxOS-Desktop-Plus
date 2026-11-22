@@ -51,6 +51,8 @@ public final class Glyphs {
     public static final int TASKS = 28;
     public static final int FLOATING = 29;
     public static final int CLOSE_ALL = 30;
+    public static final int FULL_SCREEN = 31;
+    public static final int EXIT_FULL_SCREEN = 32;
 
     private Glyphs() {
     }
@@ -100,6 +102,10 @@ public final class Glyphs {
             glyph = MAXIMIZE;
         } else if (t.startsWith("floating")) {
             glyph = FLOATING;
+        } else if (t.startsWith("exit full screen")) {
+            glyph = EXIT_FULL_SCREEN;
+        } else if (t.startsWith("full screen")) {
+            glyph = FULL_SCREEN;
         } else if (t.startsWith("task manager")) {
             glyph = TASKS;
         } else if (t.contains("new window")) {
@@ -391,6 +397,20 @@ public final class Glyphs {
                 p.moveTo(4, 9);
                 p.lineTo(20, 9);
                 return p;
+            case FULL_SCREEN:
+                // The screen's four corners, pushed out to its edges.
+                corner(p, 4, 9, 4, 4, 9, 4);
+                corner(p, 15, 4, 20, 4, 20, 9);
+                corner(p, 20, 15, 20, 20, 15, 20);
+                corner(p, 9, 20, 4, 20, 4, 15);
+                return p;
+            case EXIT_FULL_SCREEN:
+                // The same four corners, drawn back in from the edges.
+                corner(p, 9, 4, 9, 9, 4, 9);
+                corner(p, 15, 4, 15, 9, 20, 9);
+                corner(p, 20, 15, 15, 15, 15, 20);
+                corner(p, 4, 15, 9, 15, 9, 20);
+                return p;
             case FLOATING:
                 // The screen's frame, and a smaller window floating in it with its title bar.
                 p.addRoundRect(new RectF(3.5f, 4.5f, 20.5f, 19.5f), 2.5f, 2.5f,
@@ -423,6 +443,14 @@ public final class Glyphs {
             default:
                 return null;
         }
+    }
+
+    /** One corner as two strokes meeting at ({@code x2}, {@code y2}). */
+    private static void corner(Path p, float x1, float y1, float x2, float y2, float x3,
+            float y3) {
+        p.moveTo(x1, y1);
+        p.lineTo(x2, y2);
+        p.lineTo(x3, y3);
     }
 
     /** A 24-unit path, scaled to the bounds and stroked in the current colour. */

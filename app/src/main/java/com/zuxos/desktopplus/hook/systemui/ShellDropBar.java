@@ -32,11 +32,6 @@ import de.robv.android.xposed.XposedBridge;
  */
 public final class ShellDropBar {
 
-    private static final String CONTROLLER =
-            "com.android.wm.shell.draganddrop.DragAndDropController";
-    /** ZUI's {@code DragAndDropConstants.EXTRA_DISALLOW_HIT_REGION}. */
-    private static final String DISALLOW = "DISALLOW_HIT_REGION";
-
     /** The shell's window we left a region of for the drag under way; null with none. */
     private static AttachedSurfaceControl sNarrowed;
 
@@ -45,23 +40,24 @@ public final class ShellDropBar {
 
     public static void install(ClassLoader loader) {
         try {
-            Class<?> controller = Reflect.findClass(CONTROLLER, loader);
+            Class<?> controller = Reflect.findClass(SysUiNames.DRAG_AND_DROP_CONTROLLER, loader);
             if (controller == null) {
                 L.w("shell drop bar: SystemUI's drag and drop not found, its window covers the "
                         + "bar as before");
                 return;
             }
-            int hooked = XposedBridge.hookAllMethods(controller, "onDrag", new XC_MethodHook() {
-                @Override
-                protected void beforeHookedMethod(MethodHookParam param) {
-                    standAside(param);
-                }
+            int hooked = XposedBridge.hookAllMethods(controller, SysUiNames.ON_DRAG,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            standAside(param);
+                        }
 
-                @Override
-                protected void afterHookedMethod(MethodHookParam param) {
-                    after(param);
-                }
-            }).size();
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            after(param);
+                        }
+                    }).size();
             L.i("shell drop bar: the shell's drop window can leave the bar to the bar x"
                     + hooked);
         } catch (Throwable t) {
@@ -122,7 +118,7 @@ public final class ShellDropBar {
         L.i("shell drop bar: trace: the shell's window "
                 + (event.getAction() == DragEvent.ACTION_DRAG_ENTERED ? "entered" : "left")
                 + " at " + Math.round(event.getX()) + "," + Math.round(event.getY())
-                + " (zui split " + Reflect.field(controller, "mIsZuiSplit") + ")");
+                + " (zui split " + Reflect.field(controller, SysUiNames.M_IS_ZUI_SPLIT) + ")");
     }
 
     /** The launcher's word in the clip: the home screen behind takes this drag. */
@@ -170,7 +166,8 @@ public final class ShellDropBar {
             return;
         }
         // Read through the extras: Intent.getExtra is not in the public SDK.
-        Object extra = intent.getExtras() == null ? null : intent.getExtras().get(DISALLOW);
+        Object extra = intent.getExtras() == null ? null
+                : intent.getExtras().get(SysUiNames.DISALLOW_HIT_REGION);
         AttachedSurfaceControl surface = window.getRootSurfaceControl();
         if (!(extra instanceof RectF) || ((RectF) extra).isEmpty() || surface == null) {
             return;

@@ -396,6 +396,11 @@ public final class Cfg {
         return getBool(Const.KEY_CAPTION_FOLLOW, true);
     }
 
+    /** Full screen in the monitor's menus, with the taskbar and title bar out of the way. */
+    public static boolean fullScreen() {
+        return getBool(Const.KEY_FULL_SCREEN, true);
+    }
+
     /** The tablet taskbar drawer's app list ends at the bar, not under its icons. */
     public static boolean drawerAboveBar() {
         return getBool(Const.KEY_DRAWER_ABOVE_BAR, true);

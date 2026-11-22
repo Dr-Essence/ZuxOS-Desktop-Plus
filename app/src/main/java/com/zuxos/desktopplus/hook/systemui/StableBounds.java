@@ -33,18 +33,17 @@ import de.robv.android.xposed.XposedBridge;
  */
 public final class StableBounds {
 
-    private static final String LAYOUT = "com.android.wm.shell.common.DisplayLayout";
 
     private StableBounds() {
     }
 
     public static void install(ClassLoader loader) {
         try {
-            Class<?> layout = Reflect.findClass(LAYOUT, loader);
+            Class<?> layout = Reflect.findClass(SysUiNames.DISPLAY_LAYOUT, loader);
             Method recalc = null;
             if (layout != null) {
                 try {
-                    recalc = layout.getDeclaredMethod("recalcInsets", Resources.class);
+                    recalc = layout.getDeclaredMethod(SysUiNames.RECALC_INSETS, Resources.class);
                 } catch (NoSuchMethodException ignored) {
                     // Reported below.
                 }
@@ -70,8 +69,8 @@ public final class StableBounds {
     }
 
     private static void correct(Object layout) {
-        Object state = Reflect.field(layout, "mInsetsState");
-        Object stableField = Reflect.field(layout, "mStableInsets");
+        Object state = Reflect.field(layout, SysUiNames.M_INSETS_STATE);
+        Object stableField = Reflect.field(layout, SysUiNames.M_STABLE_INSETS);
         if (state == null || !(stableField instanceof Rect)) {
             return;
         }
@@ -83,7 +82,7 @@ public final class StableBounds {
             // The bars where ZUI expects them: its answer holds.
             return;
         }
-        Object cutoutField = Reflect.field(layout, "mCutout");
+        Object cutoutField = Reflect.field(layout, SysUiNames.M_CUTOUT);
         DisplayCutout cutout = cutoutField instanceof DisplayCutout ? (DisplayCutout) cutoutField
                 : null;
         int cutTop = cutout != null ? cutout.getSafeInsetTop() : 0;
@@ -95,9 +94,9 @@ public final class StableBounds {
             stable.bottom = cutBottom + nav.bottom;
             // ZUI's desktop bounds stop short of its own bottom bar unless the two heights
             // agree; with the bar at the top there is none.
-            Object navFrame = Reflect.field(layout, "mNavBarFrameHeight");
+            Object navFrame = Reflect.field(layout, SysUiNames.M_NAV_BAR_FRAME_HEIGHT);
             if (navFrame instanceof Integer) {
-                setInt(layout, "mTaskbarFrameHeight", (Integer) navFrame);
+                setInt(layout, SysUiNames.M_TASKBAR_FRAME_HEIGHT, (Integer) navFrame);
             }
         }
         String what = before + " -> " + stable;

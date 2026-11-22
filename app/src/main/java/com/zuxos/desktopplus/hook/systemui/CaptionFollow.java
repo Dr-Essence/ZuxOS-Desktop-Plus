@@ -29,9 +29,6 @@ import de.robv.android.xposed.XposedBridge;
  */
 public final class CaptionFollow {
 
-    private static final String MODEL =
-            "com.android.wm.shell.windowdecor.DesktopModeWindowDecorViewModel";
-
     private static Method sDestroy;
     private static Method sCreate;
     private static Method sShows;
@@ -41,18 +38,20 @@ public final class CaptionFollow {
 
     public static void install(ClassLoader loader) {
         try {
-            Class<?> model = Reflect.findClass(MODEL, loader);
+            Class<?> model = Reflect.findClass(SysUiNames.DESKTOP_MODE_WINDOW_DECOR_VIEW_MODEL,
+                    loader);
             if (model == null) {
                 L.w("caption follow: SystemUI's window title bars not found, left as they are");
                 return;
             }
             for (Method m : model.getDeclaredMethods()) {
-                if (m.getName().equals("destroyWindowDecoration") && m.getParameterCount() == 1) {
+                if (m.getName().equals(SysUiNames.DESTROY_WINDOW_DECORATION)
+                        && m.getParameterCount() == 1) {
                     sDestroy = m;
-                } else if (m.getName().startsWith("createWindowDecoration")
+                } else if (m.getName().startsWith(SysUiNames.CREATE_WINDOW_DECORATION)
                         && m.getParameterCount() == 4) {
                     sCreate = m;
-                } else if (m.getName().startsWith("shouldShowWindowDecor")
+                } else if (m.getName().startsWith(SysUiNames.SHOULD_SHOW_WINDOW_DECOR)
                         && m.getParameterCount() == 1) {
                     sShows = m;
                 }
@@ -68,7 +67,7 @@ public final class CaptionFollow {
             }
             // Told of a change in a transition: the old title bar goes, and SystemUI makes the
             // new one itself, with the transition's own surfaces, finding none.
-            int hooked = XposedBridge.hookAllMethods(model, "onTaskChanging",
+            int hooked = XposedBridge.hookAllMethods(model, SysUiNames.ON_TASK_CHANGING,
                     new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
@@ -79,7 +78,7 @@ public final class CaptionFollow {
                     }).size();
             // Told of a change outside a transition: SystemUI only relays out a title bar it
             // has, so the new one is made here, as SystemUI makes one for a window opening.
-            hooked += XposedBridge.hookAllMethods(model, "onTaskInfoChanged",
+            hooked += XposedBridge.hookAllMethods(model, SysUiNames.ON_TASK_INFO_CHANGED,
                     new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
@@ -105,13 +104,15 @@ public final class CaptionFollow {
             if (!Cfg.enabled() || !Cfg.captionFollow()) {
                 return false;
             }
-            Object decorations = Reflect.field(model, "mWindowDecorByTaskId");
+            Object decorations = Reflect.field(model, SysUiNames.M_WINDOW_DECOR_BY_TASK_ID);
             Object taskId = Reflect.field(task, "taskId");
-            if (!(decorations instanceof android.util.SparseArray) || !(taskId instanceof Integer)) {
+            if (!(decorations instanceof android.util.SparseArray)
+                    || !(taskId instanceof Integer)) {
                 return false;
             }
             Object decoration = ((android.util.SparseArray<?>) decorations).get((Integer) taskId);
-            Object had = decoration == null ? null : Reflect.field(decoration, "mTaskInfo");
+            Object had = decoration == null ? null
+                    : Reflect.field(decoration, SysUiNames.M_TASK_INFO);
             Object was = had == null ? null : Reflect.field(had, "displayId");
             Object now = Reflect.field(task, "displayId");
             if (!(was instanceof Integer) || !(now instanceof Integer) || was.equals(now)) {
@@ -136,10 +137,10 @@ public final class CaptionFollow {
     /** A new title bar for the window, made by SystemUI as for a window that opens. */
     private static void remake(Object model, Object task) {
         try {
-            Object organizer = Reflect.field(model, "mTaskOrganizer");
+            Object organizer = Reflect.field(model, SysUiNames.M_TASK_ORGANIZER);
             Object taskId = Reflect.field(task, "taskId");
             Object leash = organizer == null || !(taskId instanceof Integer) ? null
-                    : organizer.getClass().getMethod("getRunningTaskLeash", int.class)
+                    : organizer.getClass().getMethod(SysUiNames.GET_RUNNING_TASK_LEASH, int.class)
                     .invoke(organizer, taskId);
             if (!(leash instanceof SurfaceControl)) {
                 return;

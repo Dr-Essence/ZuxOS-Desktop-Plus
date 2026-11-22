@@ -17,6 +17,7 @@ import com.zuxos.desktopplus.hook.home.HostDetector;
 import com.zuxos.desktopplus.hook.home.SurfaceAttacher;
 import com.zuxos.desktopplus.hook.recents.RecentsRoute;
 import com.zuxos.desktopplus.hook.recents.TaskOverview;
+import com.zuxos.desktopplus.hook.taskbar.FullScreen;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarApps;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarDiag;
 import com.zuxos.desktopplus.hook.taskbar.TaskbarMenu;
@@ -92,6 +93,7 @@ public final class Probe {
                 sb.append(TaskbarNav.describe());
                 sb.append(RecentsRoute.describe());
                 sb.append(KeepAlive.describe());
+                sb.append(FullScreen.describe());
             } catch (Throwable ignored) {
                 // The rest still goes out.
             }
@@ -199,6 +201,7 @@ public final class Probe {
             sb.append(TaskOverview.describe());
             sb.append(RecentsRoute.describe());
             sb.append(KeepAlive.describe());
+            sb.append(FullScreen.describe());
             sb.append(FrameRate.describe(activity));
         } catch (Throwable t) {
             sb.append("\nrecents\n  (unreadable: ").append(t).append(")\n");

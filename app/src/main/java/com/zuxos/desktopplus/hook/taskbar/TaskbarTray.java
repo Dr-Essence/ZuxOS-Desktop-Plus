@@ -95,6 +95,7 @@ public final class TaskbarTray {
         // and an early return from that search used to take them both down with it.
         TaskbarGlass.install(loader);
         TaskbarEdge.install(loader);
+        BarAutoHide.install(loader);
         TaskbarMenu.install(loader);
         TaskbarApps.install(loader);
         TaskbarStart.install(loader);

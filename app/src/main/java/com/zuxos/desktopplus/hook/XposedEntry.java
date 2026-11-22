@@ -33,6 +33,7 @@ import com.zuxos.desktopplus.hook.system.SystemNewWindow;
 import com.zuxos.desktopplus.hook.system.TouchScreens;
 import com.zuxos.desktopplus.hook.systemui.CaptionFollow;
 import com.zuxos.desktopplus.hook.systemui.ClosedWindowInfo;
+import com.zuxos.desktopplus.hook.systemui.FullScreenMenu;
 import com.zuxos.desktopplus.hook.systemui.MonitorStatusBar;
 import com.zuxos.desktopplus.hook.systemui.ShellDropBar;
 import com.zuxos.desktopplus.hook.systemui.StableBounds;
@@ -87,6 +88,9 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     ClosedWindowInfo.install(lpparam.classLoader);
                     CaptionFollow.install(lpparam.classLoader);
                     ShellDropBar.install(lpparam.classLoader);
+                    if (Cfg.fullScreen()) {
+                        FullScreenMenu.install(lpparam.classLoader);
+                    }
                 }
                 return;
             }

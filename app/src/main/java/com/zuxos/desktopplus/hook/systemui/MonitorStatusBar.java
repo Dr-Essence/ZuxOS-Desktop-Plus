@@ -30,8 +30,6 @@ import de.robv.android.xposed.XposedBridge;
  */
 public final class MonitorStatusBar {
 
-    private static final String MANAGER = "com.android.systemui.dpmode.ZuiDpModeManager";
-
     /**
      * The displays whose status bar ZUI was asked not to build. Written on SystemUI's main thread,
      * read on the window shell's own ({@link WindowCaptions}): a set safe for both.
@@ -43,7 +41,7 @@ public final class MonitorStatusBar {
 
     public static void install(ClassLoader loader) {
         try {
-            Class<?> manager = Reflect.findClass(MANAGER, loader);
+            Class<?> manager = Reflect.findClass(SysUiNames.ZUI_DP_MODE_MANAGER, loader);
             Method create = manager == null ? null : createStatusBar(manager);
             if (create == null) {
                 L.w("monitor status bar: ZUI's createStatusBar not found, its bar stays");
@@ -99,7 +97,7 @@ public final class MonitorStatusBar {
             if (!takesDisplay) {
                 continue;
             }
-            if (m.getName().contains("createStatusBar")) {
+            if (m.getName().contains(SysUiNames.CREATE_STATUS_BAR)) {
                 return m;
             }
             if (Modifier.isStatic(m.getModifiers()) && types.length == 2

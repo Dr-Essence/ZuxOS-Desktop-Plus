@@ -467,6 +467,8 @@ final class TaskbarStart {
      * does - the bar's button even while the bar is tucked away. False with no button there.
      */
     static boolean toggleDrawer(int display) {
+        // A bar out of a full-screen window's way comes back with the drawer it opens.
+        BarAutoHide.show(display);
         StartButton button = shownOn(display);
         if (button == null) {
             for (StartButton any : new java.util.ArrayList<>(BUTTONS.keySet())) {

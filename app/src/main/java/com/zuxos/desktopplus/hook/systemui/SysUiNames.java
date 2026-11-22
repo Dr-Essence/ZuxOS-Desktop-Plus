@@ -1,0 +1,106 @@
+package com.zuxos.desktopplus.hook.systemui;
+
+/**
+ * Every name of ZUI's SystemUI that this package reaches, in one place: when SystemUI updates,
+ * these are the ones to check against its decompiled code. Read from ZUI's System UI 16, whose
+ * window shell keeps its source names. Each constant is its name in capitals; Android's own
+ * framework names stay where they are used.
+ */
+final class SysUiNames {
+
+    // The window shell's title bars and the model that makes them.
+    static final String WINDOW_DECORATION = "com.android.wm.shell.windowdecor.WindowDecoration";
+    static final String DESKTOP_MODE_WINDOW_DECORATION =
+            "com.android.wm.shell.windowdecor.DesktopModeWindowDecoration";
+    static final String CAPTION_WINDOW_DECORATION =
+            "com.android.wm.shell.windowdecor.CaptionWindowDecoration";
+    static final String DESKTOP_MODE_WINDOW_DECOR_VIEW_MODEL =
+            "com.android.wm.shell.windowdecor.DesktopModeWindowDecorViewModel";
+    static final String RELAYOUT = "relayout";
+    static final String M_IS_STATUS_BAR_VISIBLE = "mIsStatusBarVisible";
+    static final String M_CONTEXT = "mContext";
+    static final String M_TASK_INFO = "mTaskInfo";
+    static final String M_HAS_GLOBAL_FOCUS = "mHasGlobalFocus";
+    static final String M_EXCLUSION_REGION = "mExclusionRegion";
+    static final String DESTROY_WINDOW_DECORATION = "destroyWindowDecoration";
+    static final String CREATE_WINDOW_DECORATION = "createWindowDecoration";
+    static final String SHOULD_SHOW_WINDOW_DECOR = "shouldShowWindowDecor";
+    static final String ON_TASK_CHANGING = "onTaskChanging";
+    static final String ON_TASK_INFO_CHANGED = "onTaskInfoChanged";
+    static final String M_WINDOW_DECOR_BY_TASK_ID = "mWindowDecorByTaskId";
+    static final String M_TASK_ORGANIZER = "mTaskOrganizer";
+    static final String GET_RUNNING_TASK_LEASH = "getRunningTaskLeash";
+
+    // Its loader of a title bar's name and icons, and what it says for a closed one.
+    static final String DESKTOP_MODE_WINDOW_DECORATION_LOADER =
+            DESKTOP_MODE_WINDOW_DECORATION + "$$ExternalSyntheticLambda0";
+    static final String NON_EXISTENT_DECORATION = "non-existent decoration";
+
+    // The window menu ("…"), its sizes, its rows and its resources.
+    static final String OV_HANDLE_MENU = "com.android.wm.shell.windowdecor.OvHandleMenu";
+    static final String OV_ON_ASSIST_CONTENT_RECEIVED = "ovOnAssistContentReceived";
+    static final String CLOSE_HANDLE_MENU = "closeHandleMenu";
+    static final String M_OV_HANDLE_MENU = "mOvHandleMenu";
+    static final String TASK_INFO = "taskInfo";
+    static final String CONTEXT = "context";
+    static final String MENU_GROUP2_HEIGHT = "menuGroup2Height";
+    static final String MENU_WINDOW_HEIGHT = "menuWindowHeight";
+    static final String HANDLE_MENU_VIEW = "handleMenuView";
+    static final String HANDLE_MENU_ROOT = "handleMenuRoot";
+    static final String OVC_WD_HANDLE_MENU_GROUP2_ITEM_HEIGHT_PAD =
+            "ovc_wd_handle_menu_group2_item_height_pad";
+    static final String OVC_WD_HANDLE_MENU_GROUP2_EMPTY_BAR_HEIGHT_PAD =
+            "ovc_wd_handle_menu_group2_empty_bar_height_pad";
+    static final String OVC_WD_HANDLE_MENU_GROUPS_SPACE_PAD = "ovc_wd_handle_menu_groups_space_pad";
+    static final String OV_DESKTOP_MODE_WINDOW_DECOR_HANDLE_MENU_PAD_GROUP_TWO =
+            "ov_desktop_mode_window_decor_handle_menu_pad_group_two";
+    static final String OVC_HANDLE_MENU_GROUP2_LAYOUT = "ovc_handle_menu_group2_layout";
+    static final String OVC_HANDLE_MENU_GROUP2_LAYOUT_SELECT_BG =
+            "ovc_handle_menu_group2_layout_select_bg";
+    static final String OVC_WD_HANDLE_MENU_GROUP2_EMPTY_BAR1 =
+            "ovc_wd_handle_menu_group2_empty_bar1";
+    static final String OVC_WD_HANDLE_MENU_GROUP2_EMPTY_BAR2 =
+            "ovc_wd_handle_menu_group2_empty_bar2";
+    static final String OVC_WD_HANDLE_MENU_ITEM_REPLACE_APP =
+            "ovc_wd_handle_menu_item_replace_app";
+    static final String OVC_WD_HANDLE_MENU_IV_REPLACE_APP = "ovc_wd_handle_menu_iv_replace_app";
+
+    // ZUI's watcher of its title-bar settings, which holds the model.
+    static final String OV_CAPTION_BAR_OBSERVER =
+            "com.android.wm.shell.windowdecor.OvCaptionBarObserver";
+    static final String M_INSTANCE = "mInstance";
+    static final String M_DESKTOP_MODE_WINDOW_DECOR_VIEW_MODEL =
+            "mDesktopModeWindowDecorViewModel";
+
+    // The relayout's decision for a title bar, and what it made, read by the trace.
+    static final String M_RELAYOUT_PARAMS = "mRelayoutParams";
+    static final String M_IS_CAPTION_VISIBLE = "mIsCaptionVisible";
+    static final String M_IS_INSET_SOURCE = "mIsInsetSource";
+    static final String M_LAYOUT_RES_ID = "mLayoutResId";
+    static final String M_RESULT = "mResult";
+    static final String M_ROOT_VIEW = "mRootView";
+
+    // The monitor's status bar.
+    static final String ZUI_DP_MODE_MANAGER = "com.android.systemui.dpmode.ZuiDpModeManager";
+    static final String CREATE_STATUS_BAR = "createStatusBar";
+
+    // Drag and drop.
+    static final String DRAG_AND_DROP_CONTROLLER =
+            "com.android.wm.shell.draganddrop.DragAndDropController";
+    static final String ON_DRAG = "onDrag";
+    static final String M_IS_ZUI_SPLIT = "mIsZuiSplit";
+    /** ZUI's {@code DragAndDropConstants.EXTRA_DISALLOW_HIT_REGION}. */
+    static final String DISALLOW_HIT_REGION = "DISALLOW_HIT_REGION";
+
+    // The shell's copy of each display's layout.
+    static final String DISPLAY_LAYOUT = "com.android.wm.shell.common.DisplayLayout";
+    static final String RECALC_INSETS = "recalcInsets";
+    static final String M_INSETS_STATE = "mInsetsState";
+    static final String M_STABLE_INSETS = "mStableInsets";
+    static final String M_CUTOUT = "mCutout";
+    static final String M_NAV_BAR_FRAME_HEIGHT = "mNavBarFrameHeight";
+    static final String M_TASKBAR_FRAME_HEIGHT = "mTaskbarFrameHeight";
+
+    private SysUiNames() {
+    }
+}

@@ -88,6 +88,7 @@ public final class TaskbarRunning {
         TaskbarDrop.apply(dragLayer);
         TaskbarNav.apply(dragLayer);
         TaskbarRecovery.check(dragLayer);
+        BarAutoHide.attach(dragLayer);
         fastBar(dragLayer);
 
         boolean onlyOpen = Cfg.taskbarRunningOnly();

@@ -106,6 +106,8 @@ final class Maximize {
         int mode = windowingMode(task);
         boolean monitor = display != Display.DEFAULT_DISPLAY;
         if (monitor && mode == WINDOWING_MODE_FULLSCREEN) {
+            // Out of full screen too: a floating window has the bar beside it again.
+            FullScreen.forget(id);
             toWindow(ctx, task, display);
         } else if (mode != WINDOWING_MODE_FREEFORM) {
             // A split, the tablet's full screen, or unreadable: nothing to grow.
@@ -140,7 +142,7 @@ final class Maximize {
         }, CHECK_MS);
     }
 
-    private static ActivityManager.RunningTaskInfo find(List<ActivityManager.RunningTaskInfo> tasks,
+    static ActivityManager.RunningTaskInfo find(List<ActivityManager.RunningTaskInfo> tasks,
             String pkg, int taskId) {
         for (ActivityManager.RunningTaskInfo t : tasks) {
             if (taskId >= 0 ? t.taskId == taskId : pkg.equals(Tasks.packageOf(t))) {
@@ -193,7 +195,7 @@ final class Maximize {
      * The monitor: ZUI's own change to full screen, as the transition its button starts. The
      * window's size is kept for Floating. False when refused.
      */
-    private static boolean toFullScreenAsZui(List<ActivityManager.RunningTaskInfo> tasks,
+    static boolean toFullScreenAsZui(List<ActivityManager.RunningTaskInfo> tasks,
             ActivityManager.RunningTaskInfo task) {
         Rect bounds = bounds(task);
         try {
@@ -359,7 +361,7 @@ final class Maximize {
     }
 
     /** The task's windowing mode, from its configuration; -1 when it cannot be read. */
-    private static int windowingMode(ActivityManager.RunningTaskInfo task) {
+    static int windowingMode(ActivityManager.RunningTaskInfo task) {
         Object window = windowConfiguration(task);
         Object mode = window == null ? null : Reflect.call(window, "getWindowingMode");
         return mode instanceof Integer ? (Integer) mode : -1;

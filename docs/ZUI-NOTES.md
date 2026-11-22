@@ -181,6 +181,61 @@ vendor power HAL's, not in these jars.
   `log.tag.OVC`. It is off on this device, which is why the probe's section came back empty on
   1.0.166. `setprop log.tag.OVC D` (root, until reboot) turns it on.
 
+## Full screen on the monitor: the bar, the window menu, the title bar (read 2026-11-22)
+
+What Full screen (0.0.304) stands on. ZUX Home 18.2.0.0375, System UI 16.
+
+- **ZUI's game mode on a bar.** `TaskbarActivityContext.enterGameMode()` sets
+  `TaskbarInsetsController.gameMode` and re-applies the window's insets
+  (`onTaskbarOrBubblebarWindowHeightOrInsetsChanged`). In `k()`, the navigation-bar inset a bar
+  reports to apps is then 1 px (`IMEERSIVE_NAVR_INSETS`), so apps lay out to the screen's edge.
+  `exitGameMode()` clears the flag but does not re-apply, so the caller re-applies. Nothing in ZUX
+  Home calls either, and each bar has its own, so the monitor's bar can be in game mode alone.
+  Tappable and gesture insets are not changed.
+- **No usable stash on the monitor.** In DP mode `TaskbarStashController` takes the bar as
+  stashed only with `FLAG_STASHED_IN_TASKBAR_ALL_APPS` (32), and stashing then only fades the
+  icons (`getTaskbarIconAlphaDp`). `forceHideTaskbar` (`FLAG_STASHED_IN_APP_FORCE_HIDE_ZUI`) does
+  nothing there. ZUI's only full hide of the monitor's bar is
+  `TaskbarDragLayerController.updateSysuiStateFlags_dp`, which sets the drag layer `GONE` for the
+  lock screen and shade states. That hides the whole window, so it can feel no pointer.
+- **The monitor's bar window** is the drag layer itself (`TaskbarActivityContext` adds
+  `mDragLayer` to the window manager). A window's root is not moved for input by its own
+  translation, only for drawing, so the bar's views keep their touch places while it is slid
+  away. Its touchable region is ZUI's, set in `TaskbarInsetsController.updateInsetsTouchability`
+  on every traversal.
+- **The window menu's size** is worked out in `OvHandleMenu`'s constructor:
+  - its second group is `ovc_wd_handle_menu_group2_item_height_pad` per row (smart connect when
+    on, replace app for a split);
+  - when it has any rows, it adds two `ovc_wd_handle_menu_group2_empty_bar_height_pad` and the
+    `ovc_wd_handle_menu_groups_space_pad` above it;
+  - plus twice the reserved space for the window.
+  - On the monitor (`OvcWinDecorUtils.isOnExtensionDisplay`), the first group has 4 buttons, not
+    5, because split screen is hidden.
+- **The window menu's build.** `DesktopModeWindowDecoration.ovOnAssistContentReceived` builds
+  the view (`OvHandleMenu.HandleMenuView`, layout `ov_desktop_mode_window_decor_handle_menu_pad`)
+  with those sizes. It binds the first group's buttons and shows the second group's rows. A row
+  is shown by setting `ovc_handle_menu_group2_layout`, `..._select_bg` and both empty bars
+  visible. Clicks go through `DesktopModeWindowDecorViewModel.DesktopModeTouchEventListener`, by
+  view id. `closeHandleMenu()` closes it with ZUI's animation.
+  - With `OV_MULTI_WINDOWS_HANDLE_MENU_ENABLED`, ZUI uses `OvMultiWindowsHandleMenu` instead.
+    Its row layout is `ov_desktop_mode_window_decor_handle_menu_pad_group_two`, with the same
+    row as the pad layout's.
+- **ZUI's fullscreen button** in that menu calls `DesktopTasksController.moveToFullscreen` for a
+  floating window, then `OvfDc.ZOV106`. For a split it sends `OneModeManager` route 0. For a
+  window already full screen it only shakes it.
+- **A full-screen window's title bar** shows only while the decoration's `mIsStatusBarVisible`
+  is set (`relayout` → `updateRelayoutParams`). `OvCaptionBarObserver.mInstance` holds the view
+  model (`mDesktopModeWindowDecorViewModel`). On unlock, ZUI relays out every visible decoration
+  with `relayout(mTaskInfo, mHasGlobalFocus, mExclusionRegion)`.
+  - Whether a shown full-screen title bar takes room from the app (`mIsInsetSource`) could not
+    be read from the decompile. 0.0.304's trace logs it.
+- **Permissions both sides hold:** `STATUS_BAR_SERVICE` (signature). SystemUI also holds
+  `INJECT_EVENTS`, `MONITOR_INPUT` and `MANAGE_ACTIVITY_TASKS`. ZUX Home also holds
+  `START_TASKS_FROM_RECENTS`, `MANAGE_ACTIVITY_TASKS` and `MONITOR_INPUT`.
+- **The system's mouse at a screen's edge.** The owner's log (2026-11-22) has ZUI's own lines
+  from `SystemGestures`: "onMouseHover has been Callbacks" and "WindowManager: onMouseHover, touch
+  interaction!". Not read yet. The bar does not depend on them.
+
 ## Folders and menus in ZUI's drawers (read 2026-10-10)
 
 - `OptionsPopupView.show(ActivityContext, RectF, List<OptionItem>, boolean)` is ZUI's popup with any
@@ -1086,6 +1141,18 @@ Every class and method the module hooks by name is present in this version:
 - 0.0.287: HeliBoard's `KeyboardActionListener.onPressKey`, `onCodeInput`, `onReleaseKey` (caps
   lock); in the system, `DisplayPolicy.mDisplayContent`, `DisplayContent.mInputMethodWindow`,
   `WindowState.isVisible()` (read on L1/R1).
+- 0.0.304 (Full screen on the monitor):
+  - In ZUX Home: `TaskbarInsetsController.updateInsetsTouchability` (after: only the edge strip
+    while the bar is away), `getContext`, `getGameMode`,
+    `onTaskbarOrBubblebarWindowHeightOrInsetsChanged`. `TaskbarActivityContext.enterGameMode`,
+    `exitGameMode`, `isTaskbarWindowFullscreen`, `getDragLayer`, `mControllers` and
+    `TaskbarControllers.taskbarInsetsController` are called or read. All keep their names.
+  - In SystemUI: `OvHandleMenu`'s constructors (after: `menuGroup2Height`, `menuWindowHeight`,
+    `taskInfo`, `context`), `DesktopModeWindowDecoration.ovOnAssistContentReceived` (after:
+    `mOvHandleMenu.handleMenuView.handleMenuRoot`), `closeHandleMenu` and the three-argument
+    `relayout` called. `OvCaptionBarObserver.mInstance` is read. The seven-argument `relayout`
+    already hooked by `WindowCaptions` gets an after-hook for the trace (`mRelayoutParams`,
+    `mResult.mRootView`).
 
 Class names like these survive ZUI's R8 pass; fields and most private methods are renamed in
 every build, which is why the module finds those by type and shape, not by name.

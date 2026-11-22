@@ -1,8 +1,10 @@
 package com.zuxos.desktopplus.hook.systemui;
 
 import android.app.ActivityManager;
+import android.view.Display;
 import android.view.WindowInsets;
 
+import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 
@@ -27,13 +29,15 @@ import de.robv.android.xposed.XposedBridge;
  * bar missing from the task's requested visible types. A video played full screen still loses
  * its buttons; everything else keeps them. Relayouts come with task and inset changes, so nothing
  * is watched.
+ *
+ * <p>A window made full screen on the monitor ({@link FullScreenWindows}) gets "no status bar",
+ * on any monitor, whatever our status-bar setting: ZUI's own rule then hides its title bar, and
+ * the app has the whole screen.
  */
 public final class WindowCaptions {
 
-    private static final String BASE = "com.android.wm.shell.windowdecor.WindowDecoration";
     private static final String[] DECORATIONS = {
-            "com.android.wm.shell.windowdecor.DesktopModeWindowDecoration",
-            "com.android.wm.shell.windowdecor.CaptionWindowDecoration",
+            SysUiNames.DESKTOP_MODE_WINDOW_DECORATION, SysUiNames.CAPTION_WINDOW_DECORATION,
     };
 
     private static Field sStatusBarVisible;
@@ -43,12 +47,12 @@ public final class WindowCaptions {
 
     public static void install(ClassLoader loader) {
         try {
-            Class<?> base = Reflect.findClass(BASE, loader);
+            Class<?> base = Reflect.findClass(SysUiNames.WINDOW_DECORATION, loader);
             if (base == null) {
                 L.w("window captions: ZUI's window decoration not found, left as it is");
                 return;
             }
-            sStatusBarVisible = base.getDeclaredField("mIsStatusBarVisible");
+            sStatusBarVisible = base.getDeclaredField(SysUiNames.M_IS_STATUS_BAR_VISIBLE);
             sStatusBarVisible.setAccessible(true);
             XC_MethodHook before = new XC_MethodHook() {
                 @Override
@@ -57,6 +61,20 @@ public final class WindowCaptions {
                         answer(param);
                     } catch (Throwable t) {
                         L.d("window captions: left to ZUI (" + t + ")");
+                    }
+                }
+
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    try {
+                        if (param.args[0] instanceof ActivityManager.RunningTaskInfo
+                                && ((ActivityManager.RunningTaskInfo) param.args[0]).displayId
+                                != Display.DEFAULT_DISPLAY && Cfg.fullScreen()) {
+                            FullScreenWindows.trace(param.thisObject,
+                                    (ActivityManager.RunningTaskInfo) param.args[0]);
+                        }
+                    } catch (Throwable t) {
+                        L.d("window captions: trace unread (" + t + ")");
                     }
                 }
             };
@@ -69,7 +87,7 @@ public final class WindowCaptions {
                 for (Method m : decoration.getDeclaredMethods()) {
                     // The relayout that reads the field: the one taking the transactions too.
                     Class<?>[] types = m.getParameterTypes();
-                    if (m.getName().equals("relayout") && types.length == 7
+                    if (m.getName().equals(SysUiNames.RELAYOUT) && types.length == 7
                             && types[0] == ActivityManager.RunningTaskInfo.class) {
                         XposedBridge.hookMethod(m, before);
                         hooked++;
@@ -92,7 +110,16 @@ public final class WindowCaptions {
         }
         ActivityManager.RunningTaskInfo task = (ActivityManager.RunningTaskInfo) param.args[0];
         Object display = Reflect.field(task, "displayId");
-        if (!(display instanceof Integer) || !MonitorStatusBar.hiddenOn((Integer) display)) {
+        if (!(display instanceof Integer)) {
+            return;
+        }
+        if ((Integer) display != Display.DEFAULT_DISPLAY) {
+            FullScreenWindows.listen(param.thisObject);
+            if (FullScreenWindows.answer(param.thisObject, task, sStatusBarVisible)) {
+                return;
+            }
+        }
+        if (!MonitorStatusBar.hiddenOn((Integer) display)) {
             return;
         }
         boolean showing = !appHidesStatusBar(task);

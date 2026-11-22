@@ -333,6 +333,12 @@ public class MainActivity extends Activity {
                         + "\u2026 menu move with it. Needs System UI ticked for this module in "
                         + "LSPosed",
                 Const.KEY_CAPTION_FOLLOW, true);
+        addSwitch("Full screen on the monitor",
+                "Full screen in a window's \u2026 menu and in the taskbar's app menu: the app "
+                        + "fills the monitor, and the taskbar slides away until the pointer "
+                        + "reaches the bottom of the screen. Needs System UI ticked for this "
+                        + "module in LSPosed for the \u2026 menu and the title bar",
+                Const.KEY_FULL_SCREEN, true);
         addSwitch("Tablet drawer ends at the taskbar",
                 "The taskbar drawer's apps scroll up to the bar and stop there, instead of "
                         + "passing under the bar's icons",

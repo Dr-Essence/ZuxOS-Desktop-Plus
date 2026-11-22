@@ -21,16 +21,13 @@ import de.robv.android.xposed.XposedBridge;
  */
 public final class ClosedWindowInfo {
 
-    private static final String LOAD =
-            "com.android.wm.shell.windowdecor.DesktopModeWindowDecoration$$ExternalSyntheticLambda0";
-    private static final String GONE = "non-existent decoration";
-
     private ClosedWindowInfo() {
     }
 
     public static void install(ClassLoader loader) {
         try {
-            Class<?> load = Reflect.findClass(LOAD, loader);
+            Class<?> load = Reflect.findClass(SysUiNames.DESKTOP_MODE_WINDOW_DECORATION_LOADER,
+                    loader);
             if (load == null) {
                 L.w("closed window info: SystemUI's loader task not found, left as it is");
                 return;
@@ -41,7 +38,7 @@ public final class ClosedWindowInfo {
                     try {
                         Throwable t = param.getThrowable();
                         if (t instanceof IllegalStateException && t.getMessage() != null
-                                && t.getMessage().contains(GONE)) {
+                                && t.getMessage().contains(SysUiNames.NON_EXISTENT_DECORATION)) {
                             param.setResult(null);
                             if (L.once("ClosedWindowInfo")) {
                                 L.i("closed window info: a closed title bar's name and icon "

@@ -404,6 +404,10 @@ public final class TaskbarApps {
             entries.add(new TaskbarMenu.Entry(
                     Maximize.label(ctx, tasks, pkg, displayId, window),
                     () -> Maximize.toggle(ctx, pkg, displayId, window)));
+            if (FullScreen.offered(displayId)) {
+                entries.add(new TaskbarMenu.Entry(FullScreen.label(tasks, pkg, window),
+                        () -> FullScreen.toggle(ctx, pkg, displayId, window)));
+            }
         }
         if (windows.size() > 1) {
             entries.add(new TaskbarMenu.Entry("Close",

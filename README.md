@@ -5,8 +5,9 @@ monitor and you get a home screen you can arrange, widgets, folders, a liquid-gl
 a taskbar of the apps that are actually open. It also fixes a handful of bugs in ZUI's own desktop
 mode along the way.
 
-> **Development is paused (November 2026) - it will be back.** The last build is 0.0.302. Nothing
-> new comes out until work starts again; problems reported in the meantime are read then.
+> **Development is paused (November 2026) - it will be back.** Only what the owner asks for comes
+> out until then (0.0.304: Full screen on the monitor); problems reported in the meantime are read
+> when work starts again.
 
 > **Early alpha - experimental, made for one tablet.** This module is built mainly for its
 > developer's own Lenovo Legion Tab Gen 5 and, while it is being worked on, changes several times
@@ -45,7 +46,7 @@ other ZuxOS devices, will be built from. After a ZuxOS update, see
 | Launcher | `com.zui.launcher`, desktop activity `SecondaryDisplayLauncher` |
 | Needs | Root, LSPosed, and the module scoped to the home app |
 
-**Status (2026-11-15, build 0.0.302, the last before the pause)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
+**Status (2026-11-22, build 0.0.304, during the pause)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
 
 The work now is making every feature run through ZUI's own code - its folders, menus, drag, animations and grids - so it looks and moves like ZUI itself.
 
@@ -284,6 +285,12 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
 - **No status bar on the monitor.** ZUI's bar there only shows icons; the tray does its job, and
   apps get the strip back. Maximised windows keep their buttons. Needs System UI ticked in
   LSPosed, which also keeps windows clear of the taskbar wherever it is.
+- **Full screen on the monitor, as on DeX** (optional, on by default). "Full screen" in a window's
+  "…" menu and in the taskbar's app menu: the app fills the whole monitor, its title bar hides, and
+  the taskbar slides away. Rest the pointer on the bottom edge (the top, for a bar at the top) and
+  the bar slides back over the app; it stays while a menu, the drawer or a panel of it is open.
+  "Exit full screen" in either menu gives the bar back with the window maximised. The "…" menu and
+  the hidden title bar need System UI ticked in LSPosed.
 
 ### Game controller (tablet)
 

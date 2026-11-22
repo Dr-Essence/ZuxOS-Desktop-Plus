@@ -266,7 +266,7 @@ public final class RunningTasks {
     }
 
     /** On screen, or just opened and about to be; true where the build tells neither. */
-    private static boolean shownOrFocused(Object task) {
+    static boolean shownOrFocused(Object task) {
         Object visible = Reflect.field(task, "isVisible");
         return !(visible instanceof Boolean) || (Boolean) visible
                 || Boolean.TRUE.equals(Reflect.field(task, "isFocused"));
