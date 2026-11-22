@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.SparseArray;
+import android.view.Display;
 
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.FullScreenWire;
@@ -47,6 +48,12 @@ final class FullScreenWindows {
     private static Method sRelayout;
 
     private FullScreenWindows() {
+    }
+
+    /** The task's display: a field the public SDK hides, read as the rest of the module does. */
+    static int displayOf(Object task) {
+        Object display = Reflect.field(task, "displayId");
+        return display instanceof Integer ? (Integer) display : Display.DEFAULT_DISPLAY;
     }
 
     static boolean has(int taskId) {
@@ -228,7 +235,7 @@ final class FullScreenWindows {
                 name = ((Context) ctx).getResources().getResourceEntryName((Integer) layout);
             }
             L.i("full screen windows: trace: " + (full ? "full-screen" : "maximised")
-                    + " window " + task.taskId + " on display " + task.displayId
+                    + " window " + task.taskId + " on display " + displayOf(task)
                     + " - title bar " + (Boolean.TRUE.equals(visible) ? "shown" : "hidden")
                     + ", takes room from the app " + inset + ", layout " + name + ", root "
                     + (root == null ? "none" : root.getClass().getSimpleName()));

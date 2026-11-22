@@ -7,10 +7,12 @@ abandons type-checking inside every class that touches a framework type. The pro
 the real errors were hard to find among the noise: *javac never reported them at all*. A method
 deleted by mistake, with its call left behind, compiled silently here and failed in CI.
 
-So this compiles against a real framework instead. Robolectric publishes ``android-all``, a jar of
-the whole platform, on Maven Central; with that on the classpath javac type-checks everything and
-says what CI would say. The jar is fetched once and cached outside the repository - it is far too
-big to commit.
+So this compiles against a real framework instead: the SDK's own ``android.jar`` for Android 36,
+the jar CI compiles against, from Google's SDK repository. It holds only the public API, so a
+hidden field or method used by mistake fails here as it fails in CI - Robolectric's ``android-all``,
+the whole platform with its hidden parts, let ``RunningTaskInfo.displayId`` through and CI then
+refused it. ``android-all`` from Maven Central stays the fallback where Google's repository cannot
+be reached. Either is fetched once and cached outside the repository - far too big to commit.
 
 Then the ``logic`` module's unit tests run, as CI runs them: plain Java and JUnit, also fetched
 once from Maven Central.
@@ -26,6 +28,7 @@ import subprocess
 import sys
 import tempfile
 import urllib.request
+import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCES = ["app/src/main/java", "logic/src/main/java", "xposed-api"]
@@ -67,12 +70,46 @@ def maven(group, artifact, version, min_size=1):
         return None
 
 
+SDK_PLATFORM = "platform-36_r02.zip"
+SDK_REPOSITORY = "https://dl.google.com/android/repository/"
+
+
+def sdk_jar():
+    """The SDK's public android.jar for the compile SDK, as CI has it; None if it cannot be had."""
+    jar = os.path.join(CACHE, "sdk", "android-36", "android.jar")
+    if os.path.exists(jar):
+        return jar
+    os.makedirs(os.path.dirname(jar), exist_ok=True)
+    archive = os.path.join(CACHE, "sdk", SDK_PLATFORM)
+    try:
+        if not os.path.exists(archive):
+            print("fetching %s once (~65MB) from Google's SDK repository ..." % SDK_PLATFORM,
+                  flush=True)
+            with urllib.request.urlopen(SDK_REPOSITORY + SDK_PLATFORM, timeout=900) as response, \
+                    open(archive + ".part", "wb") as out:
+                while True:
+                    chunk = response.read(1 << 20)
+                    if not chunk:
+                        break
+                    out.write(chunk)
+            os.replace(archive + ".part", archive)
+        with zipfile.ZipFile(archive) as z:
+            inner = next(n for n in z.namelist() if n.endswith("/android.jar"))
+            with z.open(inner) as src, open(jar + ".part", "wb") as out:
+                out.write(src.read())
+        os.replace(jar + ".part", jar)
+        return jar
+    except Exception as problem:  # noqa: BLE001 - any failure means "use the fallback"
+        print("could not fetch %s: %s" % (SDK_PLATFORM, problem))
+        return None
+
+
 def framework():
-    """The platform jar: from the environment, from the cache, or from Maven Central."""
+    """The platform jar: from the environment, else the SDK's, else android-all from Maven."""
     named = os.environ.get("ANDROID_ALL_JAR")
     if named and os.path.exists(named):
         return named
-    return maven("org.robolectric", "android-all", VERSION, min_size=50_000_000)
+    return sdk_jar() or maven("org.robolectric", "android-all", VERSION, min_size=50_000_000)
 
 
 def java_files(sources=SOURCES):
@@ -91,7 +128,8 @@ def compile_all(jar, quiet):
             capture_output=True, text=True)
     errors = [line for line in javac.stderr.splitlines() if ": error:" in line]
     if javac.returncode == 0:
-        print("clean: %d files compile against android-all-%s" % (len(files), VERSION))
+        print("clean: %d files compile against %s" % (len(files), os.path.basename(
+            os.path.dirname(jar)) + "/" + os.path.basename(jar)))
         return True
     if not quiet:
         print(javac.stderr.strip())

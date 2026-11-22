@@ -68,7 +68,7 @@ public final class WindowCaptions {
                 protected void afterHookedMethod(MethodHookParam param) {
                     try {
                         if (param.args[0] instanceof ActivityManager.RunningTaskInfo
-                                && ((ActivityManager.RunningTaskInfo) param.args[0]).displayId
+                                && FullScreenWindows.displayOf(param.args[0])
                                 != Display.DEFAULT_DISPLAY && Cfg.fullScreen()) {
                             FullScreenWindows.trace(param.thisObject,
                                     (ActivityManager.RunningTaskInfo) param.args[0]);

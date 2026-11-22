@@ -183,7 +183,7 @@ vendor power HAL's, not in these jars.
 
 ## Full screen on the monitor: the bar, the window menu, the title bar (read 2026-11-22)
 
-What Full screen (0.0.304) stands on. ZUX Home 18.2.0.0375, System UI 16.
+What Full screen (0.0.305) stands on. ZUX Home 18.2.0.0375, System UI 16.
 
 - **ZUI's game mode on a bar.** `TaskbarActivityContext.enterGameMode()` sets
   `TaskbarInsetsController.gameMode` and re-applies the window's insets
@@ -228,7 +228,7 @@ What Full screen (0.0.304) stands on. ZUX Home 18.2.0.0375, System UI 16.
   model (`mDesktopModeWindowDecorViewModel`). On unlock, ZUI relays out every visible decoration
   with `relayout(mTaskInfo, mHasGlobalFocus, mExclusionRegion)`.
   - Whether a shown full-screen title bar takes room from the app (`mIsInsetSource`) could not
-    be read from the decompile. 0.0.304's trace logs it.
+    be read from the decompile. 0.0.305's trace logs it.
 - **Permissions both sides hold:** `STATUS_BAR_SERVICE` (signature). SystemUI also holds
   `INJECT_EVENTS`, `MONITOR_INPUT` and `MANAGE_ACTIVITY_TASKS`. ZUX Home also holds
   `START_TASKS_FROM_RECENTS`, `MANAGE_ACTIVITY_TASKS` and `MONITOR_INPUT`.
@@ -1141,7 +1141,7 @@ Every class and method the module hooks by name is present in this version:
 - 0.0.287: HeliBoard's `KeyboardActionListener.onPressKey`, `onCodeInput`, `onReleaseKey` (caps
   lock); in the system, `DisplayPolicy.mDisplayContent`, `DisplayContent.mInputMethodWindow`,
   `WindowState.isVisible()` (read on L1/R1).
-- 0.0.304 (Full screen on the monitor):
+- 0.0.305 (Full screen on the monitor):
   - In ZUX Home: `TaskbarInsetsController.updateInsetsTouchability` (after: only the edge strip
     while the bar is away), `getContext`, `getGameMode`,
     `onTaskbarOrBubblebarWindowHeightOrInsetsChanged`. `TaskbarActivityContext.enterGameMode`,

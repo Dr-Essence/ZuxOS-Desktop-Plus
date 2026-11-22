@@ -173,7 +173,7 @@ public final class FullScreenMenu {
         }
         ActivityManager.RunningTaskInfo info = (ActivityManager.RunningTaskInfo) task;
         int taskId = info.taskId;
-        int display = info.displayId;
+        int display = FullScreenWindows.displayOf(info);
         boolean on = FullScreenWindows.has(taskId);
         dress(ours, res, on);
         ours.setOnClickListener(v -> {

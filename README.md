@@ -6,7 +6,7 @@ a taskbar of the apps that are actually open. It also fixes a handful of bugs in
 mode along the way.
 
 > **Development is paused (November 2026) - it will be back.** Only what the owner asks for comes
-> out until then (0.0.304: Full screen on the monitor); problems reported in the meantime are read
+> out until then (0.0.305: Full screen on the monitor); problems reported in the meantime are read
 > when work starts again.
 
 > **Early alpha - experimental, made for one tablet.** This module is built mainly for its
@@ -46,7 +46,7 @@ other ZuxOS devices, will be built from. After a ZuxOS update, see
 | Launcher | `com.zui.launcher`, desktop activity `SecondaryDisplayLauncher` |
 | Needs | Root, LSPosed, and the module scoped to the home app |
 
-**Status (2026-11-22, build 0.0.304, during the pause)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
+**Status (2026-11-22, build 0.0.305, during the pause)** - builds are numbered 0.0.x while in early alpha (the earlier 1.0.1-1.0.213 count on from the same number, so updating keeps your settings and folders).
 
 The work now is making every feature run through ZUI's own code - its folders, menus, drag, animations and grids - so it looks and moves like ZUI itself.
 
@@ -537,9 +537,10 @@ before it builds the APK.
 The hook and view code needs a device, so the tests are a safety net under the logic, not a
 guarantee about the UI.
 
-`tools/check.py` is the other half of that net. It compiles everything against Robolectric's
-`android-all` jar, which is fetched once from Maven Central and cached outside the repo. Plain
-`javac` can't do this: it gives up inside every class that touches a framework type, so a deleted
+`tools/check.py` is the other half of that net. It compiles everything against the Android SDK's
+own `android.jar` for Android 36 - the public API, as CI compiles it - fetched once from Google's
+SDK repository and cached outside the repo (Robolectric's `android-all` from Maven Central is the
+fallback). Plain `javac` can't do this: it gives up inside every class that touches a framework type, so a deleted
 method compiles clean and only fails in CI. It then runs the `logic` tests with JUnit, fetched
 the same way. Run it before pushing; it says what CI will say.
 
