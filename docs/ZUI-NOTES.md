@@ -246,6 +246,36 @@ What Full screen (0.0.305) stands on. ZUX Home 18.2.0.0375, System UI 16.
   edge-to-edge app fits none, so its frame runs under the taskbar. `WindowManager.LayoutParams`
   keeps the types in `mFitInsetsTypes` (`setFitInsetsTypes` also sets a private flag);
   `WindowState.mAttrs` is public final.
+- **The keyboard's window** (`framework.jar`, read 2026-11-22). `InputMethodService.onCreate`
+  makes it type 2011, height wrap, gravity bottom, fit types status and navigation bars, fit
+  sides all but the bottom (`Side.all() & ~BOTTOM`): it reaches the screen's edge, and its
+  window's padding (`decorFitsSystemWindows`) kept the keys above the bar. A keyboard that
+  targets SDK 35 or later has edge to edge forced on it (`PhoneWindow.isEdgeToEdgeEnforced`,
+  in `generateLayout`; ZUI's own opt-outs, `PhoneWindowDelegate.forceDisalbeE2e` and
+  `MotoDisplayPolicyManager.isOptOutEdgeToEdgeEnforced`, are off), and `setDecorFitsSystemWindows`
+  is then ignored. HeliBoard (SDK 37) adds no padding of its own (`InputView`, `KeyboardSwitcher`,
+  `updateSoftInputWindowLayoutParameters`: no insets listener), so its strip and bottom row lay
+  under the taskbar, whose window is above the keyboard's. ZUI tells the keyboard window the
+  bar's size through an override for type 2011 on its providers
+  (`TaskbarInsetsController.k()`): `taskbar_ime_size`, 60 dp, as tall as `taskbar_size`, in
+  three-button navigation, kept in game mode, where apps are told 1 px. A keyboard's height to
+  an app is its frame inside the app's (`InsetsSource.calculateInsets`, IME case: the
+  intersection's height). 0.0.307 has the keyboard fit the bottom too while the display's bar
+  takes room (`DisplayFrames.mInsetsState`, as apps see it).
+- **Which screen a launch goes to with the monitor's desktop on** (`services.jar`, read
+  2026-11-22). `ActivityStarter.resolveReusableTask`, under
+  `OVDesktopController.isUnderExternalDisplayDesktopMode()`, reads the screen the system has
+  focused (`getTopFocusedDisplayContent()`): focus on the tablet and the app's task on the
+  monitor, it removes that task ("do not use extenddisplay task", unless the focus is ZUI's
+  touchpad) and starts a new one; focus on the monitor and the task on the tablet, it removes
+  the tablet's ("do not use paddisplay task"). `startActivityInner` logs the chosen screen
+  ("gotoDisplayId:", from `mPreferredTaskDisplayArea`) and can abort (`return 102`) for an app
+  ZUI does not allow in that mode (a toast). A launch from no window (the shell, a
+  notification) goes to the focused screen. The focus moves with a key aimed at a screen
+  (`PhoneWindowManager.interceptKeyBeforeQueueing`: "Attempting to move non-focused display")
+  and with a touch on a window that can take focus (`onPointerDownOutsideFocusLocked`); a touch
+  on the taskbar, whose window takes none, leaves it where it was - so ZUI's own Back and Home on
+  the tablet's bar acted on the monitor after the monitor was used.
 - **Permissions both sides hold:** `STATUS_BAR_SERVICE` (signature). SystemUI also holds
   `INJECT_EVENTS`, `MONITOR_INPUT` and `MANAGE_ACTIVITY_TASKS`. ZUX Home also holds
   `START_TASKS_FROM_RECENTS`, `MANAGE_ACTIVITY_TASKS` and `MONITOR_INPUT`.
@@ -1199,6 +1229,8 @@ Checked 2026-10-09. Every hook below matches by name and parameters, unless mark
 | Drag | `DragState.isValidDropTarget(WindowState, boolean, boolean)`, fields `mFlags`, `mUid`; `WindowState.getOwningUid()` | found |
 | Controller | `PhoneWindowManager.interceptKeyBeforeDispatching(IBinder, KeyEvent, int)`; fields `mTopFocusedDisplayId`, `mDefaultDisplayPolicy`; `isKeyguardShowingAndNotOccluded()`, `DisplayPolicy.topAppHidesSystemBar(int)` (0.0.283, read on L1/R1) | found |
 | Apps stop at the taskbar (0.0.306) | `DisplayPolicy.layoutWindowLw(WindowState, WindowState, DisplayFrames)`; fields `WindowState.mAttrs`, `WindowManager.LayoutParams.mFitInsetsTypes`; `WindowState.getActivityType()`, `getInsetsState()`, `getBounds()`, `InsetsState.calculateInsets(Rect, int, boolean)` | found in the decompile, not yet on the device |
+| The keyboard stops at the taskbar (0.0.307) | the same hook; fields `WindowManager.LayoutParams.mFitInsetsSides`, `DisplayFrames.mInsetsState` | found |
+| Launch trace (0.0.307, read only) | after `ActivityStarter.startActivityInner(ActivityRecord, ActivityRecord, ..., BalVerdict, NeededUriGrants, int)`; fields `mRootWindowContainer`, `mPreferredTaskDisplayArea`, `ActivityRecord.shortComponentName`, `launchedFromPackage`, `Task.mTaskId`; `getTask()`, `getDisplayId()`, `getWindowingMode()`, `RootWindowContainer.getTopFocusedDisplayContent()`, static `OVDesktopController.isUnderExternalDisplayDesktopMode()` | found |
 
 ## The roadmap rows against ZUI's code
 

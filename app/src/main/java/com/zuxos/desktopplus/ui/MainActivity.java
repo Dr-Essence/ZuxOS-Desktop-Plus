@@ -333,10 +333,11 @@ public class MainActivity extends Activity {
                         + "\u2026 menu move with it. Needs System UI ticked for this module in "
                         + "LSPosed",
                 Const.KEY_CAPTION_FOLLOW, true);
-        addSwitch("Apps stop at the taskbar",
-                "On both screens, apps end where the taskbar starts instead of drawing under it, "
-                        + "and use that strip only while the bar is hidden. Needs System "
-                        + "Framework ticked for this module in LSPosed and a reboot once",
+        addSwitch("Apps and the keyboard stop at the taskbar",
+                "On both screens, apps and the keyboard end where the taskbar starts instead of "
+                        + "drawing under it, and use that strip only while the bar is hidden. "
+                        + "Needs System Framework ticked for this module in LSPosed and a "
+                        + "reboot once",
                 Const.KEY_BAR_CLEARANCE, true);
         addSwitch("Full screen on the monitor",
                 "Full screen in a window's \u2026 menu and in the taskbar's app menu: the app "

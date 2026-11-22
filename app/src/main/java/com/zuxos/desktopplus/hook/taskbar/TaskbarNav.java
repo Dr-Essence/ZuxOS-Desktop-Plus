@@ -28,18 +28,23 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Back, home and recents on the monitor's taskbar, acting on the monitor.
+ * Back, home and recents on each taskbar, acting on that bar's own screen.
  *
  * <p>ZUI hands its taskbar keys to the system, and the system acts on whichever screen it last
  * considered in front - so with apps open on both, back on the monitor could close an app on the
  * tablet, and recents could open on the wrong screen or behind everything. The probe names the
  * three keys ({@code #back #home #recent_apps}, plain image views with click listeners); this
- * wraps those clicks on every taskbar that is not the tablet's own:
+ * wraps those clicks on every taskbar.
  *
- * <p>Each is sent as that key, addressed to this display - so back reaches the window in front
- * <em>here</em>, home goes home on this screen, and recents opens this screen's overview.
- * In-process if the launcher may inject keys, through root if it may not (this firmware refuses
- * the launcher {@code INJECT_EVENTS}, so it is root).
+ * <p>On the monitor each is sent as that key, addressed to this display - so back reaches the
+ * window in front <em>here</em>, home goes home on this screen, and recents opens this screen's
+ * overview. In-process if the launcher may inject keys, through root if it may not (this
+ * firmware refuses the launcher {@code INJECT_EVENTS}, so it is root).
+ *
+ * <p>On the tablet back and home stay ZUI's while the tablet has the focus, so they keep ZUI's
+ * path and its speed. A tap on the bar does not move the system's focus, though (the bar's
+ * window takes none), so after the monitor was used they went to the monitor; then they are sent
+ * to the tablet the same way, and the key, aimed at the tablet, brings the focus back with it.
  *
  * <p>Long presses are not touched, and with the setting off every key does exactly what ZUI does.
  */
@@ -52,13 +57,6 @@ public final class TaskbarNav {
 
     static void apply(ViewGroup dragLayer) {
         int display = TaskbarTray.displayIdOf(dragLayer);
-        if (display == Display.DEFAULT_DISPLAY) {
-            // The tablet's own bar. The system's idea of "in front" is the tablet's anyway, so
-            // its keys stay ZUI's - but its recents button still says it was pressed here, or
-            // recents cannot know which screen it is for.
-            wrap(dragLayer, "recent_apps", display);
-            return;
-        }
         wrap(dragLayer, "back", display);
         wrap(dragLayer, "home", display);
         wrap(dragLayer, "recent_apps", display);
@@ -115,9 +113,13 @@ public final class TaskbarNav {
         }
 
         private void act(View v) {
-            if (mDisplay == Display.DEFAULT_DISPLAY || !Cfg.navKeysOwnScreen()) {
+            if (!Cfg.navKeysOwnScreen()) {
                 mOriginal.onClick(v);
                 record(mId, "ZUI's own");
+                return;
+            }
+            if (mDisplay == Display.DEFAULT_DISPLAY) {
+                onTablet(v);
                 return;
             }
             try {
@@ -144,6 +146,30 @@ public final class TaskbarNav {
                 L.d("taskbar nav: " + mId + " fell back to the launcher's own (" + t + ")");
                 mOriginal.onClick(v);
             }
+        }
+
+        /**
+         * A key on the tablet's bar: ZUI's own while the tablet has the focus, or when the focus
+         * cannot be read; sent to the tablet while another screen has it, where ZUI's would have
+         * acted. Recents is ZUI's always: {@link RecentsRoute} already places it.
+         */
+        private void onTablet(View v) {
+            int focused = "recent_apps".equals(mId) ? Display.DEFAULT_DISPLAY : focusedDisplay();
+            if (focused == Display.DEFAULT_DISPLAY || focused == Tasks.UNKNOWN) {
+                mOriginal.onClick(v);
+                record(mId, "ZUI's own");
+                return;
+            }
+            boolean home = "home".equals(mId);
+            if (home) {
+                // As on the monitor: the drawer is a window of the bar's, and recents goes first.
+                closeDrawer(mDisplay);
+                RecentsRoute.closeOn(mDisplay);
+            }
+            String route = TaskbarNav.key(v.getContext(),
+                    home ? KeyEvent.KEYCODE_HOME : KeyEvent.KEYCODE_BACK, mDisplay,
+                    () -> v.post(() -> mOriginal.onClick(v)));
+            record(mId, route + " to the tablet (the focus was on display " + focused + ")");
         }
 
         /**
@@ -185,6 +211,27 @@ public final class TaskbarNav {
             String route = TaskbarNav.key(v.getContext(), code, mDisplay,
                     () -> v.post(() -> mOriginal.onClick(v)));
             record(mId, route);
+        }
+    }
+
+    /**
+     * The screen the system has focused, where ZUI's keys act: its focused task's display, or
+     * {@link Tasks#UNKNOWN} when it cannot be read. One call to the task service, on a press.
+     */
+    private static int focusedDisplay() {
+        try {
+            Object atm = Class.forName(TaskbarNames.ACTIVITY_TASK_MANAGER)
+                    .getMethod(TaskbarNames.GET_SERVICE).invoke(null);
+            Object root = atm == null ? null : atm.getClass()
+                    .getMethod(TaskbarNames.GET_FOCUSED_ROOT_TASK_INFO).invoke(atm);
+            return root == null ? Tasks.UNKNOWN : Tasks.displayOf(root);
+        } catch (Throwable t) {
+            if (L.once("TaskbarNav.focus")) {
+                Throwable cause = t.getCause() != null ? t.getCause() : t;
+                L.i("taskbar nav: the focused screen could not be read (" + cause
+                        + ") - the tablet's keys stay ZUI's");
+            }
+            return Tasks.UNKNOWN;
         }
     }
 

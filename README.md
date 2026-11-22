@@ -287,10 +287,11 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   apps get the strip back. Maximised windows keep their buttons, and their title bar takes its own
   room, so it never covers the app's top menus. Needs System UI ticked in LSPosed, which also
   keeps windows clear of the taskbar wherever it is.
-- **Apps stop at the taskbar** (optional, on by default, both screens). Apps made for Android 15
-  and later draw under the bars and many leave their content there; their windows now end where
-  the bar starts, and have its strip only while the bar is hidden. Needs System Framework ticked
-  in LSPosed.
+- **Apps and the keyboard stop at the taskbar** (optional, on by default, both screens). Apps
+  made for Android 15 and later draw under the bars and many leave their content there; their
+  windows now end where the bar starts, and have its strip only while the bar is hidden. The
+  keyboard too: HeliBoard's suggestions and bottom row sit above the bar, and at the bottom in
+  Full screen. Needs System Framework ticked in LSPosed.
 - **Full screen on the monitor, as on DeX** (optional, on by default). "Full screen" in a window's
   "…" menu and in the taskbar's app menu: the app fills the whole monitor, its title bar hides, and
   the taskbar slides away. Rest the pointer on the bottom edge (the top, for a bar at the top) and
@@ -439,7 +440,7 @@ survives restarts and reboots.
 | **Stock home content** | Hide the icon grid | Switch to "hide everything" if you still see duplicated icons |
 | **Only open apps in the taskbar** | Off | The taskbar shows what is open, not ZUI's hotseat and recommendations |
 | **Keep the launcher's recents off the taskbar** | On | ZUI's recent and recommended apps never reach the bar |
-| **Navigation keys act on their own screen** | On | Back, home and recents on the monitor act on the monitor |
+| **Navigation keys act on their own screen** | On | Back, home and recents act on their own bar's screen: the monitor's on the monitor, the tablet's on the tablet after the monitor was used |
 | **Drawer button on the left** | On | ZUI's all-apps button beside the navigation keys |
 | **Mark the apps that are open** | On | A line under each running app, folders included |
 | **Menu on a taskbar icon** | On | Hold an icon for Open, Close, App info and shortcuts |

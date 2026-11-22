@@ -18,6 +18,22 @@ final class SystemNames {
     static final String M_LAUNCH_MODE = "mLaunchMode";
     static final String M_LAUNCH_FLAGS = "mLaunchFlags";
     static final String SET_INITIAL_STATE = "setInitialState";
+    static final String START_ACTIVITY_INNER = "startActivityInner";
+    static final String M_PREFERRED_TASK_DISPLAY_AREA = "mPreferredTaskDisplayArea";
+    static final String M_ROOT_WINDOW_CONTAINER = "mRootWindowContainer";
+    /** {@code RootWindowContainer}'s. */
+    static final String GET_TOP_FOCUSED_DISPLAY_CONTENT = "getTopFocusedDisplayContent";
+    /** {@code ActivityRecord}'s. */
+    static final String SHORT_COMPONENT_NAME = "shortComponentName";
+    static final String LAUNCHED_FROM_PACKAGE = "launchedFromPackage";
+    static final String GET_TASK = "getTask";
+    /** {@code Task}'s. */
+    static final String M_TASK_ID = "mTaskId";
+    static final String GET_WINDOWING_MODE = "getWindowingMode";
+    /** ZUI's monitor desktop, its "extended" mode. */
+    static final String OV_DESKTOP_CONTROLLER = "com.android.server.wm.OVDesktopController";
+    static final String IS_UNDER_EXTERNAL_DISPLAY_DESKTOP_MODE =
+            "isUnderExternalDisplayDesktopMode";
     static final String DRAG_STATE = "com.android.server.wm.DragState";
     static final String M_FLAGS = "mFlags";
     static final String M_UID = "mUid";
@@ -54,6 +70,8 @@ final class SystemNames {
     static final String M_DISPLAY_CONTENT = "mDisplayContent";
     static final String DISPLAY_POLICY = "com.android.server.wm.DisplayPolicy";
     static final String LAYOUT_WINDOW_LW = "layoutWindowLw";
+    /** {@code DisplayFrames}'s: the display's own insets, as apps see them. */
+    static final String M_INSETS_STATE = "mInsetsState";
     /** {@code DisplayContent}'s. */
     static final String M_INPUT_METHOD_WINDOW = "mInputMethodWindow";
 
@@ -83,7 +101,7 @@ final class SystemNames {
     static final String UNIQUE_ID = "uniqueId";
     static final String TYPE = "type";
     static final String VALID = "valid";
-    /** {@code InputEvent}'s. */
+    /** {@code InputEvent}'s, and every window container's (an activity, a display area). */
     static final String GET_DISPLAY_ID = "getDisplayId";
 
     // The app side of the framework (android.app, android.window, android.os).
@@ -110,6 +128,7 @@ final class SystemNames {
     // The view side of the framework (android.view): a window's layout.
     /** {@code WindowManager.LayoutParams}'s. */
     static final String M_FIT_INSETS_TYPES = "mFitInsetsTypes";
+    static final String M_FIT_INSETS_SIDES = "mFitInsetsSides";
     static final String INSETS_STATE = "android.view.InsetsState";
     static final String CALCULATE_INSETS = "calculateInsets";
 

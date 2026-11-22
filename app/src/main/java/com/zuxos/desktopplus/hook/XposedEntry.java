@@ -25,6 +25,7 @@ import com.zuxos.desktopplus.hook.keyboard.HeliPad;
 import com.zuxos.desktopplus.hook.recents.RecentsRoute;
 import com.zuxos.desktopplus.hook.sidebar.SidebarAiWait;
 import com.zuxos.desktopplus.hook.system.BarClearance;
+import com.zuxos.desktopplus.hook.system.LaunchTrace;
 import com.zuxos.desktopplus.hook.system.SystemBridge;
 import com.zuxos.desktopplus.hook.system.SystemDrag;
 import com.zuxos.desktopplus.hook.system.SystemFullscreen;
@@ -62,8 +63,8 @@ public class XposedEntry implements IXposedHookLoadPackage {
                 return;
             }
             if ("android".equals(lpparam.packageName)) {
-                // The system itself - ticked as System Framework in LSPosed. Only the keep-alive and
-                // the minimise bridge run here; nothing of the launcher's belongs in system_server.
+                // The system itself - ticked as System Framework in LSPosed. Only the system's own
+                // parts run here; nothing of the launcher's belongs in system_server.
                 Cfg.reload();
                 if (Cfg.enabled()) {
                     SystemKeepAlive.install(lpparam.classLoader);
@@ -75,6 +76,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     SystemGamepad.install(lpparam.classLoader);
                     TouchScreens.install(lpparam.classLoader);
                     BarClearance.install(lpparam.classLoader);
+                    LaunchTrace.install(lpparam.classLoader);
                 }
                 return;
             }

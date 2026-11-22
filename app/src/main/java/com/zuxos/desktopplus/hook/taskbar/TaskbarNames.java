@@ -1,8 +1,9 @@
 package com.zuxos.desktopplus.hook.taskbar;
 
 /**
- * Names of ZUX Home's taskbar code that this package reaches, in one place: when ZUX Home
- * updates, these are the ones to check against its decompiled code. Read from ZUX Home
+ * Names of ZUX Home's taskbar code, and of the framework's hidden API, that this package reaches,
+ * in one place: when ZUX Home or ZuxOS updates, these are the ones to check against its
+ * decompiled code. Read from ZUX Home
  * 18.2.0.0375, whose taskbar keeps these names through its obfuscation. Each constant is its
  * name in capitals. The package's older files still hold their own; each moves its names here
  * when it is next worked on.
@@ -27,6 +28,11 @@ final class TaskbarNames {
             "onTaskbarOrBubblebarWindowHeightOrInsetsChanged";
     static final String UPDATE_INSETS_TOUCHABILITY = "updateInsetsTouchability";
     static final String GET_CONTEXT = "getContext";
+
+    // The framework's task service (hidden API): the screen the system has focused.
+    static final String ACTIVITY_TASK_MANAGER = "android.app.ActivityTaskManager";
+    static final String GET_SERVICE = "getService";
+    static final String GET_FOCUSED_ROOT_TASK_INFO = "getFocusedRootTaskInfo";
 
     private TaskbarNames() {
     }
