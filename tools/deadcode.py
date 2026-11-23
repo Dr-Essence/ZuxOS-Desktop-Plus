@@ -49,7 +49,8 @@ KEEP = {
 
 # Classes of constants only: javac copies each constant into its users, so the class itself is
 # never loaded and always looks unused. The source check below still covers every constant.
-CONSTANTS = {"Const", "FullScreenWire", "HeliNames", "SystemNames", "SysUiNames", "TaskbarNames"}
+CONSTANTS = {"Const", "FullScreenWire", "HeliNames", "KeyboardWire", "SystemNames", "SysUiNames",
+             "TaskbarNames"}
 
 
 def code_mask(text):

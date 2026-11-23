@@ -99,6 +99,10 @@ public class MainActivity extends Activity {
                         + "… menu's item does; split-screen windows keep the dots. Needs "
                         + "System UI ticked for this module in LSPosed",
                 Const.KEY_WINDOW_BUTTONS, true);
+        addSwitch("Keep-on-top button",
+                "A pin left of minimise keeps the window above all others; press it again to "
+                        + "let it go. Needs System UI ticked for this module in LSPosed",
+                Const.KEY_WINDOW_PIN, true);
         addSwitch("Window buttons follow the window",
                 "When a window moves between the tablet and the monitor, its title bar and its "
                         + "\u2026 menu move with it. Needs System UI ticked for this module in "
@@ -152,13 +156,17 @@ public class MainActivity extends Activity {
                 Const.KEY_TASKBAR_EDGE, Const.EDGE_BOTTOM);
         addSummary("The launcher restarts to apply it. The tablet's taskbar never moves.");
         addSwitch("Status tray in the taskbar",
-                "Network, battery and a clock next to the navigation buttons, with Wi-Fi and "
-                        + "Bluetooth switches behind them",
+                "Network, temperatures, and the time, date and battery in three rows, with "
+                        + "Wi-Fi and Bluetooth switches behind them",
                 Const.KEY_TASKBAR_TRAY, true);
         addSwitch("Show temperatures",
                 "CPU, GPU and battery temperature in the tray, where the kernel lets the "
                         + "launcher read them",
                 Const.KEY_TASKBAR_TEMPS, true);
+        addSwitch("Keyboard language button",
+                "In the tray, as on DeX: the keyboard's language, a click for the next one, "
+                        + "hold or right-click for the list. With two languages or more",
+                Const.KEY_TRAY_LANGUAGE, true);
         addSwitch("Edit the quick panel's tiles",
                 "Hold a tile, or press Edit at the top of the panel, to take tiles off, put "
                         + "them back and drag them into your own order",

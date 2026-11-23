@@ -11,6 +11,7 @@ final class HeliNames {
     // The input method service.
     static final String LATIN_IME = "helium314.keyboard.latin.LatinIME";
     static final String ON_CREATE = "onCreate";
+    static final String ON_DESTROY = "onDestroy";
     static final String ON_KEY_DOWN = "onKeyDown";
     static final String ON_KEY_UP = "onKeyUp";
     static final String ON_FINISH_INPUT_VIEW = "onFinishInputView";

@@ -168,6 +168,10 @@ public final class Const {
     public static final String KEY_CAPTION_FOLLOW = "caption_follow";
     /** Minimise, maximise and close on the monitor's title bars, without the "…" menu. */
     public static final String KEY_WINDOW_BUTTONS = "window_buttons";
+    /** A pin among the window buttons that keeps the window above all others. */
+    public static final String KEY_WINDOW_PIN = "window_pin";
+    /** A button in the monitor's tray that shows and switches the keyboard's language. */
+    public static final String KEY_TRAY_LANGUAGE = "tray_language";
     /** Apps' windows and the keyboard end at the taskbar, on both screens, while it takes room. */
     public static final String KEY_BAR_CLEARANCE = "bar_clearance";
     /** Full screen on the monitor: no taskbar or title bar until the pointer reaches an edge. */

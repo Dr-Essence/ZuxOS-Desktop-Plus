@@ -46,7 +46,8 @@ import de.robv.android.xposed.XposedBridge;
  * menu's items reach), so a click runs what the menu does - ZUI's minimise, its full screen or
  * floating, its close, with its checks and toasts. The pictures are ZUI's desktop-mode buttons,
  * light or dark by the night mode as ZUI picks them. Last, right of close, our Full screen
- * ({@link FullScreenWindows#askToggle}), as the menu's row of ours asks for it. The row ends
+ * ({@link FullScreenWindows#askToggle}), as the menu's row of ours asks for it; first, left of
+ * minimise, our pin, which keeps the window above all others ({@link KeepOnTop}). The row ends
  * where ZUI's resize corner begins. Like ZUI's dots, the buttons are not reported to apps as
  * the bar's controls: an app told of controls draws its own header into the rest of the bar -
  * Chromium its tabs - and there the bar and the app fought over every click.
@@ -65,6 +66,9 @@ public final class WindowButtons {
     private static final int GLYPH_LIGHT = 0xFF191919;
     private static final int GLYPH_DARK = 0xFFFAFAFA;
     private static final float GLYPH_DP = 18f;
+    /** The pin's words, as it keeps the window on top or lets it go. */
+    private static final String KEEP_ON_TOP = "Keep on top";
+    private static final String LET_GO = "Stop keeping on top";
     /** The runtime's own allocation, for a class with no constructor left to call. */
     private static final String UNSAFE = "sun.misc.Unsafe";
     private static final String THE_UNSAFE = "theUnsafe";
@@ -77,12 +81,15 @@ public final class WindowButtons {
 
     private static Ids sIds;
     private static boolean sNoIds;
+    /** SystemUI's own classes, for the pin's way to the shell. */
+    private static ClassLoader sLoader;
     private static int sCornerPx = -1;
 
     private WindowButtons() {
     }
 
     public static void install(ClassLoader loader) {
+        sLoader = loader;
         try {
             Class<?> holder = Reflect.findClass(
                     SysUiNames.OV_DESKTOP_MODE_WINDOW_DECORATION_VIEW_HOLDER, loader);
@@ -204,7 +211,9 @@ public final class WindowButtons {
             }
         }
         boolean night = night(caption.getContext());
-        row.show(wanted, mode == FREEFORM, night, task.taskId, displayOf(task));
+        KeepOnTop.check(task);
+        row.show(wanted, mode == FREEFORM, night, task.taskId, displayOf(task),
+                KeepOnTop.on(task));
         if (wanted && solid(task)) {
             // ZUI clears a maximised window's bar; over a full-screen app's header nothing would
             // show through but the header itself.
@@ -236,11 +245,15 @@ public final class WindowButtons {
         if (Cfg.fullScreen()) {
             full = button(ctx, View.generateViewId(), null, FullScreenWire.ENTER);
         }
-        Row row = new Row(new View(ctx), buttons, pill,
+        ImageView pin = null;
+        if (Cfg.windowPin()) {
+            pin = button(ctx, View.generateViewId(), null, KEEP_ON_TOP);
+        }
+        Row row = new Row(new View(ctx), buttons, pill, pin,
                 button(ctx, ids.minimize, click, "Minimise"),
                 button(ctx, ids.fullscreen, click, "Maximise"), full,
                 button(ctx, ids.close, click, "Close"));
-        for (View b : new View[]{row.minimize, row.toggle, row.close, row.full}) {
+        for (View b : new View[]{row.pin, row.minimize, row.toggle, row.close, row.full}) {
             if (b != null) {
                 buttons.addView(b, new LinearLayout.LayoutParams(size,
                         ViewGroup.LayoutParams.MATCH_PARENT));
@@ -263,7 +276,7 @@ public final class WindowButtons {
             return false;
         };
         bar.setOnHoverListener(feel);
-        for (View b : new View[]{row.minimize, row.toggle, row.close, row.full}) {
+        for (View b : new View[]{row.pin, row.minimize, row.toggle, row.close, row.full}) {
             if (b != null) {
                 b.setOnHoverListener(feel);
             }
@@ -278,6 +291,10 @@ public final class WindowButtons {
                     L.w("window buttons: ZUX Home not asked (" + t + ")");
                 }
             });
+        }
+        if (pin != null) {
+            Row r = row;
+            pin.setOnClickListener(v -> KeepOnTop.toggle(sLoader, r.taskId));
         }
         int width = rowWidth(ctx);
         LinearLayout.LayoutParams balance = new LinearLayout.LayoutParams(width,
@@ -309,9 +326,10 @@ public final class WindowButtons {
         return sCornerPx;
     }
 
-    /** The row's width: three of ZUI's buttons, and our Full screen while it is offered. */
+    /** The row's width: three of ZUI's buttons, and our pin and Full screen while offered. */
     private static int rowWidth(Context ctx) {
-        return Ui.dp(ctx, BUTTON_DP) * (Cfg.fullScreen() ? 4 : 3);
+        return Ui.dp(ctx, BUTTON_DP) * (3 + (Cfg.fullScreen() ? 1 : 0)
+                + (Cfg.windowPin() ? 1 : 0));
     }
 
     private static View room(Context ctx) {
@@ -591,6 +609,8 @@ public final class WindowButtons {
         final View balance;
         final View buttons;
         final View pill;
+        /** Our pin, keeping the window on top, or null while it is not offered. */
+        final ImageView pin;
         final ImageView minimize;
         final ImageView toggle;
         /** Our Full screen, or null while it is not offered. */
@@ -600,11 +620,12 @@ public final class WindowButtons {
         int taskId = -1;
         int display = Display.DEFAULT_DISPLAY;
 
-        Row(View balance, View buttons, View pill, ImageView minimize, ImageView toggle,
-                ImageView full, ImageView close) {
+        Row(View balance, View buttons, View pill, ImageView pin, ImageView minimize,
+                ImageView toggle, ImageView full, ImageView close) {
             this.balance = balance;
             this.buttons = buttons;
             this.pill = pill;
+            this.pin = pin;
             this.minimize = minimize;
             this.toggle = toggle;
             this.full = full;
@@ -615,7 +636,8 @@ public final class WindowButtons {
          * Shown or not; a floating window's middle button is ZUI's full screen, a maximised
          * one's its floating. ZUI's "normal" pictures are dark glyphs for a light theme.
          */
-        void show(boolean shown, boolean floating, boolean night, int taskId, int display) {
+        void show(boolean shown, boolean floating, boolean night, int taskId, int display,
+                boolean onTop) {
             int visibility = shown ? View.VISIBLE : View.GONE;
             if (buttons.getVisibility() != visibility) {
                 buttons.setVisibility(visibility);
@@ -640,17 +662,27 @@ public final class WindowButtons {
             close.setImageResource(pictures[3]);
             if (full != null) {
                 boolean on = FullScreenWindows.has(taskId);
-                Drawable glyph = Glyphs.of(on ? Glyphs.EXIT_FULL_SCREEN : Glyphs.FULL_SCREEN);
-                if (glyph != null) {
-                    glyph.setTint(night ? GLYPH_DARK : GLYPH_LIGHT);
-                    // Our glyphs have no size of their own: ZUI's buttons' drawn size.
-                    LayerDrawable sized = new LayerDrawable(new Drawable[]{glyph});
-                    int px = Ui.dp(full.getContext(), GLYPH_DP);
-                    sized.setLayerSize(0, px, px);
-                    full.setImageDrawable(sized);
-                }
+                glyph(full, on ? Glyphs.EXIT_FULL_SCREEN : Glyphs.FULL_SCREEN, night);
                 full.setContentDescription(on ? FullScreenWire.EXIT : FullScreenWire.ENTER);
             }
+            if (pin != null) {
+                glyph(pin, onTop ? Glyphs.UNPIN : Glyphs.PIN, night);
+                pin.setContentDescription(onTop ? LET_GO : KEEP_ON_TOP);
+            }
+        }
+
+        /** One of our glyphs on a button, tinted and sized as ZUI's own buttons are drawn. */
+        private static void glyph(ImageView button, int which, boolean night) {
+            Drawable glyph = Glyphs.of(which);
+            if (glyph == null) {
+                return;
+            }
+            glyph.setTint(night ? GLYPH_DARK : GLYPH_LIGHT);
+            // Our glyphs have no size of their own: ZUI's buttons' drawn size.
+            LayerDrawable sized = new LayerDrawable(new Drawable[]{glyph});
+            int px = Ui.dp(button.getContext(), GLYPH_DP);
+            sized.setLayerSize(0, px, px);
+            button.setImageDrawable(sized);
         }
     }
 }

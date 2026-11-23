@@ -596,6 +596,9 @@ public final class TaskbarTray {
         private final TextView mTemps;
         private final TextView mClock;
         private final TextView mDate;
+        /** The keyboard's language: shown with two or more, as DeX's taskbar has it. */
+        private final TextView mLanguage;
+        private android.database.ContentObserver mLanguageWatch;
         private final ImageView mScreenshot;
         private final ImageView mBell;
         private final ImageView mPanelButton;
@@ -655,28 +658,36 @@ public final class TaskbarTray {
             nlp.leftMargin = Ui.dp(ctx, 8);
             addView(mNetIcon, nlp);
 
-            mBatteryIcon = new ImageView(ctx);
-            LayoutParams blp = new LayoutParams(icon, icon);
-            blp.leftMargin = Ui.dp(ctx, 10);
-            addView(mBatteryIcon, blp);
+            // The keyboard's language, as DeX has it, where the battery was: the battery is the
+            // clock's third row now.
+            mLanguage = label(ctx, 12f);
+            mLanguage.setGravity(Gravity.CENTER);
+            mLanguage.setPadding(Ui.dp(ctx, 6), 0, Ui.dp(ctx, 6), 0);
+            mLanguage.setBackground(Ui.ripple(ctx, 0x00000000, Ui.dp(ctx, 10)));
+            mLanguage.setVisibility(GONE);
+            mLanguage.setOnClickListener(v -> KeyboardLanguage.next(getContext(), mDisplayId));
+            mLanguage.setOnLongClickListener(this::languageMenu);
+            mLanguage.setOnTouchListener((v, e) -> secondary(e) && languageMenu(v));
+            LayoutParams langlp = new LayoutParams(LayoutParams.WRAP_CONTENT,
+                    LayoutParams.MATCH_PARENT);
+            langlp.leftMargin = Ui.dp(ctx, 6);
+            addView(mLanguage, langlp);
 
+            LinearLayout batteryRow = new LinearLayout(ctx);
+            batteryRow.setOrientation(HORIZONTAL);
+            batteryRow.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+            int small = Ui.dp(ctx, 14);
+            mBatteryIcon = new ImageView(ctx);
+            batteryRow.addView(mBatteryIcon, new LayoutParams(small, small));
             mBatteryText = label(ctx, 11f);
-            LayoutParams tlp = new LayoutParams(LayoutParams.WRAP_CONTENT,
-                    LayoutParams.WRAP_CONTENT);
+            mBatteryText.setIncludeFontPadding(false);
+            LayoutParams tlp = new LayoutParams(LayoutParams.WRAP_CONTENT, small);
             tlp.leftMargin = Ui.dp(ctx, 3);
-            addView(mBatteryText, tlp);
+            batteryRow.addView(mBatteryText, tlp);
             // Hold or right-click the battery for bypass charging, as ZUI's Game Assistant offers.
             for (View battery : new View[]{mBatteryIcon, mBatteryText}) {
                 battery.setOnLongClickListener(this::batteryMenu);
-                battery.setOnTouchListener((v, e) -> {
-                    if (e.getActionMasked() == android.view.MotionEvent.ACTION_DOWN
-                            && e.isFromSource(android.view.InputDevice.SOURCE_MOUSE)
-                            && (e.getButtonState()
-                            & android.view.MotionEvent.BUTTON_SECONDARY) != 0) {
-                        return batteryMenu(v);
-                    }
-                    return false;
-                });
+                battery.setOnTouchListener((v, e) -> secondary(e) && batteryMenu(v));
             }
 
             // One sensor a line, three rows in the room of one: its size is fitted to the bar
@@ -691,9 +702,9 @@ public final class TaskbarTray {
             templp.leftMargin = Ui.dp(ctx, 10);
             addView(mTemps, templp);
 
-            // The time above the date, as DeX has them: the room of one, not of both side by
-            // side. Each is half the row's height, so its tap and its ripple fill that half, and
-            // the two meet in the middle of the row.
+            // The time, the date and the battery, one above another as DeX has the first two:
+            // the room of one. Each is a third of the row's height, so its tap and its ripple
+            // fill that third, and the three meet in the middle of the row.
             LinearLayout when = new LinearLayout(ctx);
             when.setOrientation(VERTICAL);
             mClock = label(ctx, 12f);
@@ -705,11 +716,13 @@ public final class TaskbarTray {
             when.addView(mClock, new LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
             mDate = label(ctx, 11f);
             mDate.setIncludeFontPadding(false);
-            mDate.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-            mDate.setPadding(Ui.dp(ctx, 6), Ui.dp(ctx, 1), Ui.dp(ctx, 6), 0);
+            mDate.setGravity(Gravity.CENTER);
+            mDate.setPadding(Ui.dp(ctx, 6), 0, Ui.dp(ctx, 6), 0);
             mDate.setBackground(Ui.ripple(ctx, 0x00000000, Ui.dp(ctx, 10)));
             mDate.setOnClickListener(v -> Shortcuts.openCalendar(getContext(), mDisplayId));
             when.addView(mDate, new LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
+            batteryRow.setPadding(0, Ui.dp(ctx, 1), 0, 0);
+            when.addView(batteryRow, new LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
             LayoutParams wlp = new LayoutParams(LayoutParams.WRAP_CONTENT,
                     LayoutParams.MATCH_PARENT);
             wlp.leftMargin = Ui.dp(ctx, 6);
@@ -810,7 +823,82 @@ public final class TaskbarTray {
             } catch (Throwable t) {
                 L.e("tray: no system state", t);
             }
+            watchLanguage();
             render();
+        }
+
+        /** The language button follows Android's own settings while the tray is on screen. */
+        private void watchLanguage() {
+            try {
+                if (!Cfg.trayLanguage()) {
+                    mLanguage.setVisibility(GONE);
+                    return;
+                }
+                if (mLanguageWatch == null) {
+                    mLanguageWatch = KeyboardLanguage.watch(getContext(), this::renderLanguage);
+                }
+                renderLanguage();
+            } catch (Throwable t) {
+                L.d("tray: the keyboard's language not followed (" + t + ")");
+            }
+        }
+
+        /** The current language's code, with two or more; gone with one or none. */
+        private void renderLanguage() {
+            try {
+                KeyboardLanguage.State state = KeyboardLanguage.read(getContext());
+                boolean shown = Cfg.trayLanguage() && state != null
+                        && state.languages.size() > 1 && state.current != null;
+                if (shown) {
+                    String code = KeyboardLanguage.code(state.current);
+                    if (!code.contentEquals(mLanguage.getText())) {
+                        mLanguage.setText(code);
+                    }
+                    mLanguage.setContentDescription("Keyboard language: "
+                            + KeyboardLanguage.name(getContext(), state, state.current));
+                }
+                int visibility = shown ? VISIBLE : GONE;
+                if (mLanguage.getVisibility() != visibility) {
+                    mLanguage.setVisibility(visibility);
+                }
+            } catch (Throwable t) {
+                L.d("tray: the keyboard's language not read (" + t + ")");
+            }
+        }
+
+        /** The keyboard's languages to pick from, the one on marked, and its settings. */
+        private boolean languageMenu(View anchor) {
+            try {
+                Context ctx = getContext();
+                KeyboardLanguage.State state = KeyboardLanguage.read(ctx);
+                java.util.List<TaskbarMenu.Entry> entries = new java.util.ArrayList<>();
+                if (state != null && com.zuxos.desktopplus.core.KeyboardWire.HELIBOARD
+                        .equals(state.pkg)) {
+                    for (android.view.inputmethod.InputMethodSubtype language
+                            : state.languages) {
+                        boolean on = language.equals(state.current);
+                        entries.add(new TaskbarMenu.Entry((on ? "\u2713  " : "")
+                                + KeyboardLanguage.name(ctx, state, language),
+                                () -> KeyboardLanguage.pick(ctx, language)));
+                    }
+                }
+                entries.add(new TaskbarMenu.Entry("Keyboard settings",
+                        () -> KeyboardLanguage.settings(ctx, mDisplayId)));
+                int[] at = new int[2];
+                anchor.getLocationOnScreen(at);
+                return TaskbarMenu.showEntries(anchor, mDisplayId,
+                        at[0] + anchor.getWidth() / 2f, entries);
+            } catch (Throwable t) {
+                L.e("tray: keyboard language menu failed", t);
+                return false;
+            }
+        }
+
+        /** A mouse's right button going down: a menu, as a hold would give. */
+        private static boolean secondary(android.view.MotionEvent e) {
+            return e.getActionMasked() == android.view.MotionEvent.ACTION_DOWN
+                    && e.isFromSource(android.view.InputDevice.SOURCE_MOUSE)
+                    && (e.getButtonState() & android.view.MotionEvent.BUTTON_SECONDARY) != 0;
         }
 
         /** Shown or hidden: the window, this view, or anything holding it. */
@@ -854,6 +942,8 @@ public final class TaskbarTray {
         protected void onDetachedFromWindow() {
             super.onDetachedFromWindow();
             removeCallbacks(mTick);
+            KeyboardLanguage.unwatch(getContext(), mLanguageWatch);
+            mLanguageWatch = null;
             if (mState != null) {
                 mState.watchTemps(this, false);
                 mState.removeListener(mOnChanged);
@@ -888,12 +978,13 @@ public final class TaskbarTray {
             Context ctx = getContext();
             setBackground(retro ? Bevel.shallow(ctx) : null);
             Theme theme = retro ? Theme.RETRO : Theme.GLASS;
-            for (TextView label : new TextView[]{mBatteryText, mTemps, mClock, mDate}) {
+            for (TextView label : new TextView[]{mBatteryText, mTemps, mClock, mDate, mLanguage}) {
                 theme.dress(label);
             }
             // Windows 98's tray has no round light under what is pressed.
             mDate.setBackground(retro ? null : Ui.ripple(ctx, 0x00000000, Ui.dp(ctx, 10)));
             mClock.setBackground(retro ? null : Ui.ripple(ctx, 0x00000000, Ui.dp(ctx, 10)));
+            mLanguage.setBackground(retro ? null : Ui.ripple(ctx, 0x00000000, Ui.dp(ctx, 10)));
             for (ImageView button : new ImageView[]{mScreenshot, mBell, mPanelButton}) {
                 button.setBackground(retro ? null : Ui.ripple(ctx, 0x00000000, Ui.dp(ctx, 14)));
             }
@@ -913,6 +1004,7 @@ public final class TaskbarTray {
                 mBatteryText.setTextColor(color);
                 mClock.setTextColor(color);
                 mDate.setTextColor(color);
+                mLanguage.setTextColor(color);
                 mTemps.setTextColor(mRetro ? Theme.RETRO.dimText() : dimTextColor());
                 mScreenshot.setImageDrawable(TrayIcons.screenshot(color));
                 mPanelButton.setImageDrawable(TrayIcons.panelChevron(color));

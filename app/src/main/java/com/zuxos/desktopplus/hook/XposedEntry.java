@@ -21,6 +21,7 @@ import com.zuxos.desktopplus.hook.home.LoaderWait;
 import com.zuxos.desktopplus.hook.home.PinRequestHooks;
 import com.zuxos.desktopplus.hook.home.SettingsRestart;
 import com.zuxos.desktopplus.hook.home.StockUnlockHooks;
+import com.zuxos.desktopplus.hook.keyboard.HeliLanguage;
 import com.zuxos.desktopplus.hook.keyboard.HeliPad;
 import com.zuxos.desktopplus.hook.keyboard.HeliWindow;
 import com.zuxos.desktopplus.hook.recents.RecentsRoute;
@@ -112,7 +113,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
             }
             if (HELIBOARD.equals(lpparam.packageName)) {
                 // HeliBoard, the owner's keyboard - ticked in LSPosed: the controller on its keys,
-                // and its window above the taskbar.
+                // its window above the taskbar, and its language changed from the tray.
                 Cfg.reload();
                 if (HELIBOARD.equals(lpparam.processName) && Cfg.enabled()) {
                     if (Cfg.gamepadKeyboard()) {
@@ -120,6 +121,9 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     }
                     if (Cfg.barClearance()) {
                         HeliWindow.install(lpparam.classLoader);
+                    }
+                    if (Cfg.trayLanguage()) {
+                        HeliLanguage.install(lpparam.classLoader);
                     }
                 }
                 return;

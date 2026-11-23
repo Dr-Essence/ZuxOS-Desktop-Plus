@@ -225,16 +225,7 @@ final class FullScreenWindows {
     /** Each window whose state changed laid out again, as ZUI does: its title bar follows. */
     private static void relayout(Set<Integer> changed) {
         try {
-            Class<?> observer = sLoader == null ? null
-                    : Reflect.findClass(SysUiNames.OV_CAPTION_BAR_OBSERVER, sLoader);
-            Object instance = null;
-            if (observer != null) {
-                java.lang.reflect.Field field = observer.getDeclaredField(SysUiNames.M_INSTANCE);
-                field.setAccessible(true);
-                instance = field.get(null);
-            }
-            Object model = Reflect.field(instance,
-                    SysUiNames.M_DESKTOP_MODE_WINDOW_DECOR_VIEW_MODEL);
+            Object model = ShellModel.get(sLoader);
             Object decorations = Reflect.field(model, SysUiNames.M_WINDOW_DECOR_BY_TASK_ID);
             if (!(decorations instanceof SparseArray)) {
                 L.d("full screen windows: the title bars not found, they follow at their next"

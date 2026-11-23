@@ -99,6 +99,14 @@ final class SysUiNames {
     static final String WINDOW_CONFIGURATION = "windowConfiguration";
     static final String GET_BOUNDS = "getBounds";
     static final String GET_WINDOWING_MODE = "getWindowingMode";
+    /** {@code WindowConfiguration}'s: whether the window is kept above all others. */
+    static final String IS_ALWAYS_ON_TOP = "isAlwaysOnTop";
+    /** {@code TaskInfo}'s: the task's own window container, what a transaction acts on. */
+    static final String TOKEN = "token";
+    /** The shell's own change of windows, and how it is applied. */
+    static final String WINDOW_CONTAINER_TRANSACTION = "android.window.WindowContainerTransaction";
+    static final String SET_ALWAYS_ON_TOP = "setAlwaysOnTop";
+    static final String APPLY_TRANSACTION = "applyTransaction";
 
     // The monitor's title bar (ZUI's pill), and the "…" menu items its buttons are.
     static final String OV_DESKTOP_MODE_WINDOW_DECORATION_VIEW_HOLDER =
