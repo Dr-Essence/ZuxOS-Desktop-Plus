@@ -608,7 +608,8 @@ final class TaskbarFollow {
         return null;
     }
 
-    private static boolean keyboardUp(View view) {
+    /** Whether a keyboard is up on this bar's screen, by the bar window's own insets. */
+    static boolean keyboardUp(View view) {
         android.view.WindowInsets insets = view.getRootWindowInsets();
         return insets != null && insets.isVisible(android.view.WindowInsets.Type.ime());
     }

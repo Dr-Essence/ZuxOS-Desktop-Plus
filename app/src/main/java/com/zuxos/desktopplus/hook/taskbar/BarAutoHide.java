@@ -309,6 +309,7 @@ final class BarAutoHide {
         bar.engaged = true;
         bar.revealed = false;
         bar.hovered = false;
+        bar.keyboardRoom = false;
         bar.baseline.clear();
         for (View root : shownWindows(display, layer.getRootView())) {
             bar.baseline.put(root, Boolean.TRUE);
@@ -333,6 +334,7 @@ final class BarAutoHide {
             layer.removeView(bar.catcher);
         }
         bar.catcher = null;
+        bar.keyboardRoom = false;
         gameMode(layer, false);
         slide(bar, layer, 0f);
         layer.requestLayout();
@@ -366,6 +368,16 @@ final class BarAutoHide {
         bar.revealed = true;
         bar.hovered = byPointer;
         keepOnTop(bar, layer);
+        if (TaskbarFollow.keyboardUp(layer)) {
+            // The keyboard lies at the bottom while the bar reports 1 px; the bar coming over it
+            // takes its room back for as long as it shows, so the keyboard, which ends at the
+            // bar, moves up above it at once.
+            bar.keyboardRoom = true;
+            gameMode(layer, false);
+            if (L.once("BarAutoHide.keyboard")) {
+                L.i("bar auto-hide: the keyboard is up - the bar takes its room while it shows");
+            }
+        }
         slide(bar, layer, 0f);
         layer.requestLayout();
         // A change the task events missed - the window floated by its own button - is caught as
@@ -386,6 +398,10 @@ final class BarAutoHide {
         }
         bar.held = null;
         bar.revealed = false;
+        if (bar.keyboardRoom) {
+            bar.keyboardRoom = false;
+            gameMode(layer, true);
+        }
         slide(bar, layer, away(layer));
         layer.requestLayout();
     }
@@ -643,6 +659,8 @@ final class BarAutoHide {
         boolean hovered;
         String held;
         View catcher;
+        /** Whether game mode is off while the bar shows, for a keyboard that was up. */
+        boolean keyboardRoom;
         /** The windows showing when it went: always there, so they hold nothing up. */
         final Map<View, Boolean> baseline = new WeakHashMap<>();
         final Runnable dwell = () -> safely(() -> reveal(this, true));

@@ -82,8 +82,8 @@ final class SysUiNames {
     /** The parts of a title bar that keep their touches over an app's own header. */
     static final String M_OCCLUDING_CAPTION_ELEMENTS = "mOccludingCaptionElements";
     static final String M_LIMIT_TOUCH_REGION_TO_SYSTEM_AREAS = "mLimitTouchRegionToSystemAreas";
-    /** ZUI's own keeping of an app below its title bar: the task's app bounds start under it. */
-    static final String M_SHOULD_SET_APP_BOUNDS = "mShouldSetAppBounds";
+    /** The title bar's inset source's flags; ZUI's keeping of an app below it is one of them. */
+    static final String M_INSET_SOURCE_FLAGS = "mInsetSourceFlags";
     /** {@code TaskDescription}'s: what the app asks of its bars, a see-through title bar too. */
     static final String GET_TOP_OPAQUE_SYSTEM_BARS_APPEARANCE = "getTopOpaqueSystemBarsAppearance";
     /** {@code TaskInfo}'s: the window in front with the focus. */

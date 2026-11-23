@@ -294,6 +294,35 @@ public final class TaskbarPreview {
         }
     }
 
+    /**
+     * The preview out from under the keyboard. The keyboard's window is above every overlay,
+     * and with an app's keyboard up it sits just over the bar, where the preview opens; the
+     * preview's own insets say how much of it the keyboard covers. It moves up by that, never
+     * above {@code top} and never back down: it is only up for a moment.
+     */
+    private static void clearKeyboard(View root, WindowManager.LayoutParams lp,
+            android.view.WindowInsets insets, int top) {
+        try {
+            int ime = android.view.WindowInsets.Type.ime();
+            boolean up = insets.isVisible(ime);
+            int covered = up ? insets.getInsets(ime).bottom : 0;
+            if (L.once("TaskbarPreview.keyboard." + up)) {
+                L.i("taskbar preview: told the keyboard is " + (up ? "up, over " + covered
+                        + " px of it" : "down"));
+            }
+            if (covered <= 0 || root != sRoot || sWm == null) {
+                return;
+            }
+            int y = Math.max(top, lp.y - covered - Ui.dp(root.getContext(), 8));
+            if (y < lp.y) {
+                lp.y = y;
+                sWm.updateViewLayout(root, lp);
+            }
+        } catch (Throwable t) {
+            L.d("taskbar preview: left where it is (" + t + ")");
+        }
+    }
+
     /** One window of the app, as a tile. */
     private static final class Tile {
         int taskId;
@@ -446,6 +475,13 @@ public final class TaskbarPreview {
         // screen can show.
         FrameRate.forWindow(lp, wm.getDefaultDisplay());
         FrameRate.forView(root);
+        int top = below ? bar.top + Ui.dp(ctx, 8) : edge;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            root.setOnApplyWindowInsetsListener((v, insets) -> {
+                clearKeyboard(v, lp, insets, top);
+                return insets;
+            });
+        }
         wm.addView(root, lp);
         sRoot = root;
         sWm = wm;

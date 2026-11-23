@@ -60,6 +60,12 @@ public final class WindowButtons {
 
     private static final int FREEFORM = 5;
     private static final int FULLSCREEN = 1;
+    /**
+     * {@code InsetsSource.FLAG_FORCE_CONSUMING}: the title bar's room is taken out of the app's
+     * window even where the app draws edge to edge. ZUI sets it for every app that does not ask
+     * for a see-through bar ({@code DesktopModeWindowDecoration.updateRelayoutParams}).
+     */
+    private static final int FLAG_FORCE_CONSUMING = 1 << 2;
     private static final float BUTTON_DP = 36f;
     /** ZUI's button colours, from its {@code zui_desktopmode_normal_*} and {@code _dark_*}. */
     private static final int GLYPH_LIGHT = 0xFF191919;
@@ -206,9 +212,9 @@ public final class WindowButtons {
         }
         boolean night = night(caption.getContext());
         row.show(wanted, mode == FREEFORM, night, task.taskId, displayOf(task));
-        if (wanted && solid(task, mode)) {
-            // ZUI clears a maximised window's bar; over a full-screen app, or with the app kept
-            // below it, nothing would show through but the app's header or an empty space.
+        if (wanted && solid(task)) {
+            // ZUI clears a maximised window's bar; over a full-screen app's header nothing would
+            // show through but the header itself.
             int colour = barColour(caption.getContext(), night,
                     FullScreenWindows.revealed(task.taskId)
                             || Boolean.TRUE.equals(Reflect.field(task, SysUiNames.IS_FOCUSED)));
@@ -343,12 +349,13 @@ public final class WindowButtons {
     }
 
     /**
-     * Whether a bar is ZUI's solid one: shown from the top edge over a full-screen app, or a
-     * maximised window's whose app is kept below it ({@link #ownHeader}).
+     * Whether a bar is ZUI's solid one, all of it the bar's: shown from the top edge over a
+     * full-screen app. A maximised window's stays see-through, with only its buttons taking
+     * touches: whether its app is laid out below it is up to the system ({@link Room#make}), and
+     * a solid bar over an app that is not hid its tabs and took their clicks.
      */
-    private static boolean solid(ActivityManager.RunningTaskInfo task, int mode) {
-        return FullScreenWindows.revealed(task.taskId)
-                || (mode == FULLSCREEN && !FullScreenWindows.has(task.taskId) && ownHeader(task));
+    private static boolean solid(ActivityManager.RunningTaskInfo task) {
+        return FullScreenWindows.revealed(task.taskId);
     }
 
     /**
@@ -478,7 +485,7 @@ public final class WindowButtons {
         private final Field mElementAlignment;
         private final Object mCustomize;
         private final Field mLimitTouch;
-        private final Field mAppBelow;
+        private final Field mInsetFlags;
         private int mPill;
         private Object mUnsafe;
         private Method mAllocate;
@@ -496,7 +503,7 @@ public final class WindowButtons {
                 mNewElement.setAccessible(true);
             }
             mLimitTouch = params.getField(SysUiNames.M_LIMIT_TOUCH_REGION_TO_SYSTEM_AREAS);
-            mAppBelow = params.getField(SysUiNames.M_SHOULD_SET_APP_BOUNDS);
+            mInsetFlags = params.getField(SysUiNames.M_INSET_SOURCE_FLAGS);
             mElementRect = element.getField(SysUiNames.M_RECT);
             mElementAlignment = element.getField(SysUiNames.M_ALIGNMENT);
             mCustomize = alignment.getField(SysUiNames.CUSTOMIZE).get(null);
@@ -520,16 +527,18 @@ public final class WindowButtons {
             if (bounds == null || height <= 0) {
                 return;
             }
-            if (solid(task, mode)) {
+            if (solid(task)) {
                 // All of the bar is the bar's: a press on it never reaches an app's header.
                 mLimitTouch.setBoolean(params, false);
-                if (!FullScreenWindows.revealed(task.taskId)) {
-                    // A maximised app that draws its own header is laid out below the bar, by
-                    // ZUI's own app bounds; a full-screen one's bar from the top stays over it.
-                    mAppBelow.setBoolean(params, true);
-                    if (L.once("WindowButtons.below")) {
-                        L.i("window buttons: an app with its own header kept below its bar");
-                    }
+            } else if (mode == FULLSCREEN && !FullScreenWindows.has(task.taskId)
+                    && ownHeader(task)) {
+                // A maximised app that draws its own header - Chrome's tabs - laid out below the
+                // bar as ZUI lays out every app that does not: the system takes the bar's room
+                // out of the app's window, edge to edge or not.
+                mInsetFlags.setInt(params, mInsetFlags.getInt(params) | FLAG_FORCE_CONSUMING);
+                if (L.once("WindowButtons.below")) {
+                    L.i("window buttons: an app with its own header laid out below its bar (its"
+                            + " room consumed, as ZUI does for other apps)");
                 }
             }
             int end = bounds.width() - cornerPx(ctx);
