@@ -137,9 +137,10 @@ public final class StartAnimation {
         TextView name = new TextView(ctx);
         name.setText("Desktop Mode+");
         name.setTextColor(retro ? Color.WHITE : 0xFFF2F2F2);
-        name.setTextSize(retro ? 22 : 26);
+        // Retro's name in its pixel font at twice its pixel size, Glass's in the system's.
+        name.setTextSize(26);
         name.setLetterSpacing(retro ? 0f : 0.02f);
-        name.setTypeface(theme.font(ctx));
+        theme.dress(name);
         LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         nlp.topMargin = Ui.dp(ctx, 14);

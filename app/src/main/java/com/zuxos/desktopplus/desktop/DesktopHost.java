@@ -681,7 +681,7 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
                 : Glass.pill(mActivity, Ui.dp(mActivity, 20), 0xCCB3261E));
         for (TextView text : new TextView[]{mAppsButton, mTrash, mPrevPage, mNextPage}) {
             text.setTextColor(theme.text());
-            text.setTypeface(retro ? theme.font(mActivity) : null);
+            theme.dress(text);
         }
         for (TextView arrow : new TextView[]{mPrevPage, mNextPage}) {
             arrow.setBackground(retro ? Bevel.button(mActivity) : null);

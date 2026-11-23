@@ -1,9 +1,10 @@
 package com.zuxos.desktopplus.hook.taskbar;
 
 import android.content.Context;
-import android.graphics.Typeface;
+import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -546,6 +547,34 @@ public final class TaskbarTray {
      */
     private static final class TrayView extends LinearLayout {
 
+        /**
+         * The temperatures sized for three rows in the height the bar gives: Glass's at most
+         * {@link #TEMPS_MAX_SP}, Retro's at its font's whole pixels. Set only when it differs, so
+         * a pass that changes nothing asks for no other.
+         */
+        @Override
+        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+            try {
+                int room = MeasureSpec.getSize(heightMeasureSpec) - getPaddingTop()
+                        - getPaddingBottom();
+                if (MeasureSpec.getMode(heightMeasureSpec) != MeasureSpec.UNSPECIFIED
+                        && room > 0) {
+                    Paint.FontMetrics m = mTempsMetrics;
+                    mTemps.getPaint().getFontMetrics(m);
+                    float perPx = (m.descent - m.ascent) / mTemps.getTextSize();
+                    float px = Math.min(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP,
+                            TEMPS_MAX_SP, getResources().getDisplayMetrics()), room / (3 * perPx));
+                    px = Theme.of(mDisplayId).textPx(px);
+                    if (px != mTemps.getTextSize()) {
+                        mTemps.setTextSize(TypedValue.COMPLEX_UNIT_PX, px);
+                    }
+                }
+            } catch (Throwable t) {
+                L.d("tray: temperatures left at their size (" + t + ")");
+            }
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        }
+
         /** Night mode switched: its text in the new tone at once, as the marks. */
         @Override
         protected void onConfigurationChanged(android.content.res.Configuration config) {
@@ -553,11 +582,14 @@ public final class TaskbarTray {
             render();
         }
 
+        /** The temperatures' largest size; smaller where three rows would not fit. */
+        private static final float TEMPS_MAX_SP = 10f;
+        /** Read on each measure - the clock's every second - so made once. */
+        private final Paint.FontMetrics mTempsMetrics = new Paint.FontMetrics();
+
         private final int mDisplayId;
         /** Which theme it was last dressed in, once it has been. */
         private Boolean mRetro;
-        /** The labels' own faces, kept while the pixel font stands in for them. */
-        private Typeface[] mOwnFaces;
         private final ImageView mNetIcon;
         private final ImageView mBatteryIcon;
         private final TextView mBatteryText;
@@ -647,7 +679,13 @@ public final class TaskbarTray {
                 });
             }
 
-            mTemps = label(ctx, 11f);
+            // One sensor a line, three rows in the room of one: its size is fitted to the bar
+            // when the bar's height is known, in onMeasure.
+            mTemps = label(ctx, TEMPS_MAX_SP);
+            mTemps.setSingleLine(false);
+            mTemps.setMaxLines(3);
+            mTemps.setIncludeFontPadding(false);
+            mTemps.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
             LayoutParams templp = new LayoutParams(LayoutParams.WRAP_CONTENT,
                     LayoutParams.WRAP_CONTENT);
             templp.leftMargin = Ui.dp(ctx, 10);
@@ -849,15 +887,9 @@ public final class TaskbarTray {
             }
             Context ctx = getContext();
             setBackground(retro ? Bevel.shallow(ctx) : null);
-            TextView[] labels = {mBatteryText, mTemps, mClock, mDate};
-            if (mOwnFaces == null) {
-                mOwnFaces = new Typeface[labels.length];
-                for (int i = 0; i < labels.length; i++) {
-                    mOwnFaces[i] = labels[i].getTypeface();
-                }
-            }
-            for (int i = 0; i < labels.length; i++) {
-                labels[i].setTypeface(retro ? Theme.RETRO.font(ctx) : mOwnFaces[i]);
+            Theme theme = retro ? Theme.RETRO : Theme.GLASS;
+            for (TextView label : new TextView[]{mBatteryText, mTemps, mClock, mDate}) {
+                theme.dress(label);
             }
             // Windows 98's tray has no round light under what is pressed.
             mDate.setBackground(retro ? null : Ui.ripple(ctx, 0x00000000, Ui.dp(ctx, 10)));
@@ -959,7 +991,7 @@ public final class TaskbarTray {
         }
 
         /**
-         * The temperatures, as "CPU 48 GPU 42 BAT 31".
+         * The temperatures, one a line: "CPU 48°", "GPU 42°", "BAT 31".
          *
          * <p>Whatever is unreadable is left out rather than shown as a dash: a sensor the kernel
          * will not let the launcher see is not information the taskbar should spend room on.
@@ -983,7 +1015,7 @@ public final class TaskbarTray {
                 return;
             }
             if (sb.length() > 0) {
-                sb.append("  ");
+                sb.append('\n');
             }
             sb.append(name).append(' ').append(value);
         }

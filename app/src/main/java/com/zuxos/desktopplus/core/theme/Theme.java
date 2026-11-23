@@ -1,9 +1,11 @@
 package com.zuxos.desktopplus.core.theme;
 
 import android.content.Context;
+import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.util.TypedValue;
 import android.view.Display;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,6 +14,9 @@ import android.widget.TextView;
 import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.Ui;
 import com.zuxos.desktopplus.logic.BevelMath;
+
+import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * The one place a surface asks how to paint itself, for the display it is on.
@@ -38,6 +43,9 @@ public final class Theme {
     /** Retro's text - black, on the grey face - and its quieter text. */
     private static final int RETRO_TEXT = BevelMath.textOn(BevelMath.FACE);
     private static final int RETRO_DIM_TEXT = 0xFF404040;
+
+    /** Each text's own face, size and paint flags while Retro's font stands in. Main thread. */
+    private static final Map<TextView, Object[]> OWN = new WeakHashMap<>();
 
     private final boolean mRetro;
 
@@ -93,22 +101,65 @@ public final class Theme {
         return mRetro ? PixelFont.get(ctx) : null;
     }
 
-    /** Every text under {@code root} in this theme's font. Nothing for Glass. */
+    /**
+     * A size for text drawn in this theme: in Retro, the pixel font's whole pixels, so it is
+     * sharp; in Glass, as asked.
+     */
+    public float textPx(float px) {
+        return mRetro ? PixelFont.snap(px) : px;
+    }
+
+    /** How many screen pixels one of the pixel font's pixels takes, at this text size. */
+    public static int fontPixel(float textPx) {
+        return Math.max(1, Math.round(textPx / PixelFont.PIXEL_PX));
+    }
+
+    /**
+     * One text in this theme's font. Retro: the pixel font at its whole pixels and unsmoothed,
+     * so each of its pixels is one of the screen's; the text's own face, size and smoothing are
+     * kept. Glass: those put back, for a text that was Retro's.
+     */
+    public void dress(TextView text) {
+        if (text == null) {
+            return;
+        }
+        if (!mRetro) {
+            Object[] own = OWN.remove(text);
+            if (own != null) {
+                text.setTypeface((Typeface) own[0]);
+                text.setTextSize(TypedValue.COMPLEX_UNIT_PX, (Float) own[1]);
+                text.setPaintFlags((Integer) own[2]);
+            }
+            return;
+        }
+        if (!OWN.containsKey(text)) {
+            OWN.put(text, new Object[]{text.getTypeface(), text.getTextSize(),
+                    text.getPaintFlags()});
+        }
+        text.setTypeface(PixelFont.get(text.getContext()));
+        float px = PixelFont.snap(text.getTextSize());
+        if (px != text.getTextSize()) {
+            text.setTextSize(TypedValue.COMPLEX_UNIT_PX, px);
+        }
+        text.setPaintFlags(text.getPaintFlags()
+                & ~(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG));
+    }
+
+    /** Every text under {@code root} in this theme's font ({@link #dress}). Nothing for Glass. */
     public void applyFont(View root) {
         if (!mRetro || root == null) {
             return;
         }
-        Typeface font = PixelFont.get(root.getContext());
-        apply(root, font);
+        apply(root);
     }
 
-    private static void apply(View view, Typeface font) {
+    private void apply(View view) {
         if (view instanceof TextView) {
-            ((TextView) view).setTypeface(font);
+            dress((TextView) view);
         } else if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
             for (int i = 0; i < group.getChildCount(); i++) {
-                apply(group.getChildAt(i), font);
+                apply(group.getChildAt(i));
             }
         }
     }

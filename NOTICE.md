@@ -37,16 +37,16 @@ The port is a rewrite in Java against this module's constraints (no Kotlin, no m
 inside the hooked process, a captured backdrop rather than a per-frame one), not a copy of the
 library's sources.
 
-## Pixelify Sans
+## W95FA
 
-`app/src/main/assets/fonts/PixelifySans.ttf` is **Pixelify Sans** by Stefie Justprince, the
-Retro theme's pixel font, unmodified, as published in Google Fonts
-(https://github.com/google/fonts/tree/main/ofl/pixelifysans; source
-https://github.com/eifetx/Pixelify-Sans). It is licensed under the SIL Open Font License 1.1:
+`app/src/main/assets/fonts/W95FA.otf` is **W95FA** by Alina Sava (FontsArena.com), the Retro
+theme's font: a redrawing of the pixel shapes of Windows 95's MS Sans Serif, whose own files are
+not included. Source: https://fontsarena.com/w95fa-by-alina-sava/, as published by Fontsource
+(npm `@fontsource/win95fa` 5.3.0, its Latin set), unpacked from WOFF to OpenType with the font's
+data unchanged. The font names its designer, Alina Sava, and its licence, the SIL Open Font
+License 1.1; it gives no copyright line of its own:
 
 ```
-Copyright 2021 The Pixelify Sans Project Authors (https://github.com/eifetx/Pixelify-Sans)
-
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
 https://scripts.sil.org/OFL

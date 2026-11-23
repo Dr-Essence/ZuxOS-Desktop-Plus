@@ -108,9 +108,7 @@ public final class MenuRows {
         // nothing left to work with.
         text.setEllipsize(TextUtils.TruncateAt.END);
         text.setMaxWidth(Ui.dp(ctx, 300));
-        if (theme.retro()) {
-            text.setTypeface(theme.font(ctx));
-        }
+        theme.dress(text);
         row.addView(text, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 

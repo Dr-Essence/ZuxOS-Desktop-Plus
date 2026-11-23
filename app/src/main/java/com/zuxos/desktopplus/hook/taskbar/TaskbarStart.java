@@ -884,13 +884,10 @@ final class TaskbarStart {
             Context ctx = getContext();
             if (mPixelRobot == null) {
                 mPixelRobot = PixelIcons.robot();
-                mLabel = new Paint(Paint.ANTI_ALIAS_FLAG);
+                // Unsmoothed, at the font's whole pixels: as sharp as Windows drew it.
+                mLabel = new Paint();
                 mLabel.setColor(Theme.RETRO.text());
                 mLabel.setTypeface(Theme.RETRO.font(ctx));
-                // Windows 98's label is bold: the font's own bold where it has one.
-                if (!mLabel.setFontVariationSettings("'wght' 700")) {
-                    mLabel.setFakeBoldText(true);
-                }
             }
             Drawable icon = robot ? mPixelRobot : copyOfZuiIcon(zui);
             setImageDrawable(icon != null ? icon : mPixelRobot);
@@ -906,8 +903,14 @@ final class TaskbarStart {
             if (mLabel == null) {
                 return height;
             }
-            mLabel.setTextSize(height * LABEL_SCALE);
-            return height + Math.round(mLabel.measureText(LABEL)) + 2 * retroInset(height);
+            mLabel.setTextSize(Theme.RETRO.textPx(height * LABEL_SCALE));
+            return height + Math.round(mLabel.measureText(LABEL)) + boldPx()
+                    + 2 * retroInset(height);
+        }
+
+        /** How much wider bold makes the label: one of the font's pixels. */
+        private int boldPx() {
+            return Theme.fontPixel(mLabel.getTextSize());
         }
 
         private static int retroInset(int height) {
@@ -944,10 +947,12 @@ final class TaskbarStart {
             canvas.save();
             canvas.translate(shift, shift);
             super.onDraw(canvas);
-            mLabel.setTextSize(height * LABEL_SCALE);
+            mLabel.setTextSize(Theme.RETRO.textPx(height * LABEL_SCALE));
             Paint.FontMetrics m = mLabel.getFontMetrics();
-            float baseline = (height - m.ascent - m.descent) / 2f;
+            float baseline = Math.round((height - m.ascent - m.descent) / 2f);
+            // Windows' bold of its pixel font: every stroke a pixel wider, to the right.
             canvas.drawText(LABEL, height, baseline, mLabel);
+            canvas.drawText(LABEL, height + boldPx(), baseline, mLabel);
             canvas.restore();
         }
 
