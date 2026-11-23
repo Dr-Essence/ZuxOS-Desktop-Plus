@@ -6,6 +6,8 @@ import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.graphics.Rect;
+import android.graphics.Region;
+import android.graphics.RegionIterator;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
 import android.view.Display;
@@ -66,6 +68,8 @@ public final class WindowButtons {
      * for a see-through bar ({@code DesktopModeWindowDecoration.updateRelayoutParams}).
      */
     private static final int FLAG_FORCE_CONSUMING = 1 << 2;
+    /** At most this many parts of an app's header in one trace line. */
+    private static final int TRACE_PARTS = 12;
     private static final float BUTTON_DP = 36f;
     /** ZUI's button colours, from its {@code zui_desktopmode_normal_*} and {@code _dark_*}. */
     private static final int GLYPH_LIGHT = 0xFF191919;
@@ -486,6 +490,8 @@ public final class WindowButtons {
         private final Object mCustomize;
         private final Field mLimitTouch;
         private final Field mInsetFlags;
+        /** The display's exclusion region, for the trace; null where it is not there. */
+        private Field mExclusion;
         private int mPill;
         private Object mUnsafe;
         private Method mAllocate;
@@ -504,6 +510,11 @@ public final class WindowButtons {
             }
             mLimitTouch = params.getField(SysUiNames.M_LIMIT_TOUCH_REGION_TO_SYSTEM_AREAS);
             mInsetFlags = params.getField(SysUiNames.M_INSET_SOURCE_FLAGS);
+            try {
+                mExclusion = params.getField(SysUiNames.M_DISPLAY_EXCLUSION_REGION);
+            } catch (NoSuchFieldException e) {
+                mExclusion = null;
+            }
             mElementRect = element.getField(SysUiNames.M_RECT);
             mElementAlignment = element.getField(SysUiNames.M_ALIGNMENT);
             mCustomize = alignment.getField(SysUiNames.CUSTOMIZE).get(null);
@@ -540,6 +551,7 @@ public final class WindowButtons {
                     L.i("window buttons: an app with its own header laid out below its bar (its"
                             + " room consumed, as ZUI does for other apps)");
                 }
+                traceTouch(params, task, bounds, height);
             }
             int end = bounds.width() - cornerPx(ctx);
             Object element = newElement(params);
@@ -548,6 +560,34 @@ public final class WindowButtons {
             ((List<Object>) mElements.get(params)).add(element);
             if (L.once("WindowButtons.room")) {
                 L.i("window buttons: the buttons keep their touches over an app's own header");
+            }
+        }
+
+        /**
+         * Which parts of a maximised app's own header keep their clicks. ZUI's bar takes every
+         * click on it but where the app said it needs them - the display's exclusion region -
+         * and where our buttons are ({@code WindowDecoration.calculateLimitedTouchableRegion}).
+         * Read only; each new answer for a window said once.
+         */
+        private void traceTouch(Object params, ActivityManager.RunningTaskInfo task, Rect bounds,
+                int height) throws IllegalAccessException {
+            Object kept = mExclusion == null ? null : mExclusion.get(params);
+            if (!(kept instanceof Region)) {
+                return;
+            }
+            Region bar = new Region(bounds.left, bounds.top, bounds.right, bounds.top + height);
+            bar.op((Region) kept, Region.Op.INTERSECT);
+            StringBuilder said = new StringBuilder();
+            RegionIterator parts = new RegionIterator(bar);
+            Rect part = new Rect();
+            for (int n = 0; n < TRACE_PARTS && parts.next(part); n++) {
+                said.append(' ').append(part.toShortString());
+            }
+            String where = said.length() == 0 ? " nowhere" : said.toString();
+            if (L.once("WindowButtons.touch." + task.taskId + where)) {
+                L.i("window buttons: task " + task.taskId + "'s bar " + bounds.width() + "x"
+                        + height + " at x " + bounds.left + " - the app keeps its clicks at"
+                        + where);
             }
         }
 

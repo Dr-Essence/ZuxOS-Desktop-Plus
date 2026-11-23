@@ -374,7 +374,7 @@ final class BarAutoHide {
             // bar, moves up above it at once.
             bar.keyboardRoom = true;
             gameMode(layer, false);
-            if (L.once("BarAutoHide.keyboard")) {
+            if (L.once("BarAutoHide.keyboardRoom")) {
                 L.i("bar auto-hide: the keyboard is up - the bar takes its room while it shows");
             }
         }

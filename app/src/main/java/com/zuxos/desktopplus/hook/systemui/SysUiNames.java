@@ -84,6 +84,8 @@ final class SysUiNames {
     static final String M_LIMIT_TOUCH_REGION_TO_SYSTEM_AREAS = "mLimitTouchRegionToSystemAreas";
     /** The title bar's inset source's flags; ZUI's keeping of an app below it is one of them. */
     static final String M_INSET_SOURCE_FLAGS = "mInsetSourceFlags";
+    /** Where the apps on the display keep their touches: the bar takes every other one. */
+    static final String M_DISPLAY_EXCLUSION_REGION = "mDisplayExclusionRegion";
     /** {@code TaskDescription}'s: what the app asks of its bars, a see-through title bar too. */
     static final String GET_TOP_OPAQUE_SYSTEM_BARS_APPEARANCE = "getTopOpaqueSystemBarsAppearance";
     /** {@code TaskInfo}'s: the window in front with the focus. */
