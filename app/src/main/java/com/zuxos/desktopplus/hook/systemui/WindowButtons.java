@@ -12,6 +12,7 @@ import android.view.Display;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowInsetsController;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 
@@ -205,10 +206,12 @@ public final class WindowButtons {
         }
         boolean night = night(caption.getContext());
         row.show(wanted, mode == FREEFORM, night, task.taskId, displayOf(task));
-        if (wanted && FullScreenWindows.revealed(task.taskId)) {
-            // Shown from the top edge over a full-screen app: ZUI's own focused bar colour,
-            // where ZUI leaves a maximised one's clear, so the app's header does not show through.
-            int colour = barColour(caption.getContext(), night);
+        if (wanted && solid(task, mode)) {
+            // ZUI clears a maximised window's bar; over a full-screen app, or with the app kept
+            // below it, nothing would show through but the app's header or an empty space.
+            int colour = barColour(caption.getContext(), night,
+                    FullScreenWindows.revealed(task.taskId)
+                            || Boolean.TRUE.equals(Reflect.field(task, SysUiNames.IS_FOCUSED)));
             if (colour != 0) {
                 caption.setBackgroundColor(colour);
             }
@@ -339,12 +342,34 @@ public final class WindowButtons {
         return button;
     }
 
-    /** ZUI's focused title bar colour for the shade, by name; 0 when it is not there. */
-    private static int barColour(Context ctx, boolean night) {
-        Resources res = ctx.getResources();
-        int id = res.getIdentifier(night ? SysUiNames.ZUI_DESKTOP_MODE_CAPTION_BAR_DARK_FOCUS
-                : SysUiNames.ZUI_DESKTOP_MODE_CAPTION_BAR_NORMAL_FOCUS, "color",
-                ctx.getPackageName());
+    /**
+     * Whether a bar is ZUI's solid one: shown from the top edge over a full-screen app, or a
+     * maximised window's whose app is kept below it ({@link #ownHeader}).
+     */
+    private static boolean solid(ActivityManager.RunningTaskInfo task, int mode) {
+        return FullScreenWindows.revealed(task.taskId)
+                || (mode == FULLSCREEN && !FullScreenWindows.has(task.taskId) && ownHeader(task));
+    }
+
+    /**
+     * Whether the app asks for a see-through title bar to draw its own header under - Chrome's
+     * tabs, Claude's bar: ZUI's own test ({@code isTransparentCaptionBarAppearance}).
+     */
+    private static boolean ownHeader(ActivityManager.RunningTaskInfo task) {
+        Object appearance = Reflect.call(task.taskDescription,
+                SysUiNames.GET_TOP_OPAQUE_SYSTEM_BARS_APPEARANCE);
+        return appearance instanceof Integer && ((Integer) appearance
+                & WindowInsetsController.APPEARANCE_TRANSPARENT_CAPTION_BAR_BACKGROUND) != 0;
+    }
+
+    /** ZUI's title bar colour for the shade and focus, by name; 0 when it is not there. */
+    private static int barColour(Context ctx, boolean night, boolean focused) {
+        String name = night
+                ? (focused ? SysUiNames.ZUI_DESKTOP_MODE_CAPTION_BAR_DARK_FOCUS
+                        : SysUiNames.ZUI_DESKTOP_MODE_CAPTION_BAR_DARK_NO_FOCUS)
+                : (focused ? SysUiNames.ZUI_DESKTOP_MODE_CAPTION_BAR_NORMAL_FOCUS
+                        : SysUiNames.ZUI_DESKTOP_MODE_CAPTION_BAR_NORMAL_NO_FOCUS);
+        int id = ctx.getResources().getIdentifier(name, "color", ctx.getPackageName());
         return id == 0 ? 0 : ctx.getColor(id);
     }
 
@@ -453,6 +478,7 @@ public final class WindowButtons {
         private final Field mElementAlignment;
         private final Object mCustomize;
         private final Field mLimitTouch;
+        private final Field mAppBelow;
         private int mPill;
         private Object mUnsafe;
         private Method mAllocate;
@@ -470,6 +496,7 @@ public final class WindowButtons {
                 mNewElement.setAccessible(true);
             }
             mLimitTouch = params.getField(SysUiNames.M_LIMIT_TOUCH_REGION_TO_SYSTEM_AREAS);
+            mAppBelow = params.getField(SysUiNames.M_SHOULD_SET_APP_BOUNDS);
             mElementRect = element.getField(SysUiNames.M_RECT);
             mElementAlignment = element.getField(SysUiNames.M_ALIGNMENT);
             mCustomize = alignment.getField(SysUiNames.CUSTOMIZE).get(null);
@@ -493,10 +520,17 @@ public final class WindowButtons {
             if (bounds == null || height <= 0) {
                 return;
             }
-            if (FullScreenWindows.revealed(task.taskId)) {
-                // Shown from the top edge over a full-screen app: solid, and all of it the
-                // bar's, so a press on it never reaches the app's header under it.
+            if (solid(task, mode)) {
+                // All of the bar is the bar's: a press on it never reaches an app's header.
                 mLimitTouch.setBoolean(params, false);
+                if (!FullScreenWindows.revealed(task.taskId)) {
+                    // A maximised app that draws its own header is laid out below the bar, by
+                    // ZUI's own app bounds; a full-screen one's bar from the top stays over it.
+                    mAppBelow.setBoolean(params, true);
+                    if (L.once("WindowButtons.below")) {
+                        L.i("window buttons: an app with its own header kept below its bar");
+                    }
+                }
             }
             int end = bounds.width() - cornerPx(ctx);
             Object element = newElement(params);

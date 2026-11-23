@@ -82,6 +82,12 @@ final class SysUiNames {
     /** The parts of a title bar that keep their touches over an app's own header. */
     static final String M_OCCLUDING_CAPTION_ELEMENTS = "mOccludingCaptionElements";
     static final String M_LIMIT_TOUCH_REGION_TO_SYSTEM_AREAS = "mLimitTouchRegionToSystemAreas";
+    /** ZUI's own keeping of an app below its title bar: the task's app bounds start under it. */
+    static final String M_SHOULD_SET_APP_BOUNDS = "mShouldSetAppBounds";
+    /** {@code TaskDescription}'s: what the app asks of its bars, a see-through title bar too. */
+    static final String GET_TOP_OPAQUE_SYSTEM_BARS_APPEARANCE = "getTopOpaqueSystemBarsAppearance";
+    /** {@code TaskInfo}'s: the window in front with the focus. */
+    static final String IS_FOCUSED = "isFocused";
     static final String OCCLUDING_CAPTION_ELEMENT =
             "com.android.wm.shell.windowdecor.WindowDecoration$RelayoutParams"
                     + "$OccludingCaptionElement";
@@ -115,11 +121,15 @@ final class SysUiNames {
     static final String PICTURE_MAX = "max";
     static final String PICTURE_FREEFORM = "freeform";
     static final String PICTURE_CLOSE = "close";
-    /** ZUI's desktop-mode title bar colours, for a focused window. */
+    /** ZUI's desktop-mode title bar colours, for a window focused or not. */
     static final String ZUI_DESKTOP_MODE_CAPTION_BAR_NORMAL_FOCUS =
             "zui_desktop_mode_caption_bar_normal_focus";
     static final String ZUI_DESKTOP_MODE_CAPTION_BAR_DARK_FOCUS =
             "zui_desktop_mode_caption_bar_dark_focus";
+    static final String ZUI_DESKTOP_MODE_CAPTION_BAR_NORMAL_NO_FOCUS =
+            "zui_desktop_mode_caption_bar_normal_no_focus";
+    static final String ZUI_DESKTOP_MODE_CAPTION_BAR_DARK_NO_FOCUS =
+            "zui_desktop_mode_caption_bar_dark_no_focus";
 
     // The monitor's status bar.
     static final String ZUI_DP_MODE_MANAGER = "com.android.systemui.dpmode.ZuiDpModeManager";

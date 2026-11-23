@@ -335,7 +335,10 @@ What Full screen (0.0.305) stands on. ZUX Home 18.2.0.0375, System UI 16.
   was folded away when SystemUI was compiled, and ZUI's `new` calls `Object.<init>` (0.0.314
   allocates one with `Unsafe.allocateInstance`). The elements are also the title bar's controls
   reported to the app (`WindowInsets.getBoundingRects(captionBar)`), which Chrome keeps its tab
-  strip clear of. ZUI's resize corners reach `ovf_cornerSize_Inner` (22 dp) into a window
+  strip clear of. An app that asks for a see-through title bar still draws under it, inset source
+  or not; ZUI keeps an app out from under its bar with `RelayoutParams.mShouldSetAppBounds`
+  (`WindowDecorationInsets.update` → `setAppBounds`, the bounds starting below the bar; given
+  back in `remove` and `resetAppBoundsIfNeeded`), which 0.0.315 sets for such apps maximised. ZUI's resize corners reach `ovf_cornerSize_Inner` (22 dp) into a window
   (`DragResizeWindowGeometry.OvfTaskCorners`). A hidden title bar comes back with the status bar
   (`DisplayPolicy.onMouseHoverAtTop` → `mOnSwipeFromTop` after 500 ms → `requestTransientBars`),
   which the monitor no longer has.
