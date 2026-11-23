@@ -172,6 +172,8 @@ public final class Const {
     public static final String KEY_WINDOW_PIN = "window_pin";
     /** A button in the monitor's tray that shows and switches the keyboard's language. */
     public static final String KEY_TRAY_LANGUAGE = "tray_language";
+    /** A physical keyboard takes the layout of HeliBoard's language as it changes. */
+    public static final String KEY_KEYBOARD_FOLLOWS = "keyboard_follows";
     /** Apps' windows and the keyboard end at the taskbar, on both screens, while it takes room. */
     public static final String KEY_BAR_CLEARANCE = "bar_clearance";
     /** Full screen on the monitor: no taskbar or title bar until the pointer reaches an edge. */

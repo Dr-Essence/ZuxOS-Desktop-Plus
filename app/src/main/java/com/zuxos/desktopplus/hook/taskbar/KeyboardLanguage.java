@@ -10,8 +10,10 @@ import android.os.Message;
 import android.os.Messenger;
 import android.provider.Settings;
 
+import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.KeyboardWire;
 import com.zuxos.desktopplus.core.L;
+import com.zuxos.desktopplus.hook.system.SystemBridge;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +25,12 @@ import java.util.List;
  * on ZUX Home's Messenger, and again whenever they change. Its own Messenger comes with each
  * answer, so a HeliBoard that dies takes the button with it, and it is asked again the next time
  * the keyboard comes up. Only a keyboard may change its own language, so the tray asks it to;
- * with any other keyboard the button stays away. Main thread only.
+ * with any other keyboard the button stays away.
+ *
+ * <p>A physical keyboard types with Android's own layout for it, which HeliBoard's language never
+ * reaches: as the language on changes, however it was changed, the system is asked to give the
+ * physical keyboards that language's layout ({@link SystemBridge#ACTION_KEYBOARD_LAYOUT}), as
+ * DeX does. Main thread only.
  */
 final class KeyboardLanguage {
 
@@ -32,13 +39,16 @@ final class KeyboardLanguage {
         private final int[] mIds;
         private final String[] mCodes;
         private final String[] mNames;
+        /** Their BCP 47 tags; null from a HeliBoard hook that sends none. */
+        private final String[] mTags;
         /** Where the one on is in the list; -1 when it is none of them. */
         final int current;
 
-        State(int[] ids, String[] codes, String[] names, int on) {
+        State(int[] ids, String[] codes, String[] names, String[] tags, int on) {
             mIds = ids;
             mCodes = codes;
             mNames = names;
+            mTags = tags != null && tags.length == ids.length ? tags : null;
             int at = -1;
             for (int i = 0; i < ids.length; i++) {
                 if (ids[i] == on) {
@@ -63,6 +73,11 @@ final class KeyboardLanguage {
         String name(int i) {
             return mNames[i];
         }
+
+        /** The tag of the language on, or null. */
+        String currentTag() {
+            return mTags != null && current >= 0 ? mTags[current] : null;
+        }
     }
 
     private static final Handler MAIN = new Handler(Looper.getMainLooper(),
@@ -78,6 +93,8 @@ final class KeyboardLanguage {
     /** HeliBoard's own, while it lives and has answered. */
     private static IBinder sHeli;
     private static State sState;
+    /** The language the physical keyboards were last asked to follow. */
+    private static String sFollowed;
 
     private KeyboardLanguage() {
     }
@@ -177,12 +194,14 @@ final class KeyboardLanguage {
             boolean some = ids != null && codes != null && names != null
                     && codes.length == ids.length && names.length == ids.length;
             sState = some ? new State(ids, codes, names,
+                    data.getStringArray(KeyboardWire.KEY_TAGS),
                     data.getInt(KeyboardWire.KEY_CURRENT)) : null;
             if (sState != null && L.once("KeyboardLanguage.heard")) {
                 L.i("keyboard language: HeliBoard has " + sState.count() + " language(s), on now "
                         + (sState.current >= 0 ? sState.code(sState.current) : "none of them"));
             }
             changed();
+            follow();
         } catch (Throwable t) {
             L.d("keyboard language: HeliBoard's answer not read (" + t + ")");
         }
@@ -227,6 +246,21 @@ final class KeyboardLanguage {
         sHeli = null;
         sState = null;
         changed();
+    }
+
+    /** The physical keyboards asked to take the layout of the language on, when it changed. */
+    private static void follow() {
+        String tag = sState != null ? sState.currentTag() : null;
+        if (tag == null || tag.equals(sFollowed) || sApp == null || !Cfg.keyboardFollows()) {
+            return;
+        }
+        try {
+            TaskbarApps.askSystem(sApp, new Intent(SystemBridge.ACTION_KEYBOARD_LAYOUT)
+                    .putExtra(SystemBridge.EXTRA_LANGUAGE, tag));
+            sFollowed = tag;
+        } catch (Throwable t) {
+            L.d("keyboard language: the system not asked for the physical layout (" + t + ")");
+        }
     }
 
     private static void changed() {

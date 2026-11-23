@@ -775,11 +775,8 @@ public final class TaskbarApps {
         // Not ours to reorder: the system half does it, if System Framework is ticked.
         int taskId = task.taskId;
         try {
-            Intent intent = new Intent(SystemBridge.ACTION_MINIMIZE).setPackage("android")
-                    .putExtra(SystemBridge.EXTRA_TASK, taskId);
-            android.app.BroadcastOptions options = android.app.BroadcastOptions.makeBasic();
-            options.setShareIdentityEnabled(true);
-            ctx.sendBroadcast(intent, null, options.toBundle());
+            askSystem(ctx, new Intent(SystemBridge.ACTION_MINIMIZE)
+                    .putExtra(SystemBridge.EXTRA_TASK, taskId));
         } catch (Throwable t) {
             L.d("taskbar apps: could not ask the system to minimise (" + t + ")");
         }
@@ -963,11 +960,8 @@ public final class TaskbarApps {
                     + (t.getCause() != null ? t.getCause() : t) + "); asking the system");
         }
         try {
-            Intent intent = new Intent(SystemBridge.ACTION_CLOSE_TASK).setPackage("android")
-                    .putExtra(SystemBridge.EXTRA_TASK, task);
-            android.app.BroadcastOptions options = android.app.BroadcastOptions.makeBasic();
-            options.setShareIdentityEnabled(true);
-            ctx.sendBroadcast(intent, null, options.toBundle());
+            askSystem(ctx, new Intent(SystemBridge.ACTION_CLOSE_TASK)
+                    .putExtra(SystemBridge.EXTRA_TASK, task));
             L.i("taskbar apps: asked the system to close window " + task + " of " + pkg);
         } catch (Throwable t) {
             L.e("taskbar apps: could not close window " + task + " of " + pkg, t);
@@ -985,4 +979,13 @@ public final class TaskbarApps {
         }
     }
 
+    /**
+     * The system half asked to do what the launcher may not ({@code SystemBridge}), with the
+     * launcher's identity shared so the system can tell who is asking.
+     */
+    static void askSystem(Context ctx, Intent intent) {
+        android.app.BroadcastOptions options = android.app.BroadcastOptions.makeBasic();
+        options.setShareIdentityEnabled(true);
+        ctx.sendBroadcast(intent.setPackage("android"), null, options.toBundle());
+    }
 }

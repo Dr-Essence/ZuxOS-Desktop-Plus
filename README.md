@@ -272,7 +272,8 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
 - **Scrolling.** With more apps than room, the row scrolls and its ends fade.
 - **A status tray:** network, HeliBoard's language as on DeX (a click for the next one, hold
   or right-click for the list; with two languages or more, told by HeliBoard itself, so HeliBoard
-  must be ticked in LSPosed), the temperatures in three rows, and the time, the date and the
+  must be ticked in LSPosed; a physical keyboard follows it to that language's layout, which needs
+  System Framework ticked), the temperatures in three rows, and the time, the date and the
   battery in three rows, with a quick panel behind it for toggles, media and notifications.
 - **On the monitor, the start button sits at the left end** (as far in as the tray is from the
   right end), with the navigation keys right after it.

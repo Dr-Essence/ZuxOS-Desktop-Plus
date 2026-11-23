@@ -167,6 +167,10 @@ public class MainActivity extends Activity {
                 "In the tray, as on DeX: HeliBoard's language, a click for the next one, "
                         + "hold or right-click for the list. With two languages or more",
                 Const.KEY_TRAY_LANGUAGE, true);
+        addSwitch("Physical keyboard follows HeliBoard",
+                "A keyboard plugged into the tablet switches to the layout of HeliBoard's "
+                        + "language (Greek, English...), with Android's own keyboard layouts",
+                Const.KEY_KEYBOARD_FOLLOWS, true);
         addSwitch("Edit the quick panel's tiles",
                 "Hold a tile, or press Edit at the top of the panel, to take tiles off, put "
                         + "them back and drag them into your own order",

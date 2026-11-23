@@ -135,7 +135,7 @@ public final class RoadmapProbe {
             done | head -20
             echo "ZUI's touchpad on the tablet: $(dumpsys activity activities 2>/dev/null | grep -c 'touchpad.TouchPadActivity') record(s)"
             echo "--- the kernel's last lines on USB and input (a mouse that stops sending)"
-            dmesg 2>/dev/null | grep -i -E 'usb|hid|input' | tail -40
+            dmesg 2>/dev/null | grep -v BATTERY_CHG | grep -i -E 'usb [0-9]|hid|input:|xhci' | tail -40
             echo "--- resource overlays on SystemUI (#10 window looks, #16)"
             cmd overlay list com.android.systemui 2>/dev/null | head -30
             echo "fabricated overlays offered: $(cmd overlay help 2>/dev/null | grep -c fabricate)"

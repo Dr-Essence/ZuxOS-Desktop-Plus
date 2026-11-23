@@ -409,6 +409,10 @@ public final class Cfg {
         return getBool(Const.KEY_TRAY_LANGUAGE, true);
     }
 
+    public static boolean keyboardFollows() {
+        return getBool(Const.KEY_KEYBOARD_FOLLOWS, true);
+    }
+
     /** Apps' windows and the keyboard end at the taskbar, never under it, while it takes room. */
     public static boolean barClearance() {
         return getBool(Const.KEY_BAR_CLEARANCE, true);

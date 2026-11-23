@@ -281,16 +281,19 @@ public final class HeliLanguage {
                 int[] ids = new int[languages.size()];
                 String[] codes = new String[ids.length];
                 String[] names = new String[ids.length];
+                String[] tags = new String[ids.length];
                 for (int i = 0; i < ids.length; i++) {
                     InputMethodSubtype language = (InputMethodSubtype) languages.get(i);
                     ids[i] = language.hashCode();
                     codes[i] = code(language);
                     names[i] = name(language);
+                    tags[i] = tag(language);
                 }
                 Object current = current();
                 state.putIntArray(KeyboardWire.KEY_IDS, ids);
                 state.putStringArray(KeyboardWire.KEY_CODES, codes);
                 state.putStringArray(KeyboardWire.KEY_NAMES, names);
+                state.putStringArray(KeyboardWire.KEY_TAGS, tags);
                 state.putInt(KeyboardWire.KEY_CURRENT, current != null ? current.hashCode() : 0);
                 count = ids.length;
             }
@@ -324,6 +327,13 @@ public final class HeliLanguage {
     /** The language on, as Android's subtype. */
     private static Object current() throws Exception {
         return sRaw.get(sCurrent.invoke(sManager.get(null)));
+    }
+
+    /** The language's BCP 47 tag: its own, or its older locale string made into one. */
+    @SuppressWarnings("deprecation")
+    private static String tag(InputMethodSubtype language) {
+        String tag = language.getLanguageTag();
+        return tag != null && !tag.isEmpty() ? tag : language.getLocale().replace('_', '-');
     }
 
     @SuppressWarnings("deprecation")

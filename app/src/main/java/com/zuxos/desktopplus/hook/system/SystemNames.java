@@ -124,8 +124,23 @@ final class SystemNames {
     /** The native input system, and its own account of itself - what dumpsys input prints. */
     static final String M_NATIVE = "mNative";
     static final String DUMP = "dump";
+    /**
+     * A physical keyboard's layout, Android's own: the input manager as a service, its list of
+     * layouts, and the layout a keyboard is given over its own choice.
+     */
+    static final String SERVICE_MANAGER = "android.os.ServiceManager";
+    static final String INPUT_SERVICE = "input";
+    static final String GET_KEYBOARD_LAYOUTS = "getKeyboardLayouts";
+    static final String SET_KEYBOARD_LAYOUT_OVERRIDE_FOR_INPUT_DEVICE =
+            "setKeyboardLayoutOverrideForInputDevice";
+    /** {@code KeyboardLayout}'s. */
+    static final String GET_DESCRIPTOR = "getDescriptor";
+    static final String GET_LABEL = "getLabel";
+    static final String GET_LOCALES = "getLocales";
+    static final String GET_LAYOUT_TYPE = "getLayoutType";
     /** {@code InputDevice}'s. */
     static final String GET_BLUETOOTH_ADDRESS = "getBluetoothAddress";
+    static final String GET_IDENTIFIER = "getIdentifier";
     /** {@code DisplayViewport}'s. */
     static final String UNIQUE_ID = "uniqueId";
     static final String TYPE = "type";
