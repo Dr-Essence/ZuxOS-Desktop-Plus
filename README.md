@@ -270,8 +270,10 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   green Android head as a start logo (optional). It is ZUI's own button, moved, so it opens ZUI's drawer as
   before.
 - **Scrolling.** With more apps than room, the row scrolls and its ends fade.
-- **A status tray:** network, battery, temperatures and a clock, with a quick panel behind it for
-  toggles, media and notifications.
+- **A status tray:** network, battery, temperatures, and the time above the date as on DeX, with
+  a quick panel behind it for toggles, media and notifications.
+- **On the monitor, the start button sits at the left end** (as far in as the tray is from the
+  right end), with the navigation keys right after it.
 - **Notification pop-ups on the monitor** (optional): what would pop up on the tablet shows above
   the tray for a few seconds, with its buttons and a reply box. Needs notification access.
 - **Glass taskbar** (optional). Under the glyphs it adds the lightest tint that keeps them at a
@@ -279,7 +281,7 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
 - **Retro theme** (optional, monitor only): everything on the monitor as Windows 98 drew it - the
   bar, Start and its grey start menu, the tray, menus, panels, window previews, pop-ups, folders,
   the home screen's buttons, recents and the screenshot card - grey bevels, navy selection, a pixel
-  font and pixel keys. Open apps are raised buttons, the one in front pressed in. Nothing moves
+  font, and ZUI's own navigation keys at their own size in black pixels. Open apps are raised buttons, the one in front pressed in. Nothing moves
   and no glass is captured, so it is also the lightest look. The tablet keeps glass.
 - **Taskbar at the top** (optional, monitor only), over the monitor's status bar strip. Menus,
   panels, pop-ups and previews open below it, and maximised windows start under it.

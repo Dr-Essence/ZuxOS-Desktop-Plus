@@ -68,8 +68,8 @@ public final class TaskbarTray {
 
     private static final String TAG_TRAY = "zux-desktop-plus-tray";
 
-    /** Distance from the right edge of the taskbar. */
-    private static final int EDGE_MARGIN_DP = 12;
+    /** Distance from the right edge of the taskbar; the start button keeps it from the left. */
+    static final int EDGE_MARGIN_DP = 12;
 
     /** The tray in each taskbar, so the common "already there" case costs one lookup. */
     private static final Map<View, WeakReference<View>> TRAYS = new WeakHashMap<>();
@@ -653,28 +653,29 @@ public final class TaskbarTray {
             templp.leftMargin = Ui.dp(ctx, 10);
             addView(mTemps, templp);
 
-            mDate = label(ctx, 13f);
-            mDate.setGravity(Gravity.CENTER_VERTICAL);
-            mDate.setPadding(Ui.dp(ctx, 6), 0, Ui.dp(ctx, 6), 0);
-            mDate.setBackground(Ui.ripple(ctx, 0x00000000, Ui.dp(ctx, 10)));
-            mDate.setOnClickListener(v -> Shortcuts.openCalendar(getContext(), mDisplayId));
-            LayoutParams dlp = new LayoutParams(LayoutParams.WRAP_CONTENT,
-                    LayoutParams.MATCH_PARENT);
-            dlp.leftMargin = Ui.dp(ctx, 6);
-            addView(mDate, dlp);
-
-            mClock = label(ctx, 13f);
-            // The clock and the date are as tall as the row so their ripple fills it, which
-            // leaves their text sitting at the top unless it is told to centre. That is what put
-            // them off the line the icons sit on.
-            mClock.setGravity(Gravity.CENTER_VERTICAL);
-            mClock.setPadding(Ui.dp(ctx, 6), 0, Ui.dp(ctx, 6), 0);
+            // The time above the date, as DeX has them: the room of one, not of both side by
+            // side. Each is half the row's height, so its tap and its ripple fill that half, and
+            // the two meet in the middle of the row.
+            LinearLayout when = new LinearLayout(ctx);
+            when.setOrientation(VERTICAL);
+            mClock = label(ctx, 12f);
+            mClock.setIncludeFontPadding(false);
+            mClock.setGravity(Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+            mClock.setPadding(Ui.dp(ctx, 6), 0, Ui.dp(ctx, 6), Ui.dp(ctx, 1));
             mClock.setBackground(Ui.ripple(ctx, 0x00000000, Ui.dp(ctx, 10)));
             mClock.setOnClickListener(v -> Shortcuts.openClock(getContext(), mDisplayId));
-            LayoutParams clp = new LayoutParams(LayoutParams.WRAP_CONTENT,
+            when.addView(mClock, new LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
+            mDate = label(ctx, 11f);
+            mDate.setIncludeFontPadding(false);
+            mDate.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+            mDate.setPadding(Ui.dp(ctx, 6), Ui.dp(ctx, 1), Ui.dp(ctx, 6), 0);
+            mDate.setBackground(Ui.ripple(ctx, 0x00000000, Ui.dp(ctx, 10)));
+            mDate.setOnClickListener(v -> Shortcuts.openCalendar(getContext(), mDisplayId));
+            when.addView(mDate, new LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
+            LayoutParams wlp = new LayoutParams(LayoutParams.WRAP_CONTENT,
                     LayoutParams.MATCH_PARENT);
-            clp.leftMargin = Ui.dp(ctx, 2);
-            addView(mClock, clp);
+            wlp.leftMargin = Ui.dp(ctx, 6);
+            addView(when, wlp);
 
             mBell = iconButton(ctx, "Notifications",
                     () -> NotifyPanel.toggle(getContext(), TrayView.this, mDisplayId));
@@ -933,7 +934,7 @@ public final class TaskbarTray {
         }
 
         /**
-         * The time with seconds, and the date beside it.
+         * The time with seconds, and the date below it.
          *
          * <p>Separate from {@link #render} because it runs every second while the rest of the row
          * changes once a minute at most.

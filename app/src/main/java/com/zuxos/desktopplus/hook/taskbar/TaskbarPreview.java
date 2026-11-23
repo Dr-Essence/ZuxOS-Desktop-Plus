@@ -265,6 +265,35 @@ public final class TaskbarPreview {
         }
     }
 
+    /**
+     * The preview's window, which keeps itself up while the pointer is anywhere on it. Read from
+     * the window's own hover, before any of its views: a view's own hover ends as the pointer
+     * moves onto a child that takes it - a tile, its close button - and reading that closed the
+     * preview with the pointer resting on it. Only the pointer leaving the window lets it go.
+     */
+    private static final class PreviewRoot extends FrameLayout {
+        PreviewRoot(Context ctx) {
+            super(ctx);
+        }
+
+        @Override
+        public boolean dispatchHoverEvent(MotionEvent event) {
+            try {
+                if (event.getActionMasked() == MotionEvent.ACTION_HOVER_EXIT) {
+                    sOverPane = false;
+                    closeSoon();
+                } else {
+                    sOverPane = true;
+                    cancel(sClose);
+                    sClose = null;
+                }
+            } catch (Throwable t) {
+                L.d("taskbar preview: the pointer on it unread (" + t + ")");
+            }
+            return super.dispatchHoverEvent(event);
+        }
+    }
+
     /** One window of the app, as a tile. */
     private static final class Tile {
         int taskId;
@@ -365,22 +394,9 @@ public final class TaskbarPreview {
             tiles.add(tile);
         }
 
-        FrameLayout root = new FrameLayout(ctx);
+        FrameLayout root = new PreviewRoot(ctx);
         root.addView(pane, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
-        root.setOnHoverListener((v, e) -> {
-            int action = e.getActionMasked();
-            if (action == MotionEvent.ACTION_HOVER_ENTER
-                    || action == MotionEvent.ACTION_HOVER_MOVE) {
-                sOverPane = true;
-                cancel(sClose);
-                sClose = null;
-            } else if (action == MotionEvent.ACTION_HOVER_EXIT) {
-                sOverPane = false;
-                closeSoon();
-            }
-            return false;
-        });
         root.setOnTouchListener((v, e) -> {
             if (e.getActionMasked() == MotionEvent.ACTION_OUTSIDE) {
                 dismiss();

@@ -55,8 +55,8 @@ import de.robv.android.xposed.XposedBridge;
  * view and adds a child, and both are undone exactly.
  *
  * <p>In the Retro theme the same pane is Windows 98's taskbar instead - a raised grey face, on
- * whatever the glass switch says - and the navigation keys are pixel-drawn, black. Their own
- * drawables are kept and put back when the theme goes back to Glass.
+ * whatever the glass switch says - and the navigation keys are ZUI's own glyphs in black
+ * pixels. Their own drawables are kept and put back when the theme goes back to Glass.
  */
 public final class TaskbarGlass {
 
@@ -69,6 +69,8 @@ public final class TaskbarGlass {
 
     /** The navigation buttons, by the ids Launcher3 gives them. */
     private static final String[] NAV_IDS = {"back", "home", "recent_apps"};
+    /** Retro's pixel on the navigation keys. */
+    private static final int PIXEL_DP = 2;
 
     /**
      * The renderer class, by the names it goes under. Launcher3's own names survive this build's
@@ -447,8 +449,9 @@ public final class TaskbarGlass {
     }
 
     /**
-     * Retro's keys: each button's own drawable and tint kept, and a black pixel key in their
-     * place. A key already ours is left as it is.
+     * Retro's keys: each button's own glyph, ZUI's, in black pixels at its own size - as on
+     * Glass, cut into cells. Its drawable and tint are kept for Glass; a key already ours is left
+     * as it is, and a new glyph ZUI has set since is taken in its place.
      */
     private static void pixelNavButtons(List<View> buttons) {
         for (View button : buttons) {
@@ -456,35 +459,20 @@ public final class TaskbarGlass {
                 continue;
             }
             ImageView icon = (ImageView) button;
-            Drawable applied = APPLIED_PIXEL.get(icon);
-            if (applied != null && icon.getDrawable() == applied) {
-                continue;
-            }
-            Drawable key = pixelKey(Reflect.idName(icon));
-            if (key == null) {
+            Drawable own = icon.getDrawable();
+            if (own == null || own == APPLIED_PIXEL.get(icon)) {
                 continue;
             }
             if (!ORIGINAL_NAV_TINTS.containsKey(icon)) {
                 ORIGINAL_NAV_TINTS.put(icon, new ColorStateList[]{icon.getImageTintList()});
             }
-            if (applied == null) {
-                ORIGINAL_NAV_DRAWABLES.put(icon, icon.getDrawable());
-            }
+            ORIGINAL_NAV_DRAWABLES.put(icon, own);
+            Drawable key = PixelIcons.pixelated(own, Theme.RETRO.text(),
+                    Ui.dp(icon.getContext(), PIXEL_DP));
             icon.setImageTintList(null);
             icon.setImageDrawable(key);
             APPLIED_PIXEL.put(icon, key);
         }
-    }
-
-    private static Drawable pixelKey(String id) {
-        int ink = Theme.RETRO.text();
-        if ("back".equals(id)) {
-            return PixelIcons.back(ink);
-        }
-        if ("home".equals(id)) {
-            return PixelIcons.home(ink);
-        }
-        return "recent_apps".equals(id) ? PixelIcons.recents(ink) : null;
     }
 
     /** Puts each button's own tint, and its own drawable if Retro replaced it, back. */

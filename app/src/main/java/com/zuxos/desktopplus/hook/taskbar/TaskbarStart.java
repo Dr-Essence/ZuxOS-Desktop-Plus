@@ -47,6 +47,8 @@ import de.robv.android.xposed.XposedBridge;
 final class TaskbarStart {
 
     private static final String TAG_START = "zux-start-button";
+    /** On the monitor, between the start button and the navigation keys after it. */
+    private static final int KEYS_GAP_DP = 8;
 
     /** ZUI's buttons we set invisible, so the setting going off can show them again. */
     private static final Map<View, Boolean> HIDDEN = new WeakHashMap<>();
@@ -528,7 +530,7 @@ final class TaskbarStart {
     }
 
     /**
-     * After the navigation keys, or before them at the far left on the monitor; centred on the
+     * After the navigation keys, or before them at the left end on the monitor; centred on the
      * bar's row, at ZUI's own icon size. Retro's button is a box a little shorter than that, as
      * wide as the robot and its label need.
      */
@@ -541,7 +543,8 @@ final class TaskbarStart {
         int height = button.retro() ? size * 4 / 5 : size;
         int width = button.retro() ? button.retroWidth(height) : size;
         View keys = monitorKeys(dragLayer);
-        int left = keys != null ? frameLeft(dragLayer, keys) + keysAfter(keys, width)
+        int left = keys != null
+                ? frameLeft(dragLayer, keys) + keysAfter(keys, width, dragLayer.getContext())
                 : navEnd(dragLayer);
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) button.getLayoutParams();
         // Centred on the row and on the bar by gravity, as ZUI's rows are.
@@ -586,24 +589,24 @@ final class TaskbarStart {
     }
 
     /**
-     * On the monitor the start button takes the far left, where ZUI's margin puts the keys, and
-     * the keys move along by its width - ZUI's margin set once more, not undone each layout.
-     * Returns the button's left in the keys' frame.
+     * On the monitor the start button takes the left end, as far in as the tray is from the
+     * right end, and the keys follow it a short gap after - ZUI's margin for them set once more,
+     * not undone each layout. ZUI's own margin is kept, for the setting going off. Returns the
+     * button's left in the keys' frame.
      */
-    private static int keysAfter(View keys, int width) {
+    private static int keysAfter(View keys, int width, Context ctx) {
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) keys.getLayoutParams();
-        Integer own = KEYS_MOVED.get(keys);
-        if (own == null) {
-            own = lp.getMarginStart();
-            KEYS_MOVED.put(keys, own);
+        if (!KEYS_MOVED.containsKey(keys)) {
+            KEYS_MOVED.put(keys, lp.getMarginStart());
         }
-        int margin = own + width + own;
+        int edge = Ui.dp(ctx, TaskbarTray.EDGE_MARGIN_DP);
+        int margin = edge + width + Ui.dp(ctx, KEYS_GAP_DP);
         if (lp.getMarginStart() != margin) {
             lp.leftMargin = margin;
             lp.setMarginStart(margin);
             keys.setLayoutParams(lp);
         }
-        return own;
+        return edge;
     }
 
     /** Where the frame holding the keys starts, in the drag layer's coordinates. */
