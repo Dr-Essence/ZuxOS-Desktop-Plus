@@ -73,6 +73,11 @@ final class FullScreenWindows {
         return MARKED.contains(taskId);
     }
 
+    /** Whether this full-screen window's title bar is shown for now, from the top edge. */
+    static boolean revealed(int taskId) {
+        return REVEALED.containsKey(taskId);
+    }
+
     /**
      * Whether this window's title bar is hidden for full screen: one ZUX Home made full screen
      * and still is. One that went back to floating here is reported, and keeps its title bar.

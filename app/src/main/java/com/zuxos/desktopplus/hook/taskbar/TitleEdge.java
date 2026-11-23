@@ -46,6 +46,11 @@ final class TitleEdge {
     private TitleEdge() {
     }
 
+    /** Whether a window's root is one of these strips. */
+    static boolean isEdge(View root) {
+        return root instanceof Edge;
+    }
+
     /** The strip for {@code taskId} in front on {@code display}, or none for -1. */
     static void watch(int display, int taskId) {
         try {

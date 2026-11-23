@@ -81,6 +81,7 @@ final class SysUiNames {
     static final String M_CAPTION_HEIGHT_ID = "mCaptionHeightId";
     /** The parts of a title bar that keep their touches over an app's own header. */
     static final String M_OCCLUDING_CAPTION_ELEMENTS = "mOccludingCaptionElements";
+    static final String M_LIMIT_TOUCH_REGION_TO_SYSTEM_AREAS = "mLimitTouchRegionToSystemAreas";
     static final String OCCLUDING_CAPTION_ELEMENT =
             "com.android.wm.shell.windowdecor.WindowDecoration$RelayoutParams"
                     + "$OccludingCaptionElement";
@@ -114,6 +115,11 @@ final class SysUiNames {
     static final String PICTURE_MAX = "max";
     static final String PICTURE_FREEFORM = "freeform";
     static final String PICTURE_CLOSE = "close";
+    /** ZUI's desktop-mode title bar colours, for a focused window. */
+    static final String ZUI_DESKTOP_MODE_CAPTION_BAR_NORMAL_FOCUS =
+            "zui_desktop_mode_caption_bar_normal_focus";
+    static final String ZUI_DESKTOP_MODE_CAPTION_BAR_DARK_FOCUS =
+            "zui_desktop_mode_caption_bar_dark_focus";
 
     // The monitor's status bar.
     static final String ZUI_DP_MODE_MANAGER = "com.android.systemui.dpmode.ZuiDpModeManager";

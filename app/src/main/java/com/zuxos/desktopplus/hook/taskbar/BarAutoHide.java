@@ -404,12 +404,13 @@ final class BarAutoHide {
         return null;
     }
 
-    /** This process's windows showing on the display, the bar's own left out. */
+    /** This process's windows showing on the display, the bar's own and our edge strip out. */
     private static List<View> shownWindows(int display, View barRoot) {
         List<View> out = new ArrayList<>();
         for (View root : Windows.roots()) {
-            if (root != barRoot && root.isAttachedToWindow() && root.isShown()
-                    && TaskbarTray.displayIdOf(root) == display) {
+            // Our own top-edge strip is no window over the bar: it is there while the bar is away.
+            if (root != barRoot && !TitleEdge.isEdge(root) && root.isAttachedToWindow()
+                    && root.isShown() && TaskbarTray.displayIdOf(root) == display) {
                 out.add(root);
             }
         }

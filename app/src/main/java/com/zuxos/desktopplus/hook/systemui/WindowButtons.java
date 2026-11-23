@@ -64,6 +64,10 @@ public final class WindowButtons {
     private static final int GLYPH_LIGHT = 0xFF191919;
     private static final int GLYPH_DARK = 0xFFFAFAFA;
     private static final float GLYPH_DP = 18f;
+    /** The runtime's own allocation, for a class with no constructor left to call. */
+    private static final String UNSAFE = "sun.misc.Unsafe";
+    private static final String THE_UNSAFE = "theUnsafe";
+    private static final String ALLOCATE_INSTANCE = "allocateInstance";
 
     /** Each title bar's own click listener, kept from its holder's making for its buttons. */
     private static final Map<View, View.OnClickListener> CLICKS = new WeakHashMap<>();
@@ -199,8 +203,16 @@ public final class WindowButtons {
                 L.i("window buttons: added to a title bar on display " + displayOf(task));
             }
         }
-        row.show(wanted, mode == FREEFORM, night(caption.getContext()), task.taskId,
-                displayOf(task));
+        boolean night = night(caption.getContext());
+        row.show(wanted, mode == FREEFORM, night, task.taskId, displayOf(task));
+        if (wanted && FullScreenWindows.revealed(task.taskId)) {
+            // Shown from the top edge over a full-screen app: ZUI's own focused bar colour,
+            // where ZUI leaves a maximised one's clear, so the app's header does not show through.
+            int colour = barColour(caption.getContext(), night);
+            if (colour != 0) {
+                caption.setBackgroundColor(colour);
+            }
+        }
     }
 
     /**
@@ -327,6 +339,15 @@ public final class WindowButtons {
         return button;
     }
 
+    /** ZUI's focused title bar colour for the shade, by name; 0 when it is not there. */
+    private static int barColour(Context ctx, boolean night) {
+        Resources res = ctx.getResources();
+        int id = res.getIdentifier(night ? SysUiNames.ZUI_DESKTOP_MODE_CAPTION_BAR_DARK_FOCUS
+                : SysUiNames.ZUI_DESKTOP_MODE_CAPTION_BAR_NORMAL_FOCUS, "color",
+                ctx.getPackageName());
+        return id == 0 ? 0 : ctx.getColor(id);
+    }
+
     /** ZUI's own night test for its title bars' light or dark buttons. */
     private static boolean night(Context ctx) {
         return (ctx.getResources().getConfiguration().uiMode
@@ -425,11 +446,16 @@ public final class WindowButtons {
         private final Field mWidth;
         private final Field mHeight;
         private final Field mElements;
+        private final Class<?> mElement;
+        /** The element's constructor, or null: folded away when SystemUI was compiled. */
         private final Constructor<?> mNewElement;
         private final Field mElementRect;
         private final Field mElementAlignment;
         private final Object mCustomize;
+        private final Field mLimitTouch;
         private int mPill;
+        private Object mUnsafe;
+        private Method mAllocate;
 
         Room(Class<?> params, Class<?> element, Class<?> alignment) throws Exception {
             mLayout = params.getField(SysUiNames.M_LAYOUT_RES_ID);
@@ -437,8 +463,13 @@ public final class WindowButtons {
             mWidth = params.getField(SysUiNames.M_CAPTION_WIDTH_ID);
             mHeight = params.getField(SysUiNames.M_CAPTION_HEIGHT_ID);
             mElements = params.getField(SysUiNames.M_OCCLUDING_CAPTION_ELEMENTS);
-            mNewElement = element.getDeclaredConstructors()[0];
-            mNewElement.setAccessible(true);
+            mElement = element;
+            Constructor<?>[] made = element.getDeclaredConstructors();
+            mNewElement = made.length == 0 ? null : made[0];
+            if (mNewElement != null) {
+                mNewElement.setAccessible(true);
+            }
+            mLimitTouch = params.getField(SysUiNames.M_LIMIT_TOUCH_REGION_TO_SYSTEM_AREAS);
             mElementRect = element.getField(SysUiNames.M_RECT);
             mElementAlignment = element.getField(SysUiNames.M_ALIGNMENT);
             mCustomize = alignment.getField(SysUiNames.CUSTOMIZE).get(null);
@@ -462,16 +493,40 @@ public final class WindowButtons {
             if (bounds == null || height <= 0) {
                 return;
             }
+            if (FullScreenWindows.revealed(task.taskId)) {
+                // Shown from the top edge over a full-screen app: solid, and all of it the
+                // bar's, so a press on it never reaches the app's header under it.
+                mLimitTouch.setBoolean(params, false);
+            }
             int end = bounds.width() - cornerPx(ctx);
-            // An inner class here: its constructor takes the parameters it belongs to.
-            Object element = mNewElement.getParameterCount() == 1
-                    ? mNewElement.newInstance(params) : mNewElement.newInstance();
+            Object element = newElement(params);
             mElementRect.set(element, new Rect(end - rowWidth(ctx), 0, end, height));
             mElementAlignment.set(element, mCustomize);
             ((List<Object>) mElements.get(params)).add(element);
             if (L.once("WindowButtons.room")) {
                 L.i("window buttons: the buttons keep their touches over an app's own header");
             }
+        }
+
+        /**
+         * A new element, as ZUI's {@code new} makes one. Its constructor is empty and was folded
+         * away when SystemUI was compiled, so there may be none to call: the instance is then
+         * allocated as the runtime does for {@code new}, with nothing skipped.
+         */
+        private Object newElement(Object params) throws Exception {
+            if (mNewElement != null) {
+                // Where it is an inner class, its constructor takes its parameters.
+                return mNewElement.getParameterCount() == 1
+                        ? mNewElement.newInstance(params) : mNewElement.newInstance();
+            }
+            if (mAllocate == null) {
+                Class<?> unsafe = Class.forName(UNSAFE);
+                Field one = unsafe.getDeclaredField(THE_UNSAFE);
+                one.setAccessible(true);
+                mUnsafe = one.get(null);
+                mAllocate = unsafe.getMethod(ALLOCATE_INSTANCE, Class.class);
+            }
+            return mAllocate.invoke(mUnsafe, mElement);
         }
 
         /** ZUI's pill layout, by name, once; -1 (no layout's id) when it is not there. */
