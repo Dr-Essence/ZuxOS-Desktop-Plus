@@ -288,9 +288,10 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   room, so it never covers the app's top menus. Needs System UI ticked in LSPosed, which also
   keeps windows clear of the taskbar wherever it is.
 - **Window buttons on the monitor, as on DeX** (optional, on by default). Minimise, maximise or
-  restore, and close sit at the right of every window's title bar on the monitor, beside ZUI's
-  pill: no tap on the pill first. Each does what the "…" menu's item does; the pill still opens
-  the menu. Needs System UI ticked in LSPosed.
+  restore, Full screen and close sit at the right of every window's title bar on the monitor, in
+  place of ZUI's three dots. Each does what the "…" menu's item does; drag the bar to move the
+  window, double-click it to maximise or restore. Split-screen windows keep the dots. Needs
+  System UI ticked in LSPosed.
 - **Apps and the keyboard stop at the taskbar** (optional, on by default, both screens). Apps
   made for Android 15 and later draw under the bars and many leave their content there; their
   windows now end where the bar starts, and have its strip only while the bar is hidden. The

@@ -325,6 +325,9 @@ What Full screen (0.0.305) stands on. ZUX Home 18.2.0.0375, System UI 16.
   (`ov_window_decor_caption_bar_width_pad`), a floating one's the window's (width id 0). Its touches
   are limited to its occluding elements when the app asks for a see-through caption bar
   (`mLimitTouchRegionToSystemAreas`). 0.0.311 adds the three items as buttons on the monitor's bars.
+  On the monitor (`OvcPcModeUtils.isOperationInExtendDisplay`) a click on the bar itself never
+  opens the menu ("click consumed in extenddisplay"); a double-click maximises or restores. Only
+  the pill (`caption_handle`) opens it. 0.0.312 hides the pill where the buttons are.
 - **The taskbar's drawer: how it opens** (ZUX Home, read 2026-11-23). Every way in - ZUI's
   all-apps button (`TaskbarViewCallbacks` → `uiController.toggleAllApps(false)`), the Windows key
   (`TaskbarManager.toggleAllAppsSearch` → `toggleAllApps(true)`), our start button and a
@@ -1317,7 +1320,7 @@ Checked 2026-10-09. Every hook below matches by name and parameters, unless mark
 | Bar back with the drawer in Full screen (0.0.310) | before `TaskbarAllAppsController.toggle()`, `toggleSearch()`; `isOpen()`; field `TaskbarControllers.taskbarAllAppsController` (ZUX Home) | found |
 | The keyboard in game mode (0.0.308) | after `TaskbarInsetsController.k(InsetsFrameProvider, int, int)`; `getGameMode()`; `InsetsFrameProvider.getType`, `getInsetsSize`, `get/setInsetsSizeOverrides`, `InsetsSizeOverride(int, Insets)` (ZUX Home) | found |
 | No association launch prompt (0.0.309) | around `ZuiWmAutoRunManager.isAllowRelativeStart(...)`; after `android.app.ZuiSecurityManager.getRelativeAppStatus(String, String)` | found |
-| Window buttons (0.0.311, SystemUI) | after the `OvDesktopModeWindowDecorationViewHolder` constructors and `bindData(OvHandleData)`, field `captionView`; after `DesktopModeWindowDecoration.updateRelayoutParams`, fields `RelayoutParams.mLayoutResId`, `mIsCaptionVisible`, `mCaptionWidthId`, `mCaptionHeightId`, `mOccludingCaptionElements`, `OccludingCaptionElement.mRect`, `mAlignment`, `Alignment.CUSTOMIZE`; resources by name | found in the decompile, not yet on the device |
+| Window buttons (0.0.311, SystemUI) | after the `OvDesktopModeWindowDecorationViewHolder` constructors and `bindData(OvHandleData)`, fields `captionView`, `captionHandle` (0.0.312); after `DesktopModeWindowDecoration.updateRelayoutParams`, fields `RelayoutParams.mLayoutResId`, `mIsCaptionVisible`, `mCaptionWidthId`, `mCaptionHeightId`, `mOccludingCaptionElements`, `OccludingCaptionElement.mRect`, `mAlignment`, `Alignment.CUSTOMIZE`; resources by name | found in the decompile, not yet on the device |
 | Taskbar with the drawer over full-screen apps (0.0.310) | after `InsetsPolicy.getNavControlTargetInner_ov(WindowState, boolean)`; fields `InsetsPolicy.mShowingTransientControlTarget`, `WindowState.mAttrs` | found in the decompile, not yet on the device |
 | No game prompt (0.0.308) | before `OvGameTipDialogManager.canShowOvGameDialog(String, TaskDisplayArea)` | found |
 | Game launcher full screen (0.0.308) | the `calculate` hook above; fields `ActivityRecord.packageName`, `launchedFromPackage`, `LaunchParams.mPreferredTaskDisplayArea`; after `ActivityStarter.startActivityInner`, `mTargetTask` | found |

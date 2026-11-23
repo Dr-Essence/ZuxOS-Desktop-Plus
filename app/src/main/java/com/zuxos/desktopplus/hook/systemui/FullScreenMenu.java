@@ -2,7 +2,6 @@ package com.zuxos.desktopplus.hook.systemui;
 
 import android.app.ActivityManager;
 import android.content.Context;
-import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.view.Display;
@@ -179,10 +178,7 @@ public final class FullScreenMenu {
         ours.setOnClickListener(v -> {
             try {
                 Reflect.call(decoration, SysUiNames.CLOSE_HANDLE_MENU);
-                ctx.sendBroadcast(new Intent(FullScreenWire.ACTION_TOGGLE)
-                        .setPackage(FullScreenWire.ZUX_HOME)
-                        .putExtra(FullScreenWire.EXTRA_TASK, taskId)
-                        .putExtra(FullScreenWire.EXTRA_DISPLAY, display));
+                FullScreenWindows.askToggle(ctx, taskId, display);
                 L.i("full screen menu: " + (on ? "exit" : "full screen") + " for task " + taskId
                         + " - ZUX Home asked");
             } catch (Throwable t) {

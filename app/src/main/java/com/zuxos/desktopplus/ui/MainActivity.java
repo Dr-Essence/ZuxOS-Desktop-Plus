@@ -357,10 +357,10 @@ public class MainActivity extends Activity {
                         + "LSPosed",
                 Const.KEY_CAPTION_FOLLOW, true);
         addSwitch("Window buttons on the monitor's title bars",
-                "Minimise, maximise or restore, and close beside the title bar's pill on the "
-                        + "monitor, as on DeX - no tap on the pill first. Each does what the "
-                        + "… menu's item does. Needs System UI ticked for this module in "
-                        + "LSPosed",
+                "Minimise, maximise or restore, Full screen and close on the monitor's title "
+                        + "bars, as on DeX, in place of ZUI's three dots. Each does what the "
+                        + "… menu's item does; split-screen windows keep the dots. Needs "
+                        + "System UI ticked for this module in LSPosed",
                 Const.KEY_WINDOW_BUTTONS, true);
         addSwitch("Apps and the keyboard stop at the taskbar",
                 "On both screens, apps and the keyboard end where the taskbar starts instead of "

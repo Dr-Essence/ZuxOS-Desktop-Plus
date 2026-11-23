@@ -6,6 +6,8 @@ import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.LayerDrawable;
 import android.view.Display;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,9 +15,11 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 import com.zuxos.desktopplus.core.Cfg;
+import com.zuxos.desktopplus.core.FullScreenWire;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.core.Ui;
+import com.zuxos.desktopplus.core.icons.Glyphs;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -40,14 +44,23 @@ import de.robv.android.xposed.XposedBridge;
  * item's id and the bar's own click listener ({@code DesktopModeTouchEventListener}, the one the
  * menu's items reach), so a click runs what the menu does - ZUI's minimise, its full screen or
  * floating, its close, with its checks and toasts. The pictures are ZUI's desktop-mode buttons,
- * light or dark by the night mode as ZUI picks them. Spacers keep the pill in the middle; it
- * still opens the menu, and the bar still drags the window.
+ * light or dark by the night mode as ZUI picks them. Beside close, our Full screen
+ * ({@link FullScreenWindows#askToggle}), as the menu's row of ours asks for it.
+ *
+ * <p>With the buttons there the pill's dots go: hidden, so it takes no touches and the bar under
+ * it drags the window, and a double-click on it maximises or restores, as ZUI does on the
+ * monitor (a click on the bar itself never opens ZUI's menu there). A bar without the buttons,
+ * a split screen's, keeps its dots and its menu.
  */
 public final class WindowButtons {
 
     private static final int FREEFORM = 5;
     private static final int FULLSCREEN = 1;
     private static final float BUTTON_DP = 36f;
+    /** ZUI's button colours, from its {@code zui_desktopmode_normal_*} and {@code _dark_*}. */
+    private static final int GLYPH_LIGHT = 0xFF191919;
+    private static final int GLYPH_DARK = 0xFFFAFAFA;
+    private static final float GLYPH_DP = 18f;
 
     /** Each title bar's own click listener, kept from its holder's making for its buttons. */
     private static final Map<View, View.OnClickListener> CLICKS = new WeakHashMap<>();
@@ -173,7 +186,7 @@ public final class WindowButtons {
             if (!wanted || click == null || ids(caption.getContext()) == null) {
                 return;
             }
-            row = add((ViewGroup) caption, click);
+            row = add((ViewGroup) caption, click, pill(holder));
             if (row == null) {
                 return;
             }
@@ -182,7 +195,8 @@ public final class WindowButtons {
                 L.i("window buttons: added to a title bar on display " + displayOf(task));
             }
         }
-        row.show(wanted, mode == FREEFORM, night(caption.getContext()));
+        row.show(wanted, mode == FREEFORM, night(caption.getContext()), task.taskId,
+                displayOf(task));
     }
 
     /**
@@ -190,7 +204,7 @@ public final class WindowButtons {
      * on both sides of ZUI's pill so it stays in the middle. Neither block nor room takes a
      * touch: the bar's own drag and click see them.
      */
-    private static Row add(ViewGroup bar, View.OnClickListener click) {
+    private static Row add(ViewGroup bar, View.OnClickListener click, View pill) {
         if (!(bar instanceof LinearLayout)
                 || ((LinearLayout) bar).getOrientation() != LinearLayout.HORIZONTAL) {
             return null;
@@ -200,16 +214,32 @@ public final class WindowButtons {
         Ids ids = sIds;
         LinearLayout buttons = new LinearLayout(ctx);
         buttons.setOrientation(LinearLayout.HORIZONTAL);
-        Row row = new Row(new View(ctx), buttons, button(ctx, ids.minimize, click, "Minimise"),
-                button(ctx, ids.fullscreen, click, "Maximise"),
+        ImageView full = null;
+        if (Cfg.fullScreen()) {
+            full = button(ctx, View.generateViewId(), null, FullScreenWire.ENTER);
+        }
+        Row row = new Row(new View(ctx), buttons, pill,
+                button(ctx, ids.minimize, click, "Minimise"),
+                button(ctx, ids.fullscreen, click, "Maximise"), full,
                 button(ctx, ids.close, click, "Close"));
-        buttons.addView(row.minimize, new LinearLayout.LayoutParams(size,
-                ViewGroup.LayoutParams.MATCH_PARENT));
-        buttons.addView(row.toggle, new LinearLayout.LayoutParams(size,
-                ViewGroup.LayoutParams.MATCH_PARENT));
-        buttons.addView(row.close, new LinearLayout.LayoutParams(size,
-                ViewGroup.LayoutParams.MATCH_PARENT));
-        int width = size * 3;
+        for (View b : new View[]{row.minimize, row.toggle, row.full, row.close}) {
+            if (b != null) {
+                buttons.addView(b, new LinearLayout.LayoutParams(size,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+            }
+        }
+        if (full != null) {
+            Row r = row;
+            full.setOnClickListener(v -> {
+                try {
+                    FullScreenWindows.askToggle(ctx, r.taskId, r.display);
+                    L.i("window buttons: full screen for task " + r.taskId + " - ZUX Home asked");
+                } catch (Throwable t) {
+                    L.w("window buttons: ZUX Home not asked (" + t + ")");
+                }
+            });
+        }
+        int width = rowWidth(ctx);
         bar.addView(row.balance, 0, new LinearLayout.LayoutParams(width,
                 ViewGroup.LayoutParams.MATCH_PARENT));
         bar.addView(room(ctx), 1, new LinearLayout.LayoutParams(0,
@@ -219,6 +249,11 @@ public final class WindowButtons {
         bar.addView(buttons, new LinearLayout.LayoutParams(width,
                 ViewGroup.LayoutParams.MATCH_PARENT));
         return row;
+    }
+
+    /** The row's width: three of ZUI's buttons, and our Full screen while it is offered. */
+    private static int rowWidth(Context ctx) {
+        return Ui.dp(ctx, BUTTON_DP) * (Cfg.fullScreen() ? 4 : 3);
     }
 
     private static View room(Context ctx) {
@@ -235,7 +270,9 @@ public final class WindowButtons {
         button.setContentDescription(name);
         button.setScaleType(ImageView.ScaleType.CENTER);
         button.setFocusable(false);
-        button.setOnClickListener(click);
+        if (click != null) {
+            button.setOnClickListener(click);
+        }
         TypedArray ripple = ctx.obtainStyledAttributes(
                 new int[]{android.R.attr.selectableItemBackgroundBorderless});
         try {
@@ -250,6 +287,11 @@ public final class WindowButtons {
     private static boolean night(Context ctx) {
         return (ctx.getResources().getConfiguration().uiMode
                 & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    private static View pill(Object holder) {
+        Object view = Reflect.field(holder, SysUiNames.CAPTION_HANDLE);
+        return view instanceof View ? (View) view : null;
     }
 
     private static View caption(Object holder) {
@@ -376,7 +418,7 @@ public final class WindowButtons {
             if (bounds == null || height <= 0) {
                 return;
             }
-            int width = Ui.dp(ctx, BUTTON_DP) * 3;
+            int width = rowWidth(ctx);
             Object element = mNewElement.newInstance();
             mElementRect.set(element, new Rect(bounds.width() - width, 0, bounds.width(),
                     height));
@@ -403,19 +445,28 @@ public final class WindowButtons {
         }
     }
 
-    /** One bar's buttons and the block that balances them. */
+    /** One bar's buttons, the block that balances them, and ZUI's pill they replace. */
     private static final class Row {
         final View balance;
         final View buttons;
+        final View pill;
         final ImageView minimize;
         final ImageView toggle;
+        /** Our Full screen, or null while it is not offered. */
+        final ImageView full;
         final ImageView close;
+        /** The window the bar stands for now, for our Full screen. */
+        int taskId = -1;
+        int display = Display.DEFAULT_DISPLAY;
 
-        Row(View balance, View buttons, ImageView minimize, ImageView toggle, ImageView close) {
+        Row(View balance, View buttons, View pill, ImageView minimize, ImageView toggle,
+                ImageView full, ImageView close) {
             this.balance = balance;
             this.buttons = buttons;
+            this.pill = pill;
             this.minimize = minimize;
             this.toggle = toggle;
+            this.full = full;
             this.close = close;
         }
 
@@ -423,15 +474,22 @@ public final class WindowButtons {
          * Shown or not; a floating window's middle button is ZUI's full screen, a maximised
          * one's its floating. ZUI's "normal" pictures are dark glyphs for a light theme.
          */
-        void show(boolean shown, boolean floating, boolean night) {
+        void show(boolean shown, boolean floating, boolean night, int taskId, int display) {
             int visibility = shown ? View.VISIBLE : View.GONE;
             if (buttons.getVisibility() != visibility) {
                 buttons.setVisibility(visibility);
                 balance.setVisibility(shown ? View.INVISIBLE : View.GONE);
             }
+            // The pill's dots only where there are no buttons; hidden, it takes no touches.
+            int dots = shown ? View.INVISIBLE : View.VISIBLE;
+            if (pill != null && pill.getVisibility() != dots) {
+                pill.setVisibility(dots);
+            }
             if (!shown) {
                 return;
             }
+            this.taskId = taskId;
+            this.display = display;
             Ids ids = sIds;
             int[] pictures = night ? ids.dark : ids.light;
             minimize.setImageResource(pictures[0]);
@@ -439,6 +497,19 @@ public final class WindowButtons {
             toggle.setContentDescription(floating ? "Maximise" : "Restore");
             toggle.setImageResource(floating ? pictures[1] : pictures[2]);
             close.setImageResource(pictures[3]);
+            if (full != null) {
+                boolean on = FullScreenWindows.has(taskId);
+                Drawable glyph = Glyphs.of(on ? Glyphs.EXIT_FULL_SCREEN : Glyphs.FULL_SCREEN);
+                if (glyph != null) {
+                    glyph.setTint(night ? GLYPH_DARK : GLYPH_LIGHT);
+                    // Our glyphs have no size of their own: ZUI's buttons' drawn size.
+                    LayerDrawable sized = new LayerDrawable(new Drawable[]{glyph});
+                    int px = Ui.dp(full.getContext(), GLYPH_DP);
+                    sized.setLayerSize(0, px, px);
+                    full.setImageDrawable(sized);
+                }
+                full.setContentDescription(on ? FullScreenWire.EXIT : FullScreenWire.ENTER);
+            }
         }
     }
 }

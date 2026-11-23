@@ -132,6 +132,17 @@ final class FullScreenWindows {
         }
     }
 
+    /**
+     * ZUX Home asked to make a window full screen, or end it: the window menu's row and the
+     * title bar's button alike.
+     */
+    static void askToggle(Context ctx, int taskId, int display) {
+        ctx.sendBroadcast(new Intent(FullScreenWire.ACTION_TOGGLE)
+                .setPackage(FullScreenWire.ZUX_HOME)
+                .putExtra(FullScreenWire.EXTRA_TASK, taskId)
+                .putExtra(FullScreenWire.EXTRA_DISPLAY, display));
+    }
+
     /** ZUX Home told a window went back to floating here, so its taskbar comes back. */
     private static void left(int taskId) {
         try {

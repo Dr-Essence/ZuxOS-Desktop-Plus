@@ -102,6 +102,7 @@ final class SysUiNames {
             "com.android.wm.shell.windowdecor.viewholder.OvDesktopModeWindowDecorationViewHolder";
     static final String BIND_DATA = "bindData";
     static final String CAPTION_VIEW = "captionView";
+    static final String CAPTION_HANDLE = "captionHandle";
     static final String OVC_WD_HANDLE_MENU_ITEM_MINIMIZE = "ovc_wd_handle_menu_item_minimize";
     static final String OVC_WD_HANDLE_MENU_ITEM_FULLSCREEN = "ovc_wd_handle_menu_item_fullscreen";
     static final String OVC_WD_HANDLE_MENU_ITEM_FREEFORM = "ovc_wd_handle_menu_item_freeform";
