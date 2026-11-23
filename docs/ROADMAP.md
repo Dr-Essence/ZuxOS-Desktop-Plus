@@ -202,6 +202,7 @@ rows give only the date the owner confirmed.
 | 2026-11-23 | 0.0.311 | Window buttons on the monitor's title bars, as on DeX, without the "…" menu first (owner: "It worked") |
 | 2026-11-23 | 0.0.312 | The three dots gone from the monitor's title bars, and a Full screen button on them (owner: "ok it works") |
 | 2026-11-23 | 0.0.314 | Full screen: the taskbar leaves again after coming back, and the title bar from the top edge is solid over the app (owner: "full screen seems fixed for now") |
+| 2026-11-23 | 0.0.323 | Chromium browsers' tabs in the monitor's window bar, beside the window buttons, with clicks lost there (since 0.0.314): the buttons are no longer reported to apps as the bar's controls, as with ZUI's dots, so apps keep their own header below the bar (owner: "ok fixed finally") |
 
 ### Shipped, awaiting the owner's test
 
