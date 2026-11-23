@@ -598,7 +598,9 @@ public final class TaskbarTray {
         private final TextView mDate;
         /** The keyboard's language: shown with two or more, as DeX's taskbar has it. */
         private final TextView mLanguage;
-        private android.database.ContentObserver mLanguageWatch;
+        private final Runnable mOnLanguage = this::renderLanguage;
+        /** Whether the keyboard was up on this screen at the last insets. */
+        private boolean mKeyboardUp;
         private final ImageView mScreenshot;
         private final ImageView mBell;
         private final ImageView mPanelButton;
@@ -827,16 +829,14 @@ public final class TaskbarTray {
             render();
         }
 
-        /** The language button follows Android's own settings while the tray is on screen. */
+        /** The language button follows what HeliBoard says while the tray is on screen. */
         private void watchLanguage() {
             try {
                 if (!Cfg.trayLanguage()) {
                     mLanguage.setVisibility(GONE);
                     return;
                 }
-                if (mLanguageWatch == null) {
-                    mLanguageWatch = KeyboardLanguage.watch(getContext(), this::renderLanguage);
-                }
+                KeyboardLanguage.listen(getContext(), mOnLanguage);
                 renderLanguage();
             } catch (Throwable t) {
                 L.d("tray: the keyboard's language not followed (" + t + ")");
@@ -846,16 +846,16 @@ public final class TaskbarTray {
         /** The current language's code, with two or more; gone with one or none. */
         private void renderLanguage() {
             try {
-                KeyboardLanguage.State state = KeyboardLanguage.read(getContext());
-                boolean shown = Cfg.trayLanguage() && state != null
-                        && state.languages.size() > 1 && state.current != null;
+                KeyboardLanguage.State state = KeyboardLanguage.state();
+                boolean shown = Cfg.trayLanguage() && state != null && state.count() > 1
+                        && state.current >= 0;
                 if (shown) {
-                    String code = KeyboardLanguage.code(state.current);
+                    String code = state.code(state.current);
                     if (!code.contentEquals(mLanguage.getText())) {
                         mLanguage.setText(code);
                     }
                     mLanguage.setContentDescription("Keyboard language: "
-                            + KeyboardLanguage.name(getContext(), state, state.current));
+                            + state.name(state.current));
                 }
                 int visibility = shown ? VISIBLE : GONE;
                 if (mLanguage.getVisibility() != visibility) {
@@ -870,17 +870,12 @@ public final class TaskbarTray {
         private boolean languageMenu(View anchor) {
             try {
                 Context ctx = getContext();
-                KeyboardLanguage.State state = KeyboardLanguage.read(ctx);
+                KeyboardLanguage.State state = KeyboardLanguage.state();
                 java.util.List<TaskbarMenu.Entry> entries = new java.util.ArrayList<>();
-                if (state != null && com.zuxos.desktopplus.core.KeyboardWire.HELIBOARD
-                        .equals(state.pkg)) {
-                    for (android.view.inputmethod.InputMethodSubtype language
-                            : state.languages) {
-                        boolean on = language.equals(state.current);
-                        entries.add(new TaskbarMenu.Entry((on ? "\u2713  " : "")
-                                + KeyboardLanguage.name(ctx, state, language),
-                                () -> KeyboardLanguage.pick(ctx, language)));
-                    }
+                for (int i = 0; state != null && i < state.count(); i++) {
+                    int id = state.id(i);
+                    entries.add(new TaskbarMenu.Entry((i == state.current ? "\u2713  " : "")
+                            + state.name(i), () -> KeyboardLanguage.pick(ctx, id)));
                 }
                 entries.add(new TaskbarMenu.Entry("Keyboard settings",
                         () -> KeyboardLanguage.settings(ctx, mDisplayId)));
@@ -892,6 +887,25 @@ public final class TaskbarTray {
                 L.e("tray: keyboard language menu failed", t);
                 return false;
             }
+        }
+
+        /**
+         * The keyboard coming up on this screen: a HeliBoard that has not answered - started
+         * after the tray asked, or started again - is asked then. ZUI's taskbar layer passes
+         * its insets on untouched, the keyboard's with them.
+         */
+        @Override
+        public android.view.WindowInsets onApplyWindowInsets(android.view.WindowInsets insets) {
+            try {
+                boolean up = insets.isVisible(android.view.WindowInsets.Type.ime());
+                if (up && !mKeyboardUp && Cfg.trayLanguage()) {
+                    KeyboardLanguage.keyboardShown(getContext());
+                }
+                mKeyboardUp = up;
+            } catch (Throwable t) {
+                L.d("tray: the keyboard's coming up not read (" + t + ")");
+            }
+            return super.onApplyWindowInsets(insets);
         }
 
         /** A mouse's right button going down: a menu, as a hold would give. */
@@ -942,8 +956,7 @@ public final class TaskbarTray {
         protected void onDetachedFromWindow() {
             super.onDetachedFromWindow();
             removeCallbacks(mTick);
-            KeyboardLanguage.unwatch(getContext(), mLanguageWatch);
-            mLanguageWatch = null;
+            KeyboardLanguage.unlisten(mOnLanguage);
             if (mState != null) {
                 mState.watchTemps(this, false);
                 mState.removeListener(mOnChanged);

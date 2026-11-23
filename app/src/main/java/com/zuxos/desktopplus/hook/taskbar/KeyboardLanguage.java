@@ -2,115 +2,136 @@ package com.zuxos.desktopplus.hook.taskbar;
 
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ApplicationInfo;
-import android.database.ContentObserver;
-import android.net.Uri;
+import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
+import android.os.Message;
+import android.os.Messenger;
 import android.provider.Settings;
-import android.view.inputmethod.InputMethodInfo;
-import android.view.inputmethod.InputMethodManager;
-import android.view.inputmethod.InputMethodSubtype;
 
 import com.zuxos.desktopplus.core.KeyboardWire;
 import com.zuxos.desktopplus.core.L;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
- * The keyboard's language in the monitor's tray, as DeX's taskbar shows it: Android's own word on
- * the current keyboard, its languages and which one is on. Only a keyboard may change its own
- * language, so HeliBoard is asked ({@link KeyboardWire}); any other keyboard's languages are left
- * to its settings, opened on the tray's screen.
+ * The keyboard's language in the monitor's tray, as DeX's taskbar shows it. HeliBoard keeps its
+ * languages to itself - Android's keyboard list sees one of them, and never which is on - so it
+ * says them itself ({@link KeyboardWire}): asked when the first tray comes on screen, it answers
+ * on ZUX Home's Messenger, and again whenever they change. Its own Messenger comes with each
+ * answer, so a HeliBoard that dies takes the button with it, and it is asked again the next time
+ * the keyboard comes up. Only a keyboard may change its own language, so the tray asks it to;
+ * with any other keyboard the button stays away. Main thread only.
  */
 final class KeyboardLanguage {
 
-    /** Android's setting of the current keyboard's language: hidden from the SDK, by name. */
-    private static final String SELECTED_SUBTYPE = "selected_input_method_subtype";
-
-    /** The current keyboard, its languages and which is on. */
+    /** HeliBoard's languages as it last said them, in its own order, and the one on. */
     static final class State {
-        final String pkg;
-        final List<InputMethodSubtype> languages;
-        final InputMethodSubtype current;
+        private final int[] mIds;
+        private final String[] mCodes;
+        private final String[] mNames;
+        /** Where the one on is in the list; -1 when it is none of them. */
+        final int current;
 
-        State(String pkg, List<InputMethodSubtype> languages, InputMethodSubtype current) {
-            this.pkg = pkg;
-            this.languages = languages;
-            this.current = current;
+        State(int[] ids, String[] codes, String[] names, int on) {
+            mIds = ids;
+            mCodes = codes;
+            mNames = names;
+            int at = -1;
+            for (int i = 0; i < ids.length; i++) {
+                if (ids[i] == on) {
+                    at = i;
+                }
+            }
+            current = at;
+        }
+
+        int count() {
+            return mIds.length;
+        }
+
+        int id(int i) {
+            return mIds[i];
+        }
+
+        String code(int i) {
+            return mCodes[i];
+        }
+
+        String name(int i) {
+            return mNames[i];
         }
     }
+
+    private static final Handler MAIN = new Handler(Looper.getMainLooper(),
+            KeyboardLanguage::heard);
+    /** HeliBoard gone: its button with it, until it answers again. */
+    private static final IBinder.DeathRecipient GONE = () -> MAIN.post(KeyboardLanguage::gone);
+    /** The trays on screen, told when the languages change. */
+    private static final List<Runnable> TRAYS = new ArrayList<>();
+
+    private static Context sApp;
+    /** Ours, which HeliBoard answers on: made with the first tray. */
+    private static Messenger sReply;
+    /** HeliBoard's own, while it lives and has answered. */
+    private static IBinder sHeli;
+    private static State sState;
 
     private KeyboardLanguage() {
     }
 
-    /** The current keyboard's state, or null where Android says nothing of it. */
-    static State read(Context ctx) {
-        InputMethodManager imm = ctx.getSystemService(InputMethodManager.class);
-        String id = Settings.Secure.getString(ctx.getContentResolver(),
-                Settings.Secure.DEFAULT_INPUT_METHOD);
-        if (imm == null || id == null) {
-            return null;
-        }
-        for (InputMethodInfo info : imm.getEnabledInputMethodList()) {
-            if (id.equals(info.getId())) {
-                State state = new State(info.getPackageName(),
-                        imm.getEnabledInputMethodSubtypeList(info, true),
-                        imm.getCurrentInputMethodSubtype());
-                if (L.once("KeyboardLanguage.read")) {
-                    L.i("keyboard language: " + state.pkg + " has " + state.languages.size()
-                            + " language(s), on now " + code(state.current));
-                }
-                return state;
-            }
-        }
-        return null;
+    /** HeliBoard's languages, or null where it has said none. */
+    static State state() {
+        return sState;
     }
 
-    /** A language's short code for the tray: "EN" for en-US. */
-    static String code(InputMethodSubtype subtype) {
-        if (subtype == null) {
-            return "";
+    /** A tray on screen, told when the languages change; the first one asks HeliBoard. */
+    static void listen(Context ctx, Runnable changed) {
+        sApp = ctx.getApplicationContext();
+        boolean first = TRAYS.isEmpty();
+        if (!TRAYS.contains(changed)) {
+            TRAYS.add(changed);
         }
-        String tag = subtype.getLanguageTag();
-        if (tag == null || tag.isEmpty()) {
-            tag = subtype.getLocale();
+        if (first && sHeli == null) {
+            ask(ctx);
         }
-        return tag == null ? "" : tag.split("[-_]")[0].toUpperCase(Locale.ROOT);
     }
 
-    /** A language's name for the tray's menu, as the keyboard names it. */
-    static String name(Context ctx, State state, InputMethodSubtype subtype) {
-        try {
-            ApplicationInfo app = ctx.getPackageManager().getApplicationInfo(state.pkg, 0);
-            CharSequence name = subtype.getDisplayName(ctx, state.pkg, app);
-            if (name != null && name.length() > 0) {
-                return name.toString();
-            }
-        } catch (Throwable t) {
-            // Its code, then.
-        }
-        return code(subtype);
+    static void unlisten(Runnable changed) {
+        TRAYS.remove(changed);
     }
 
-    /** The next language: HeliBoard asked, any other keyboard's settings opened. */
-    static void next(Context ctx, int display) {
-        State state = read(ctx);
-        if (state != null && KeyboardWire.HELIBOARD.equals(state.pkg)) {
-            ctx.sendBroadcast(new Intent(KeyboardWire.ACTION_LANGUAGE)
-                    .setPackage(KeyboardWire.HELIBOARD)
-                    .putExtra(KeyboardWire.EXTRA_NEXT, true));
+    /**
+     * The keyboard came up on a tray's screen: a HeliBoard that has not answered - started after
+     * the tray asked, or started again - is asked now. Only while HeliBoard is the keyboard.
+     */
+    static void keyboardShown(Context ctx) {
+        if (sHeli != null || TRAYS.isEmpty()) {
             return;
         }
-        settings(ctx, display);
+        String current = Settings.Secure.getString(ctx.getContentResolver(),
+                Settings.Secure.DEFAULT_INPUT_METHOD);
+        if (current != null && current.startsWith(KeyboardWire.HELIBOARD + "/")) {
+            ask(ctx);
+        }
     }
 
-    /** One language picked from the tray's menu. */
-    static void pick(Context ctx, InputMethodSubtype subtype) {
-        ctx.sendBroadcast(new Intent(KeyboardWire.ACTION_LANGUAGE)
-                .setPackage(KeyboardWire.HELIBOARD)
-                .putExtra(KeyboardWire.EXTRA_SUBTYPE, subtype.hashCode()));
+    /** The next language: HeliBoard asked; with nothing from it, the keyboard settings. */
+    static void next(Context ctx, int display) {
+        if (sState == null) {
+            settings(ctx, display);
+            return;
+        }
+        send(ctx, new Intent(KeyboardWire.ACTION_LANGUAGE)
+                .putExtra(KeyboardWire.EXTRA_NEXT, true));
+    }
+
+    /** One language picked from the tray's menu, by its hash. */
+    static void pick(Context ctx, int id) {
+        send(ctx, new Intent(KeyboardWire.ACTION_LANGUAGE)
+                .putExtra(KeyboardWire.EXTRA_SUBTYPE, id));
     }
 
     /** Android's keyboard settings, on the tray's screen. */
@@ -118,28 +139,99 @@ final class KeyboardLanguage {
         TaskbarMenu.open(ctx, Settings.ACTION_INPUT_METHOD_SETTINGS, display);
     }
 
-    /**
-     * Told when the keyboard, its languages or the one on change - Android's own settings, so
-     * nothing is asked while nothing changes. Taken off again with {@link #unwatch}.
-     */
-    static ContentObserver watch(Context ctx, Runnable changed) {
-        ContentObserver observer = new ContentObserver(new Handler(Looper.getMainLooper())) {
-            @Override
-            public void onChange(boolean selfChange, Uri uri) {
-                changed.run();
-            }
-        };
-        for (String key : new String[]{Settings.Secure.DEFAULT_INPUT_METHOD,
-                Settings.Secure.ENABLED_INPUT_METHODS, SELECTED_SUBTYPE}) {
-            ctx.getContentResolver().registerContentObserver(
-                    Settings.Secure.getUriFor(key), false, observer);
-        }
-        return observer;
+    private static void ask(Context ctx) {
+        send(ctx, new Intent(KeyboardWire.ACTION_LANGUAGE));
     }
 
-    static void unwatch(Context ctx, ContentObserver observer) {
-        if (observer != null) {
-            ctx.getContentResolver().unregisterContentObserver(observer);
+    /** To HeliBoard alone, with our Messenger: every word renews its way back. */
+    private static void send(Context ctx, Intent intent) {
+        if (sReply == null) {
+            sReply = new Messenger(MAIN);
+        }
+        ctx.sendBroadcast(intent.setPackage(KeyboardWire.HELIBOARD)
+                .putExtra(KeyboardWire.EXTRA_REPLY, sReply));
+    }
+
+    /** HeliBoard's answer - only HeliBoard's: its languages kept, its life watched. */
+    private static boolean heard(Message message) {
+        if (message.what != KeyboardWire.WHAT_LANGUAGES) {
+            return false;
+        }
+        try {
+            if (!fromHeliBoard(message.sendingUid)) {
+                if (L.once("KeyboardLanguage.stranger")) {
+                    L.w("keyboard language: an answer not from HeliBoard ignored (uid "
+                            + message.sendingUid + ")");
+                }
+                return true;
+            }
+            if (!watch(message.replyTo)) {
+                // Gone already, between its answer and now.
+                gone();
+                return true;
+            }
+            Bundle data = message.getData();
+            int[] ids = data.getIntArray(KeyboardWire.KEY_IDS);
+            String[] codes = data.getStringArray(KeyboardWire.KEY_CODES);
+            String[] names = data.getStringArray(KeyboardWire.KEY_NAMES);
+            boolean some = ids != null && codes != null && names != null
+                    && codes.length == ids.length && names.length == ids.length;
+            sState = some ? new State(ids, codes, names,
+                    data.getInt(KeyboardWire.KEY_CURRENT)) : null;
+            if (sState != null && L.once("KeyboardLanguage.heard")) {
+                L.i("keyboard language: HeliBoard has " + sState.count() + " language(s), on now "
+                        + (sState.current >= 0 ? sState.code(sState.current) : "none of them"));
+            }
+            changed();
+        } catch (Throwable t) {
+            L.d("keyboard language: HeliBoard's answer not read (" + t + ")");
+        }
+        return true;
+    }
+
+    private static boolean fromHeliBoard(int uid) {
+        String[] packages = sApp == null ? null : sApp.getPackageManager().getPackagesForUid(uid);
+        if (packages != null) {
+            for (String pkg : packages) {
+                if (KeyboardWire.HELIBOARD.equals(pkg)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * HeliBoard's own Messenger: its death heard, once for each HeliBoard. False when it is
+     * dead already.
+     */
+    private static boolean watch(Messenger heli) {
+        IBinder binder = heli == null ? null : heli.getBinder();
+        if (binder == null || binder == sHeli) {
+            return true;
+        }
+        if (sHeli != null) {
+            sHeli.unlinkToDeath(GONE, 0);
+            sHeli = null;
+        }
+        try {
+            binder.linkToDeath(GONE, 0);
+            sHeli = binder;
+            return true;
+        } catch (Throwable dead) {
+            return false;
+        }
+    }
+
+    private static void gone() {
+        sHeli = null;
+        sState = null;
+        changed();
+    }
+
+    private static void changed() {
+        for (Runnable tray : new ArrayList<>(TRAYS)) {
+            tray.run();
         }
     }
 }

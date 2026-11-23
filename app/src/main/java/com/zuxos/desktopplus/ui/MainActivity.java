@@ -164,7 +164,7 @@ public class MainActivity extends Activity {
                         + "launcher read them",
                 Const.KEY_TASKBAR_TEMPS, true);
         addSwitch("Keyboard language button",
-                "In the tray, as on DeX: the keyboard's language, a click for the next one, "
+                "In the tray, as on DeX: HeliBoard's language, a click for the next one, "
                         + "hold or right-click for the list. With two languages or more",
                 Const.KEY_TRAY_LANGUAGE, true);
         addSwitch("Edit the quick panel's tiles",

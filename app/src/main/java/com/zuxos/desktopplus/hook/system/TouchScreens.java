@@ -62,7 +62,7 @@ public final class TouchScreens {
             + "|DisplayIdWithPointer|FocusedDisplay|FocusedApplication|FocusedWindow"
             + "|Pointer Capture|PointerCapture|DispatchEnabled|DispatchFrozen|InputFilter)");
     /** At most this many of its lines, in one entry. */
-    private static final int STATE_LINES = 60;
+    private static final int STATE_LINES = 80;
     /** The touchscreens we tied, by descriptor, to the screen's unique id. Under its own lock. */
     private static final Map<String, String> TIED = new HashMap<>();
     /** What each tied device is, for the log: its name and sources. Under {@link #TIED}'s lock. */
@@ -199,7 +199,8 @@ public final class TouchScreens {
     /**
      * The input system's own account as a mouse goes - for a mouse that stopped, its replug: which
      * screen the mouse's pointer was on, which window had the focus, and whether something held
-     * the pointer. Its own dump, the lines that say so and the pointer's own section. Read only.
+     * the pointer. Its own dump, the lines that say so and the pointer's own section. A line that
+     * heads a list ("FocusedWindows:") is kept with its list - the window, the app. Read only.
      */
     private static void writeInputState(Object input) {
         try {
@@ -213,18 +214,32 @@ public final class TouchScreens {
             }
             StringBuilder kept = new StringBuilder();
             boolean pointer = false;
+            // The indent of a kept line that heads a list, while its list goes on; -1 for none.
+            int heading = -1;
             int lines = 0;
             for (String line : ((String) dump).split("\n")) {
                 String text = line.trim();
-                if (!line.isEmpty() && !Character.isWhitespace(line.charAt(0))) {
+                if (text.isEmpty()) {
+                    continue;
+                }
+                int indent = line.indexOf(text.charAt(0));
+                if (indent == 0) {
                     // A section of its own: the pointer's is kept whole.
                     pointer = text.startsWith("PointerChoreographer");
                 }
-                if ((pointer || INPUT_STATE.matcher(text).find()) && !text.isEmpty()) {
+                boolean listed = heading >= 0 && indent > heading;
+                if (!listed) {
+                    heading = -1;
+                }
+                boolean named = INPUT_STATE.matcher(text).find();
+                if (pointer || listed || named) {
                     kept.append("\n  ").append(text);
                     if (++lines >= STATE_LINES) {
                         break;
                     }
+                }
+                if (named && !listed && text.endsWith(":")) {
+                    heading = indent;
                 }
             }
             L.i("touch screens: a mouse went - the input system's own account:" + kept);

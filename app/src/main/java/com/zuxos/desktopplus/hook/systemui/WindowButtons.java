@@ -21,6 +21,7 @@ import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.core.Ui;
 import com.zuxos.desktopplus.core.icons.Glyphs;
+import com.zuxos.desktopplus.core.motion.Motion;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -47,10 +48,10 @@ import de.robv.android.xposed.XposedBridge;
  * floating, its close, with its checks and toasts. The pictures are ZUI's desktop-mode buttons,
  * light or dark by the night mode as ZUI picks them. Last, right of close, our Full screen
  * ({@link FullScreenWindows#askToggle}), as the menu's row of ours asks for it; first, left of
- * minimise, our pin, which keeps the window above all others ({@link KeepOnTop}). The row ends
- * where ZUI's resize corner begins. Like ZUI's dots, the buttons are not reported to apps as
- * the bar's controls: an app told of controls draws its own header into the rest of the bar -
- * Chromium its tabs - and there the bar and the app fought over every click.
+ * minimise, our pin, which keeps a floating window above all others ({@link KeepOnTop}). The
+ * row ends where ZUI's resize corner begins. Like ZUI's dots, the buttons are not reported to
+ * apps as the bar's controls: an app told of controls draws its own header into the rest of the
+ * bar - Chromium its tabs - and there the bar and the app fought over every click.
  *
  * <p>With the buttons there the pill's dots go: hidden, so it takes no touches and the bar under
  * it drags the window, and a double-click on it maximises or restores, as ZUI does on the
@@ -66,6 +67,8 @@ public final class WindowButtons {
     private static final int GLYPH_LIGHT = 0xFF191919;
     private static final int GLYPH_DARK = 0xFFFAFAFA;
     private static final float GLYPH_DP = 18f;
+    /** The pin pressed: drawn this much smaller, then sprung back to its size. */
+    private static final float PIN_PRESS_SCALE = 0.8f;
     /** The pin's words, as it keeps the window on top or lets it go. */
     private static final String KEEP_ON_TOP = "Keep on top";
     private static final String LET_GO = "Stop keeping on top";
@@ -211,9 +214,12 @@ public final class WindowButtons {
             }
         }
         boolean night = night(caption.getContext());
-        KeepOnTop.check(task);
-        row.show(wanted, mode == FREEFORM, night, task.taskId, displayOf(task),
-                KeepOnTop.on(task));
+        boolean floating = mode == FREEFORM;
+        if (wanted && !floating) {
+            KeepOnTop.maximised(sLoader, task.taskId);
+        }
+        row.show(wanted, floating, night, task.taskId, displayOf(task),
+                floating && KeepOnTop.shown(task));
         if (wanted && solid(task)) {
             // ZUI clears a maximised window's bar; over a full-screen app's header nothing would
             // show through but the header itself.
@@ -294,9 +300,15 @@ public final class WindowButtons {
         }
         if (pin != null) {
             Row r = row;
-            pin.setOnClickListener(v -> KeepOnTop.toggle(sLoader, r.taskId));
+            pin.setOnClickListener(v -> {
+                // ZUI binds the bar again only on its own changes: the pin answers its click.
+                Boolean asked = KeepOnTop.toggle(sLoader, r.taskId);
+                if (asked != null) {
+                    r.pinned(asked);
+                }
+            });
         }
-        int width = rowWidth(ctx);
+        int width = rowWidth(ctx, true);
         LinearLayout.LayoutParams balance = new LinearLayout.LayoutParams(width,
                 ViewGroup.LayoutParams.MATCH_PARENT);
         balance.setMarginStart(cornerPx(ctx));
@@ -326,10 +338,13 @@ public final class WindowButtons {
         return sCornerPx;
     }
 
-    /** The row's width: three of ZUI's buttons, and our pin and Full screen while offered. */
-    private static int rowWidth(Context ctx) {
+    /**
+     * The row's width: three of ZUI's buttons, our Full screen while offered, and our pin while
+     * offered and shown - a floating window's bar has it, a maximised one's not.
+     */
+    private static int rowWidth(Context ctx, boolean pin) {
         return Ui.dp(ctx, BUTTON_DP) * (3 + (Cfg.fullScreen() ? 1 : 0)
-                + (Cfg.windowPin() ? 1 : 0));
+                + (pin && Cfg.windowPin() ? 1 : 0));
     }
 
     private static View room(Context ctx) {
@@ -538,7 +553,8 @@ public final class WindowButtons {
             }
             int end = bounds.width() - cornerPx(ctx);
             Object element = newElement(params);
-            mElementRect.set(element, new Rect(end - rowWidth(ctx), 0, end, height));
+            mElementRect.set(element, new Rect(end - rowWidth(ctx, mode == FREEFORM), 0, end,
+                    height));
             mElementAlignment.set(element, mCustomize);
             elements.add(element);
             if (L.once("WindowButtons.beside")) {
@@ -619,6 +635,8 @@ public final class WindowButtons {
         /** The window the bar stands for now, for our Full screen. */
         int taskId = -1;
         int display = Display.DEFAULT_DISPLAY;
+        /** The shade the bar was last shown in, for the pin's glyph on its click. */
+        boolean night;
 
         Row(View balance, View buttons, View pill, ImageView pin, ImageView minimize,
                 ImageView toggle, ImageView full, ImageView close) {
@@ -634,7 +652,8 @@ public final class WindowButtons {
 
         /**
          * Shown or not; a floating window's middle button is ZUI's full screen, a maximised
-         * one's its floating. ZUI's "normal" pictures are dark glyphs for a light theme.
+         * one's its floating, and only a floating window has the pin. ZUI's "normal" pictures
+         * are dark glyphs for a light theme.
          */
         void show(boolean shown, boolean floating, boolean night, int taskId, int display,
                 boolean onTop) {
@@ -653,6 +672,7 @@ public final class WindowButtons {
             }
             this.taskId = taskId;
             this.display = display;
+            this.night = night;
             Ids ids = sIds;
             int[] pictures = night ? ids.dark : ids.light;
             minimize.setImageResource(pictures[0]);
@@ -666,8 +686,40 @@ public final class WindowButtons {
                 full.setContentDescription(on ? FullScreenWire.EXIT : FullScreenWire.ENTER);
             }
             if (pin != null) {
-                glyph(pin, onTop ? Glyphs.UNPIN : Glyphs.PIN, night);
-                pin.setContentDescription(onTop ? LET_GO : KEEP_ON_TOP);
+                int shows = floating ? View.VISIBLE : View.GONE;
+                if (pin.getVisibility() != shows) {
+                    pin.setVisibility(shows);
+                    width(rowWidth(pin.getContext(), floating));
+                }
+                if (floating) {
+                    mark(onTop);
+                }
+            }
+        }
+
+        /** The pin clicked: what it asked shown at once, with a press that springs back. */
+        void pinned(boolean onTop) {
+            mark(onTop);
+            pin.animate().cancel();
+            pin.setScaleX(PIN_PRESS_SCALE);
+            pin.setScaleY(PIN_PRESS_SCALE);
+            pin.animate().scaleX(1f).scaleY(1f).setInterpolator(Motion.SPRING)
+                    .setDuration(Motion.SPRING_MS).start();
+        }
+
+        private void mark(boolean onTop) {
+            glyph(pin, onTop ? Glyphs.UNPIN : Glyphs.PIN, night);
+            pin.setContentDescription(onTop ? LET_GO : KEEP_ON_TOP);
+        }
+
+        /** The buttons and the block that balances them, as wide as the buttons shown. */
+        private void width(int px) {
+            for (View v : new View[]{balance, buttons}) {
+                ViewGroup.LayoutParams lp = v.getLayoutParams();
+                if (lp != null && lp.width != px) {
+                    lp.width = px;
+                    v.setLayoutParams(lp);
+                }
             }
         }
 

@@ -270,10 +270,10 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   green Android head as a start logo (optional). It is ZUI's own button, moved, so it opens ZUI's drawer as
   before.
 - **Scrolling.** With more apps than room, the row scrolls and its ends fade.
-- **A status tray:** network, the keyboard's language as on DeX (a click for the next one, hold
-  or right-click for the list; HeliBoard, with two languages or more), the temperatures in three
-  rows, and the time, the date and the battery in three rows, with a quick panel behind it for
-  toggles, media and notifications.
+- **A status tray:** network, HeliBoard's language as on DeX (a click for the next one, hold
+  or right-click for the list; with two languages or more, told by HeliBoard itself, so HeliBoard
+  must be ticked in LSPosed), the temperatures in three rows, and the time, the date and the
+  battery in three rows, with a quick panel behind it for toggles, media and notifications.
 - **On the monitor, the start button sits at the left end** (as far in as the tray is from the
   right end), with the navigation keys right after it.
 - **Notification pop-ups on the monitor** (optional): what would pop up on the tablet shows above
@@ -293,11 +293,11 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   room, so it never covers the app's top menus. Needs System UI ticked in LSPosed, which also
   keeps windows clear of the taskbar wherever it is.
 - **Window buttons on the monitor, as on DeX** (optional, on by default). Keep on top (a pin,
-  optional), minimise, maximise or restore, close and Full screen sit at the right of every
-  window's title bar on the monitor, in place of ZUI's three dots; apps keep their own headers
-  below the bar. Each does what the "…" menu's item does; drag the bar to move the window,
-  double-click it to maximise or restore. Split-screen windows keep the dots. Needs System UI
-  ticked in LSPosed.
+  optional, on floating windows), minimise, maximise or restore, close and Full screen sit at the
+  right of every window's title bar on the monitor, in place of ZUI's three dots; apps keep their
+  own headers below the bar. Each does what the "…" menu's item does; drag the bar to move the
+  window, double-click it to maximise or restore. Split-screen windows keep the dots. Needs System
+  UI ticked in LSPosed.
 - **Apps and the keyboard stop at the taskbar** (optional, on by default, both screens). Apps
   made for Android 15 and later draw under the bars and many leave their content there; their
   windows now end where the bar starts, and have its strip only while the bar is hidden. The

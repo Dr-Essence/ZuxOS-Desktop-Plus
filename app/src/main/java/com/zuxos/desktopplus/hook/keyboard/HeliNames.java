@@ -1,10 +1,10 @@
 package com.zuxos.desktopplus.hook.keyboard;
 
 /**
- * Every name of HeliBoard's that {@link HeliPad} and {@link HeliWindow} reach, in one place: when
- * HeliBoard changes, these are the ones to check against its source. Read from HeliBoard
- * 4.3-beta1, built without obfuscation, so its names are its source's. Each constant is its name
- * in capitals.
+ * Every name of HeliBoard's that {@link HeliPad}, {@link HeliWindow} and {@link HeliLanguage}
+ * reach, in one place: when HeliBoard changes, these are the ones to check against its source.
+ * Read from HeliBoard 4.3-beta1, built without obfuscation, so its names are its source's. Each
+ * constant is its name in capitals.
  */
 final class HeliNames {
 
@@ -20,6 +20,26 @@ final class HeliNames {
     static final String M_KEYBOARD_ACTION_LISTENER = "mKeyboardActionListener";
     static final String M_KEYBOARD_SWITCHER = "mKeyboardSwitcher";
     static final String M_SUGGESTION_STRIP_VIEW = "mSuggestionStripView";
+
+    // Its languages: every switch of one ends in the subtype change, its own or the system's.
+    static final String ON_CURRENT_INPUT_METHOD_SUBTYPE_CHANGED =
+            "onCurrentInputMethodSubtypeChanged";
+    static final String ON_START_INPUT_VIEW = "onStartInputView";
+    static final String SWITCH_TO_SUBTYPE = "switchToSubtype";
+    /** The languages it has on, in its own order: a Kotlin object's. */
+    static final String SUBTYPE_SETTINGS = "helium314.keyboard.latin.utils.SubtypeSettings";
+    static final String GET_ENABLED_SUBTYPES = "getEnabledSubtypes";
+    static final String INSTANCE = "INSTANCE";
+    /** The one on, and the next after it. */
+    static final String RICH_INPUT_METHOD_MANAGER =
+            "helium314.keyboard.latin.RichInputMethodManager";
+    static final String GET_INSTANCE = "getInstance";
+    static final String GET_CURRENT_SUBTYPE = "getCurrentSubtype";
+    static final String GET_NEXT_SUBTYPE_IN_THIS_IME = "getNextSubtypeInThisIme";
+    static final String GET_RAW_SUBTYPE = "getRawSubtype";
+    /** A language's name as its own language list shows it: an extension in a Kotlin object. */
+    static final String SUBTYPE_LOCALE_UTILS = "helium314.keyboard.latin.utils.SubtypeLocaleUtils";
+    static final String DISPLAY_NAME = "displayName";
 
     // Its listener for the keys, and the haptic event a press takes.
     static final String ON_PRESS_KEY = "onPressKey";
