@@ -126,18 +126,26 @@ final class SystemNames {
     static final String DUMP = "dump";
     /**
      * A physical keyboard's layout, Android's own: the input manager as a service, its list of
-     * layouts, and the layout a keyboard is given over its own choice.
+     * layouts, the user's choice of one for a keyboard and a keyboard app's language, and what it
+     * then uses ({@code KeyboardLayoutSelectionResult}).
      */
     static final String SERVICE_MANAGER = "android.os.ServiceManager";
     static final String INPUT_SERVICE = "input";
     static final String GET_KEYBOARD_LAYOUTS = "getKeyboardLayouts";
-    static final String SET_KEYBOARD_LAYOUT_OVERRIDE_FOR_INPUT_DEVICE =
-            "setKeyboardLayoutOverrideForInputDevice";
+    static final String SET_KEYBOARD_LAYOUT_FOR_INPUT_DEVICE = "setKeyboardLayoutForInputDevice";
+    static final String GET_KEYBOARD_LAYOUT_FOR_INPUT_DEVICE = "getKeyboardLayoutForInputDevice";
+    static final String GET_LAYOUT_DESCRIPTOR = "getLayoutDescriptor";
+    static final String GET_SELECTION_CRITERIA = "getSelectionCriteria";
+    /** {@code ActivityManager}'s, hidden from the SDK: the user in front. */
+    static final String GET_CURRENT_USER = "getCurrentUser";
     /** {@code KeyboardLayout}'s. */
     static final String GET_DESCRIPTOR = "getDescriptor";
     static final String GET_LABEL = "getLabel";
     static final String GET_LOCALES = "getLocales";
     static final String GET_LAYOUT_TYPE = "getLayoutType";
+    /** The window manager's answer to which screen the mouse's pointer belongs on. */
+    static final String INPUT_MANAGER_CALLBACK = "com.android.server.wm.InputManagerCallback";
+    static final String GET_POINTER_DISPLAY_ID = "getPointerDisplayId";
     /** {@code InputDevice}'s. */
     static final String GET_BLUETOOTH_ADDRESS = "getBluetoothAddress";
     static final String GET_IDENTIFIER = "getIdentifier";

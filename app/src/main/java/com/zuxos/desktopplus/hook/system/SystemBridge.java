@@ -108,7 +108,8 @@ public final class SystemBridge {
                 if (ACTION_KEYBOARD_LAYOUT.equals(intent.getAction())) {
                     String language = intent.getStringExtra(EXTRA_LANGUAGE);
                     if (language != null && !language.isEmpty()) {
-                        KeyboardLayouts.follow(mCtx, language);
+                        KeyboardLayouts.follow(mCtx,
+                                new Handler(android.os.Looper.myLooper()), language);
                     }
                     return;
                 }

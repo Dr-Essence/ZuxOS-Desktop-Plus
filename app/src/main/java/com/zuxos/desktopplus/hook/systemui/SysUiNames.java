@@ -156,6 +156,16 @@ final class SysUiNames {
     static final String M_NAV_BAR_FRAME_HEIGHT = "mNavBarFrameHeight";
     static final String M_TASKBAR_FRAME_HEIGHT = "mTaskbarFrameHeight";
 
+    // The lock screen on other screens: Android 16's own pieces, looked for, not reached.
+    /** SystemUI's flags: one moves the shade window, the lock screen with it, between screens. */
+    static final String SYSTEMUI_FLAGS = "com.android.systemui.Flags";
+    static final String SHADE_WINDOW_GOES_AROUND = "shadeWindowGoesAround";
+    static final String SHADE_DISPLAYS_REPOSITORY =
+            "com.android.systemui.shade.data.repository.ShadeDisplaysRepository";
+    static final String KEYGUARD_DISPLAY_MANAGER = "com.android.keyguard.KeyguardDisplayManager";
+    static final String CONNECTED_DISPLAY_KEYGUARD_PRESENTATION =
+            "com.android.keyguard.ConnectedDisplayKeyguardPresentation";
+
     private SysUiNames() {
     }
 }

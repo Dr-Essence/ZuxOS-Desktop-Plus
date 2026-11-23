@@ -134,6 +134,12 @@ public final class RoadmapProbe {
               [ -f "$d/product" ] && echo "$(cat "$d/product" 2>/dev/null): control $(cat "$d/power/control" 2>/dev/null), now $(cat "$d/power/runtime_status" 2>/dev/null), wakeup $(cat "$d/power/wakeup" 2>/dev/null), sleeps after $(cat "$d/power/autosuspend_delay_ms" 2>/dev/null) ms"
             done | head -20
             echo "ZUI's touchpad on the tablet: $(dumpsys activity activities 2>/dev/null | grep -c 'touchpad.TouchPadActivity') record(s)"
+            echo "--- the monitor's mode and link (colour bands at 144 Hz: too few lanes for full colour)"
+            dumpsys display 2>/dev/null | grep -E 'mActiveModeId|mActiveSfDisplayMode|mUserPreferredModeId' | head -8
+            dumpsys SurfaceFlinger 2>/dev/null | grep -i -E 'activeMode|colorMode|hdr' | head -12
+            [ -r /sys/kernel/debug/dri/0/state ] && grep -i -A12 -E 'connector.*DP|crtc\\[' /sys/kernel/debug/dri/0/state 2>/dev/null | head -60
+            ls /sys/kernel/debug/drm_dp 2>/dev/null | head -40 | tr '\\n' ' ' && echo
+            logcat -d -b kernel 2>/dev/null | grep -i -E 'dp_|bpp|link_rate|lane' | tail -30
             echo "--- the kernel's last lines on USB and input (a mouse that stops sending)"
             dmesg 2>/dev/null | grep -v BATTERY_CHG | grep -i -E 'usb [0-9]|hid|input:|xhci' | tail -40
             echo "--- resource overlays on SystemUI (#10 window looks, #16)"
