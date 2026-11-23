@@ -11,8 +11,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -36,7 +39,9 @@ import de.robv.android.xposed.XposedBridge;
  * devices change. Only with one external screen, only wired touchscreens and pens - the tablet's
  * own are internal or Bluetooth - and taken off again when the screen goes, so the next one is
  * tied afresh. The screens handed over are written to the log at each change, and so are the
- * mice (they are never tied: they follow the pointer's screen). Nothing runs at load
+ * mice (they are never tied: they follow the pointer's screen); as one goes - a mouse that
+ * stopped is brought back by replugging it - so is the input system's own account of where its
+ * pointer and the focus were. Nothing runs at load
  * time but the hooks; everything is in try/catch, on the threads the system already runs these
  * on.
  */
@@ -50,6 +55,14 @@ public final class TouchScreens {
     private static String sLast;
     /** The mice last written, so the log has each one coming, going or turned off, once. */
     private static String sMice = "";
+    /** The mice's ids last seen: one gone is a mouse unplugged - a dead one's replug too. */
+    private static volatile Set<Integer> sMiceIds = new HashSet<>();
+    /** The input system's own lines that say where a mouse's pointer and the focus are. */
+    private static final Pattern INPUT_STATE = Pattern.compile("(?i)(MouseDisplay|PointerDisplay"
+            + "|DisplayIdWithPointer|FocusedDisplay|FocusedApplication|FocusedWindow"
+            + "|Pointer Capture|PointerCapture|DispatchEnabled|DispatchFrozen|InputFilter)");
+    /** At most this many of its lines, in one entry. */
+    private static final int STATE_LINES = 60;
     /** The touchscreens we tied, by descriptor, to the screen's unique id. Under its own lock. */
     private static final Map<String, String> TIED = new HashMap<>();
     /** What each tied device is, for the log: its name and sources. Under {@link #TIED}'s lock. */
@@ -123,6 +136,7 @@ public final class TouchScreens {
             List<String> touch = new ArrayList<>();
             Map<String, String> names = new HashMap<>();
             StringBuilder mice = new StringBuilder();
+            Set<Integer> miceIds = new HashSet<>();
             for (InputDevice device : (InputDevice[]) input.getClass()
                     .getMethod(SystemNames.GET_INPUT_DEVICES).invoke(input)) {
                 if (onTheMonitor(device)) {
@@ -133,9 +147,14 @@ public final class TouchScreens {
                         && device.supportsSource(InputDevice.SOURCE_MOUSE)) {
                     mice.append("\n  ").append(device.getName()).append(", id ")
                             .append(device.getId()).append(device.isEnabled() ? "" : ", OFF");
+                    miceIds.add(device.getId());
                 }
             }
             writeMice(mice.toString());
+            if (!miceIds.containsAll(sMiceIds)) {
+                writeInputState(input);
+            }
+            sMiceIds = miceIds;
             synchronized (TIED) {
                 for (String descriptor : new ArrayList<>(TIED.keySet())) {
                     if (screen == null || !touch.contains(descriptor)) {
@@ -175,6 +194,43 @@ public final class TouchScreens {
         }
         sMice = now;
         L.i("touch screens: the mice are now" + (now.isEmpty() ? " none" : now));
+    }
+
+    /**
+     * The input system's own account as a mouse goes - for a mouse that stopped, its replug: which
+     * screen the mouse's pointer was on, which window had the focus, and whether something held
+     * the pointer. Its own dump, the lines that say so and the pointer's own section. Read only.
+     */
+    private static void writeInputState(Object input) {
+        try {
+            Object dump = Reflect.call(Reflect.field(input, SystemNames.M_NATIVE),
+                    SystemNames.DUMP);
+            if (!(dump instanceof String)) {
+                if (L.once("TouchScreens.state")) {
+                    L.w("touch screens: the input system's own account not readable");
+                }
+                return;
+            }
+            StringBuilder kept = new StringBuilder();
+            boolean pointer = false;
+            int lines = 0;
+            for (String line : ((String) dump).split("\n")) {
+                String text = line.trim();
+                if (!line.isEmpty() && !Character.isWhitespace(line.charAt(0))) {
+                    // A section of its own: the pointer's is kept whole.
+                    pointer = text.startsWith("PointerChoreographer");
+                }
+                if ((pointer || INPUT_STATE.matcher(text).find()) && !text.isEmpty()) {
+                    kept.append("\n  ").append(text);
+                    if (++lines >= STATE_LINES) {
+                        break;
+                    }
+                }
+            }
+            L.i("touch screens: a mouse went - the input system's own account:" + kept);
+        } catch (Throwable t) {
+            L.d("touch screens: the input system's own account not read (" + t + ")");
+        }
     }
 
     /**

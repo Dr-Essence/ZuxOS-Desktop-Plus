@@ -118,6 +118,9 @@ final class SystemNames {
     static final String SET_DISPLAY_VIEWPORTS_INTERNAL = "setDisplayViewportsInternal";
     static final String DELIVER_INPUT_DEVICES_CHANGED = "deliverInputDevicesChanged";
     static final String GET_INPUT_DEVICES = "getInputDevices";
+    /** The native input system, and its own account of itself - what dumpsys input prints. */
+    static final String M_NATIVE = "mNative";
+    static final String DUMP = "dump";
     /** {@code InputDevice}'s. */
     static final String GET_BLUETOOTH_ADDRESS = "getBluetoothAddress";
     /** {@code DisplayViewport}'s. */

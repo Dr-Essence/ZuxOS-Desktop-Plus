@@ -6,15 +6,12 @@ import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.graphics.Rect;
-import android.graphics.Region;
-import android.graphics.RegionIterator;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
 import android.view.Display;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowInsetsController;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 
@@ -50,8 +47,9 @@ import de.robv.android.xposed.XposedBridge;
  * floating, its close, with its checks and toasts. The pictures are ZUI's desktop-mode buttons,
  * light or dark by the night mode as ZUI picks them. Last, right of close, our Full screen
  * ({@link FullScreenWindows#askToggle}), as the menu's row of ours asks for it. The row ends
- * where ZUI's resize corner begins, and is one of the bar's occluding elements, so it keeps its
- * touches over an app that draws its own header under a see-through bar.
+ * where ZUI's resize corner begins. Like ZUI's dots, the buttons are not reported to apps as
+ * the bar's controls: an app told of controls draws its own header into the rest of the bar -
+ * Chromium its tabs - and there the bar and the app fought over every click.
  *
  * <p>With the buttons there the pill's dots go: hidden, so it takes no touches and the bar under
  * it drags the window, and a double-click on it maximises or restores, as ZUI does on the
@@ -62,14 +60,6 @@ public final class WindowButtons {
 
     private static final int FREEFORM = 5;
     private static final int FULLSCREEN = 1;
-    /**
-     * {@code InsetsSource.FLAG_FORCE_CONSUMING}: the title bar's room is taken out of the app's
-     * window even where the app draws edge to edge. ZUI sets it for every app that does not ask
-     * for a see-through bar ({@code DesktopModeWindowDecoration.updateRelayoutParams}).
-     */
-    private static final int FLAG_FORCE_CONSUMING = 1 << 2;
-    /** At most this many parts of an app's header in one trace line. */
-    private static final int TRACE_PARTS = 12;
     private static final float BUTTON_DP = 36f;
     /** ZUI's button colours, from its {@code zui_desktopmode_normal_*} and {@code _dark_*}. */
     private static final int GLYPH_LIGHT = 0xFF191919;
@@ -142,9 +132,8 @@ public final class WindowButtons {
     /**
      * After ZUI's {@code updateRelayoutParams}, the bar's room for its buttons, in ZUI's own
      * terms: a maximised window's bar as wide as the window (width id 0, as ZUI makes a floating
-     * one's) instead of the pill's width; and the buttons one of the bar's occluding elements, so
-     * an app that draws its own header under a see-through bar is told where they are and leaves
-     * them their touches ({@code mLimitTouchRegionToSystemAreas}).
+     * one's) instead of the pill's width, and all of the bar taking its own clicks
+     * ({@code mLimitTouchRegionToSystemAreas} off) wherever ZUI reports none of it as controls.
      */
     private static void hookRoom(ClassLoader loader) {
         try {
@@ -352,25 +341,9 @@ public final class WindowButtons {
         return button;
     }
 
-    /**
-     * Whether a bar is ZUI's solid one, all of it the bar's: shown from the top edge over a
-     * full-screen app. A maximised window's stays see-through, with only its buttons taking
-     * touches: whether its app is laid out below it is up to the system ({@link Room#make}), and
-     * a solid bar over an app that is not hid its tabs and took their clicks.
-     */
+    /** Whether a bar is ZUI's solid one: shown from the top edge over a full-screen app. */
     private static boolean solid(ActivityManager.RunningTaskInfo task) {
         return FullScreenWindows.revealed(task.taskId);
-    }
-
-    /**
-     * Whether the app asks for a see-through title bar to draw its own header under - Chrome's
-     * tabs, Claude's bar: ZUI's own test ({@code isTransparentCaptionBarAppearance}).
-     */
-    private static boolean ownHeader(ActivityManager.RunningTaskInfo task) {
-        Object appearance = Reflect.call(task.taskDescription,
-                SysUiNames.GET_TOP_OPAQUE_SYSTEM_BARS_APPEARANCE);
-        return appearance instanceof Integer && ((Integer) appearance
-                & WindowInsetsController.APPEARANCE_TRANSPARENT_CAPTION_BAR_BACKGROUND) != 0;
     }
 
     /** ZUI's title bar colour for the shade and focus, by name; 0 when it is not there. */
@@ -489,9 +462,6 @@ public final class WindowButtons {
         private final Field mElementAlignment;
         private final Object mCustomize;
         private final Field mLimitTouch;
-        private final Field mInsetFlags;
-        /** The display's exclusion region, for the trace; null where it is not there. */
-        private Field mExclusion;
         private int mPill;
         private Object mUnsafe;
         private Method mAllocate;
@@ -509,12 +479,6 @@ public final class WindowButtons {
                 mNewElement.setAccessible(true);
             }
             mLimitTouch = params.getField(SysUiNames.M_LIMIT_TOUCH_REGION_TO_SYSTEM_AREAS);
-            mInsetFlags = params.getField(SysUiNames.M_INSET_SOURCE_FLAGS);
-            try {
-                mExclusion = params.getField(SysUiNames.M_DISPLAY_EXCLUSION_REGION);
-            } catch (NoSuchFieldException e) {
-                mExclusion = null;
-            }
             mElementRect = element.getField(SysUiNames.M_RECT);
             mElementAlignment = element.getField(SysUiNames.M_ALIGNMENT);
             mCustomize = alignment.getField(SysUiNames.CUSTOMIZE).get(null);
@@ -532,63 +496,54 @@ public final class WindowButtons {
             if (mode == FULLSCREEN && mWidth.getInt(params) != 0) {
                 mWidth.setInt(params, 0);
             }
+            List<Object> elements = (List<Object>) mElements.get(params);
+            if (!zuiControls(elements)) {
+                // As with ZUI's own three dots, the bar says none of it is controls: an app
+                // draws nothing of its own into it - Chromium lays its tabs out below it - so
+                // all of the bar is the bar's, its buttons' clicks included.
+                mLimitTouch.setBoolean(params, false);
+                if (L.once("WindowButtons.room")) {
+                    L.i("window buttons: the bar says none of it is controls, as ZUI's dots - "
+                            + "apps stay below it, and it takes its own clicks");
+                }
+                return;
+            }
+            // An app ZUI itself lets draw around its pill: our buttons are controls beside it.
+            if (solid(task)) {
+                mLimitTouch.setBoolean(params, false);
+            }
             Rect bounds = taskBounds(task);
             int height = mHeight.getInt(params) == 0 ? 0
                     : ctx.getResources().getDimensionPixelSize(mHeight.getInt(params));
             if (bounds == null || height <= 0) {
                 return;
             }
-            if (solid(task)) {
-                // All of the bar is the bar's: a press on it never reaches an app's header.
-                mLimitTouch.setBoolean(params, false);
-            } else if (mode == FULLSCREEN && !FullScreenWindows.has(task.taskId)
-                    && ownHeader(task)) {
-                // A maximised app that draws its own header - Chrome's tabs - laid out below the
-                // bar as ZUI lays out every app that does not: the system takes the bar's room
-                // out of the app's window, edge to edge or not.
-                mInsetFlags.setInt(params, mInsetFlags.getInt(params) | FLAG_FORCE_CONSUMING);
-                if (L.once("WindowButtons.below")) {
-                    L.i("window buttons: an app with its own header laid out below its bar (its"
-                            + " room consumed, as ZUI does for other apps)");
-                }
-                traceTouch(params, task, bounds, height);
-            }
             int end = bounds.width() - cornerPx(ctx);
             Object element = newElement(params);
             mElementRect.set(element, new Rect(end - rowWidth(ctx), 0, end, height));
             mElementAlignment.set(element, mCustomize);
-            ((List<Object>) mElements.get(params)).add(element);
-            if (L.once("WindowButtons.room")) {
-                L.i("window buttons: the buttons keep their touches over an app's own header");
+            elements.add(element);
+            if (L.once("WindowButtons.beside")) {
+                L.i("window buttons: beside ZUI's pill, in an app ZUI lets draw around it");
             }
         }
 
         /**
-         * Which parts of a maximised app's own header keep their clicks. ZUI's bar takes every
-         * click on it but where the app said it needs them - the display's exclusion region -
-         * and where our buttons are ({@code WindowDecoration.calculateLimitedTouchableRegion}).
-         * Read only; each new answer for a window said once.
+         * Whether ZUI says any of the bar is its controls - a rect with room in it. For almost
+         * every app it says none: its pill's one rect is empty, and with nothing taken an app
+         * keeps its own header below the bar.
          */
-        private void traceTouch(Object params, ActivityManager.RunningTaskInfo task, Rect bounds,
-                int height) throws IllegalAccessException {
-            Object kept = mExclusion == null ? null : mExclusion.get(params);
-            if (!(kept instanceof Region)) {
-                return;
+        private boolean zuiControls(List<Object> elements) throws IllegalAccessException {
+            for (Object element : elements) {
+                if (mElementAlignment.get(element) != mCustomize) {
+                    return true;
+                }
+                Object rect = mElementRect.get(element);
+                if (rect instanceof Rect && !((Rect) rect).isEmpty()) {
+                    return true;
+                }
             }
-            Region bar = new Region(bounds.left, bounds.top, bounds.right, bounds.top + height);
-            bar.op((Region) kept, Region.Op.INTERSECT);
-            StringBuilder said = new StringBuilder();
-            RegionIterator parts = new RegionIterator(bar);
-            Rect part = new Rect();
-            for (int n = 0; n < TRACE_PARTS && parts.next(part); n++) {
-                said.append(' ').append(part.toShortString());
-            }
-            String where = said.length() == 0 ? " nowhere" : said.toString();
-            if (L.once("WindowButtons.touch." + task.taskId + where)) {
-                L.i("window buttons: task " + task.taskId + "'s bar " + bounds.width() + "x"
-                        + height + " at x " + bounds.left + " - the app keeps its clicks at"
-                        + where);
-            }
+            return false;
         }
 
         /**
