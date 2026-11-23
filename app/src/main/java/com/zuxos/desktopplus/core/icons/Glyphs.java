@@ -398,18 +398,20 @@ public final class Glyphs {
                 p.lineTo(20, 9);
                 return p;
             case FULL_SCREEN:
-                // The screen's four corners, pushed out to its edges.
-                corner(p, 4, 9, 4, 4, 9, 4);
-                corner(p, 15, 4, 20, 4, 20, 9);
-                corner(p, 20, 15, 20, 20, 15, 20);
-                corner(p, 9, 20, 4, 20, 4, 15);
+                // One diagonal, an arrowhead at each end: out to both corners.
+                p.moveTo(6, 18);
+                p.lineTo(18, 6);
+                corner(p, 11, 6, 18, 6, 18, 13);
+                corner(p, 6, 11, 6, 18, 13, 18);
                 return p;
             case EXIT_FULL_SCREEN:
-                // The same four corners, drawn back in from the edges.
-                corner(p, 9, 4, 9, 9, 4, 9);
-                corner(p, 15, 4, 15, 9, 20, 9);
-                corner(p, 20, 15, 15, 15, 15, 20);
-                corner(p, 4, 15, 9, 15, 9, 20);
+                // The same diagonal from the corners, both heads pointing in to the middle.
+                p.moveTo(20, 4);
+                p.lineTo(14, 10);
+                corner(p, 14, 5, 14, 10, 19, 10);
+                p.moveTo(4, 20);
+                p.lineTo(10, 14);
+                corner(p, 5, 14, 10, 14, 10, 19);
                 return p;
             case FLOATING:
                 // The screen's frame, and a smaller window floating in it with its title bar.

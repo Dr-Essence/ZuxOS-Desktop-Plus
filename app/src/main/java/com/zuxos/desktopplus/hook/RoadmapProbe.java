@@ -110,6 +110,9 @@ public final class RoadmapProbe {
             done | head -30
             getprop | grep -i -E 'pc_?mode|ovdesktop' | head -10
             echo "home: $(cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null | tail -1)"
+            echo "home role held by: $(cmd role get-role-holders android.app.role.HOME 2>/dev/null) (a launcher chooser at boot)"
+            echo "every app that offers itself as a home:"
+            cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null | head -20
             echo "Work Launcher pid: $(pidof com.zui.desktoplauncher)"
             dumpsys activity processes com.zui.desktoplauncher 2>/dev/null | grep -E 'ProcessRecord|oom:|curProcState|lastPss' | head -8
             dumpsys window windows 2>/dev/null | grep -E 'Window[{].*com[.]zui[.]desktoplauncher' | head -10
@@ -131,6 +134,8 @@ public final class RoadmapProbe {
               [ -f "$d/product" ] && echo "$(cat "$d/product" 2>/dev/null): control $(cat "$d/power/control" 2>/dev/null), now $(cat "$d/power/runtime_status" 2>/dev/null), wakeup $(cat "$d/power/wakeup" 2>/dev/null), sleeps after $(cat "$d/power/autosuspend_delay_ms" 2>/dev/null) ms"
             done | head -20
             echo "ZUI's touchpad on the tablet: $(dumpsys activity activities 2>/dev/null | grep -c 'touchpad.TouchPadActivity') record(s)"
+            echo "--- the kernel's last lines on USB and input (a mouse that stops sending)"
+            dmesg 2>/dev/null | grep -i -E 'usb|hid|input' | tail -40
             echo "--- resource overlays on SystemUI (#10 window looks, #16)"
             cmd overlay list com.android.systemui 2>/dev/null | head -30
             echo "fabricated overlays offered: $(cmd overlay help 2>/dev/null | grep -c fabricate)"

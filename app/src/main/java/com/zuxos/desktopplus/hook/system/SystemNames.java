@@ -23,8 +23,11 @@ final class SystemNames {
     static final String M_PREFERRED_TASK_DISPLAY_AREA = "mPreferredTaskDisplayArea";
     static final String M_ROOT_WINDOW_CONTAINER = "mRootWindowContainer";
     static final String M_TARGET_TASK = "mTargetTask";
-    /** {@code RootWindowContainer}'s. */
+    /** {@code RootWindowContainer}'s, and the home it starts on a screen. */
+    static final String ROOT_WINDOW_CONTAINER = "com.android.server.wm.RootWindowContainer";
     static final String GET_TOP_FOCUSED_DISPLAY_CONTENT = "getTopFocusedDisplayContent";
+    static final String START_HOME_ON_TASK_DISPLAY_AREA = "startHomeOnTaskDisplayArea";
+    static final String RESOLVE_HOME_ACTIVITY = "resolveHomeActivity";
     /** {@code ActivityRecord}'s. */
     static final String SHORT_COMPONENT_NAME = "shortComponentName";
     static final String LAUNCHED_FROM_PACKAGE = "launchedFromPackage";

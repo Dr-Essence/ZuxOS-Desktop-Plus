@@ -22,6 +22,7 @@ import com.zuxos.desktopplus.logic.LanguageCode;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -38,10 +39,15 @@ import de.robv.android.xposed.XposedBridge;
  * one on, to ZUX Home's Messenger, when asked and whenever they change. Every switch of its
  * language ends in its subtype change ({@code onCurrentInputMethodSubtypeChanged}), so that is
  * where a change is told; a list changed in its settings is told the next time the keyboard
- * shows. Asked for the next language or one picked, it answers with its own switch
- * ({@code switchToSubtype}): the next is the one after the language on in its own list
- * ({@code getNextSubtypeInThisIme}), never another keyboard, as its language key can be set to.
- * Heard only while the keyboard's service lives: from its creation to its end.
+ * shows. Asked for the next language or one picked, it answers with the switch its own language
+ * key ends in ({@code onCurrentInputMethodSubtypeChanged}): the next is the one after the language
+ * on in its own list, never another keyboard, as its language key can be set to. Heard only while
+ * the keyboard's service lives: from its creation to its end.
+ *
+ * <p>HeliBoard's release build is shrunk by R8, which reshapes what is reached here: a Kotlin
+ * object's methods made static with no {@code INSTANCE} left, small getters dropped for their
+ * fields, a one-line alias inlined away. Each piece is taken in either shape, and a missing one is
+ * named in the install line.
  */
 public final class HeliLanguage {
 
@@ -55,11 +61,16 @@ public final class HeliLanguage {
     /** What ZUX Home was last told, so the same is not told again. */
     private static String sTold;
 
-    private static Field sSettings;
+    /** Its languages on, in its own order: a Kotlin object's, static once R8 has shrunk it. */
     private static Method sEnabled;
-    private static Method sManager;
+    /** What {@link #sEnabled} is called on: nothing when static, the object itself when not. */
+    private static Object sSettings;
+    /** Its language manager: a static singleton. */
+    private static Field sManager;
     private static Method sCurrent;
-    private static Method sNext;
+    /** The language on, as Android's subtype: a field, since R8 drops its getter. */
+    private static Field sRaw;
+    /** The switch its own language key ends in. */
     private static Method sSwitch;
     /** HeliBoard's own name for a language; null where it is not found - the locale's then. */
     private static Object sLocaleUtils;
@@ -73,17 +84,22 @@ public final class HeliLanguage {
             Class<?> ime = Reflect.findClass(HeliNames.LATIN_IME, loader);
             Class<?> settings = Reflect.findClass(HeliNames.SUBTYPE_SETTINGS, loader);
             Class<?> manager = Reflect.findClass(HeliNames.RICH_INPUT_METHOD_MANAGER, loader);
-            if (ime == null || settings == null || manager == null) {
+            Class<?> rich = Reflect.findClass(HeliNames.RICH_INPUT_METHOD_SUBTYPE, loader);
+            if (ime == null || settings == null || manager == null || rich == null) {
                 L.w("heli language: HeliBoard's keyboard or its languages not found - the tray "
                         + "shows no language");
                 return;
             }
-            sSettings = settings.getField(HeliNames.INSTANCE);
             sEnabled = settings.getMethod(HeliNames.GET_ENABLED_SUBTYPES, boolean.class);
-            sManager = manager.getMethod(HeliNames.GET_INSTANCE);
+            sSettings = Modifier.isStatic(sEnabled.getModifiers()) ? null
+                    : settings.getField(HeliNames.INSTANCE).get(null);
+            sManager = manager.getDeclaredField(HeliNames.MANAGER_INSTANCE);
+            sManager.setAccessible(true);
             sCurrent = manager.getMethod(HeliNames.GET_CURRENT_SUBTYPE);
-            sNext = manager.getMethod(HeliNames.GET_NEXT_SUBTYPE_IN_THIS_IME, boolean.class);
-            sSwitch = ime.getMethod(HeliNames.SWITCH_TO_SUBTYPE, InputMethodSubtype.class);
+            sRaw = rich.getDeclaredField(HeliNames.RAW_SUBTYPE);
+            sRaw.setAccessible(true);
+            sSwitch = ime.getMethod(HeliNames.ON_CURRENT_INPUT_METHOD_SUBTYPE_CHANGED,
+                    InputMethodSubtype.class);
             names(loader);
             int hooked = XposedBridge.hookAllMethods(ime, HeliNames.ON_CREATE,
                     new XC_MethodHook() {
@@ -118,14 +134,22 @@ public final class HeliLanguage {
         }
     }
 
-    /** HeliBoard's own name for a language, from its language list, where it is there. */
+    /**
+     * HeliBoard's own name for a language, from its language list, where it is there: shrunk,
+     * only its static form with the default locale is left; whole, the object's own.
+     */
     private static void names(ClassLoader loader) {
         try {
             Class<?> utils = Reflect.findClass(HeliNames.SUBTYPE_LOCALE_UTILS, loader);
             if (utils != null) {
-                sLocaleUtils = utils.getField(HeliNames.INSTANCE).get(null);
-                sDisplayName = utils.getMethod(HeliNames.DISPLAY_NAME,
-                        InputMethodSubtype.class, Locale.class);
+                try {
+                    sDisplayName = utils.getMethod(HeliNames.DISPLAY_NAME_DEFAULT,
+                            InputMethodSubtype.class);
+                } catch (NoSuchMethodException whole) {
+                    sDisplayName = utils.getMethod(HeliNames.DISPLAY_NAME,
+                            InputMethodSubtype.class, Locale.class);
+                    sLocaleUtils = utils.getField(HeliNames.INSTANCE).get(null);
+                }
             }
         } catch (Throwable t) {
             sDisplayName = null;
@@ -192,9 +216,11 @@ public final class HeliLanguage {
             }
         }
         if (intent.getBooleanExtra(KeyboardWire.EXTRA_NEXT, false)) {
-            Object next = sNext.invoke(manager(), true);
-            if (next instanceof InputMethodSubtype) {
-                switchTo(ime, (InputMethodSubtype) next);
+            // The one after the language on, round to the first.
+            List<?> languages = enabled();
+            if (languages.size() > 1) {
+                int at = languages.indexOf(current());
+                switchTo(ime, (InputMethodSubtype) languages.get((at + 1) % languages.size()));
             }
         } else if (intent.hasExtra(KeyboardWire.EXTRA_SUBTYPE)) {
             int wanted = intent.getIntExtra(KeyboardWire.EXTRA_SUBTYPE, 0);
@@ -224,7 +250,7 @@ public final class HeliLanguage {
     }
 
     /**
-     * HeliBoard's own switch, as its language key makes it. Its last step saves the language
+     * HeliBoard's own switch, the one its language key ends in. Its last step saves the language
      * for the app being typed in, and throws with none: the switch is made by then.
      */
     private static void switchTo(InputMethodService ime, InputMethodSubtype language) {
@@ -261,8 +287,7 @@ public final class HeliLanguage {
                     codes[i] = code(language);
                     names[i] = name(language);
                 }
-                Object current = Reflect.call(sCurrent.invoke(manager()),
-                        HeliNames.GET_RAW_SUBTYPE);
+                Object current = current();
                 state.putIntArray(KeyboardWire.KEY_IDS, ids);
                 state.putStringArray(KeyboardWire.KEY_CODES, codes);
                 state.putStringArray(KeyboardWire.KEY_NAMES, names);
@@ -293,11 +318,12 @@ public final class HeliLanguage {
     }
 
     private static List<?> enabled() throws Exception {
-        return (List<?>) sEnabled.invoke(sSettings.get(null), true);
+        return (List<?>) sEnabled.invoke(sSettings, true);
     }
 
-    private static Object manager() throws Exception {
-        return sManager.invoke(null);
+    /** The language on, as Android's subtype. */
+    private static Object current() throws Exception {
+        return sRaw.get(sCurrent.invoke(sManager.get(null)));
     }
 
     @SuppressWarnings("deprecation")
@@ -309,7 +335,9 @@ public final class HeliLanguage {
     private static String name(InputMethodSubtype language) {
         try {
             if (sDisplayName != null) {
-                Object name = sDisplayName.invoke(sLocaleUtils, language, null);
+                Object name = sDisplayName.getParameterCount() == 1
+                        ? sDisplayName.invoke(null, language)
+                        : sDisplayName.invoke(sLocaleUtils, language, null);
                 if (name instanceof String && !((String) name).isEmpty()) {
                     return (String) name;
                 }

@@ -1,5 +1,6 @@
 package com.zuxos.desktopplus.hook.home;
 
+import android.annotation.SuppressLint;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
@@ -176,6 +177,8 @@ public final class HotseatButton {
      * ZUI's dock is noted, and its strength and colour are held at nothing - at creation and on
      * every later setting of them. No other blur is touched, and nothing runs per frame.
      */
+    // Hidden from apps, and run in ZUX Home under its own rules for that, not this module's.
+    @SuppressLint("BlockedPrivateApi")
     private static void installDockBlurOff() {
         try {
             Class<?> root = Class.forName("android.view.ViewRootImpl");

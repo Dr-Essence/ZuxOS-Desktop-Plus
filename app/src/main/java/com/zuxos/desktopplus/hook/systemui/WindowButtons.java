@@ -46,7 +46,7 @@ import de.robv.android.xposed.XposedBridge;
  * item's id and the bar's own click listener ({@code DesktopModeTouchEventListener}, the one the
  * menu's items reach), so a click runs what the menu does - ZUI's minimise, its full screen or
  * floating, its close, with its checks and toasts. The pictures are ZUI's desktop-mode buttons,
- * light or dark by the night mode as ZUI picks them. Last, right of close, our Full screen
+ * light or dark by the night mode as ZUI picks them. Left of close, our Full screen
  * ({@link FullScreenWindows#askToggle}), as the menu's row of ours asks for it; first, left of
  * minimise, our pin, which keeps a floating window above all others ({@link KeepOnTop}). The
  * row ends where ZUI's resize corner begins. Like ZUI's dots, the buttons are not reported to
@@ -259,7 +259,7 @@ public final class WindowButtons {
                 button(ctx, ids.minimize, click, "Minimise"),
                 button(ctx, ids.fullscreen, click, "Maximise"), full,
                 button(ctx, ids.close, click, "Close"));
-        for (View b : new View[]{row.pin, row.minimize, row.toggle, row.close, row.full}) {
+        for (View b : new View[]{row.pin, row.minimize, row.toggle, row.full, row.close}) {
             if (b != null) {
                 buttons.addView(b, new LinearLayout.LayoutParams(size,
                         ViewGroup.LayoutParams.MATCH_PARENT));

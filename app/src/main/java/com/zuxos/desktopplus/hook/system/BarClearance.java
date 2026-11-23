@@ -1,5 +1,6 @@
 package com.zuxos.desktopplus.hook.system;
 
+import android.annotation.SuppressLint;
 import android.graphics.Insets;
 import android.graphics.Rect;
 import android.view.WindowInsets;
@@ -56,6 +57,8 @@ public final class BarClearance {
     private BarClearance() {
     }
 
+    // Hidden from apps, and read inside the system, which has no such rule, not in this module.
+    @SuppressLint("BlockedPrivateApi")
     public static synchronized void install(ClassLoader loader) {
         if (sInstalled) {
             return;

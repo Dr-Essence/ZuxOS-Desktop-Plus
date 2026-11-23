@@ -1,5 +1,6 @@
 package com.zuxos.desktopplus.hook.system;
 
+import android.content.pm.ActivityInfo;
 import android.graphics.Rect;
 
 import com.zuxos.desktopplus.core.L;
@@ -29,12 +30,18 @@ import de.robv.android.xposed.XposedBridge;
  * windows came back at ZUI's default size after a force stop, and neither log says whether ZUI
  * kept the size, looked it up under another name (an app opened through an alias), or would not
  * hand it back (ZUI resets it when the screen it was kept on is not the one in focus).
+ *
+ * <p>And from boot, monitor or not, what the system's home resolves to each time that changes:
+ * the screen, the reason, and the app - Android's chooser where no home app is the default. The
+ * owner is asked to choose a launcher on the tablet at every boot and now and then after, and no
+ * log said when or why.
  */
 public final class LaunchTrace {
 
     private static final int MAX_LINES = 60;
     private static final int MAX_SAVES = 40;
     private static final int MAX_ERRORS = 20;
+    private static final int MAX_HOMES = 30;
     /** How much of the background-start verdict is kept: its code and reason come first. */
     private static final int VERDICT_CHARS = 90;
 
@@ -45,6 +52,11 @@ public final class LaunchTrace {
     /** The last size written down for each app's window, so an unchanged one is not again. */
     private static final Map<String, String> SAVED = new HashMap<>();
     private static int sErrors;
+    /** The screen and the reason of the home being started on this thread, for its line. */
+    private static final ThreadLocal<String> HOME_FOR = new ThreadLocal<>();
+    /** What the home resolved to last, so an unchanged one is not written again. */
+    private static String sHome;
+    private static int sHomes;
 
     private LaunchTrace() {
     }
@@ -82,7 +94,77 @@ public final class LaunchTrace {
         } catch (Throwable t) {
             L.w("launch trace: not installed (" + t + ")");
         }
+        installHome(loader);
     }
+
+    private static void installHome(ClassLoader loader) {
+        try {
+            Class<?> root = Class.forName(SystemNames.ROOT_WINDOW_CONTAINER, false, loader);
+            int hooked = 0;
+            for (Method m : root.getDeclaredMethods()) {
+                if (m.getName().equals(SystemNames.START_HOME_ON_TASK_DISPLAY_AREA)) {
+                    XposedBridge.hookMethod(m, HOME_STARTED);
+                    hooked++;
+                } else if (m.getName().equals(SystemNames.RESOLVE_HOME_ACTIVITY)
+                        && m.getReturnType() == ActivityInfo.class) {
+                    XposedBridge.hookMethod(m, HOME_RESOLVED);
+                    hooked++;
+                }
+            }
+            L.i("launch trace: what the home resolves to written down x" + hooked);
+        } catch (Throwable t) {
+            L.w("launch trace: the home not written down (" + t + ")");
+        }
+    }
+
+    /** A home being started on a screen: which, and why, for the line its resolving writes. */
+    private static final XC_MethodHook HOME_STARTED = new XC_MethodHook() {
+        @Override
+        protected void beforeHookedMethod(MethodHookParam param) {
+            try {
+                Object[] args = param.args;
+                HOME_FOR.set("display " + (args.length > 2 ? displayOf(args[2]) : "?")
+                        + ", " + (args.length > 1 ? text(args[1]) : "?"));
+            } catch (Throwable t) {
+                HOME_FOR.remove();
+            }
+        }
+
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) {
+            HOME_FOR.remove();
+        }
+    };
+
+    /** What the home resolved to, when it is not what it was. */
+    private static final XC_MethodHook HOME_RESOLVED = new XC_MethodHook() {
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) {
+            if (sHomes >= MAX_HOMES || sErrors > MAX_ERRORS) {
+                return;
+            }
+            try {
+                Object result = param.getResult();
+                String to = result instanceof ActivityInfo
+                        ? ((ActivityInfo) result).packageName + "/" + ((ActivityInfo) result).name
+                        : "nothing";
+                synchronized (HOME_FOR) {
+                    if (to.equals(sHome)) {
+                        return;
+                    }
+                    sHome = to;
+                }
+                String why = HOME_FOR.get();
+                L.i("launch trace: the home" + (why != null ? " (" + why + ")" : "")
+                        + " resolves to " + to
+                        + (++sHomes == MAX_HOMES ? " (the last line of this boot)" : ""));
+            } catch (Throwable t) {
+                if (++sErrors == MAX_ERRORS) {
+                    L.w("launch trace: stopped for this boot (" + t + ")");
+                }
+            }
+        }
+    };
 
     private static final XC_MethodHook AFTER = new XC_MethodHook() {
         @Override

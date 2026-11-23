@@ -293,7 +293,7 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   room, so it never covers the app's top menus. Needs System UI ticked in LSPosed, which also
   keeps windows clear of the taskbar wherever it is.
 - **Window buttons on the monitor, as on DeX** (optional, on by default). Keep on top (a pin,
-  optional, on floating windows), minimise, maximise or restore, close and Full screen sit at the
+  optional, on floating windows), minimise, maximise or restore, Full screen and close sit at the
   right of every window's title bar on the monitor, in place of ZUI's three dots; apps keep their
   own headers below the bar. Each does what the "…" menu's item does; drag the bar to move the
   window, double-click it to maximise or restore. Split-screen windows keep the dots. Needs System
