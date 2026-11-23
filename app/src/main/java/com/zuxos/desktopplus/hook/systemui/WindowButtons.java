@@ -9,6 +9,7 @@ import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
 import android.view.Display;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -44,8 +45,10 @@ import de.robv.android.xposed.XposedBridge;
  * item's id and the bar's own click listener ({@code DesktopModeTouchEventListener}, the one the
  * menu's items reach), so a click runs what the menu does - ZUI's minimise, its full screen or
  * floating, its close, with its checks and toasts. The pictures are ZUI's desktop-mode buttons,
- * light or dark by the night mode as ZUI picks them. Beside close, our Full screen
- * ({@link FullScreenWindows#askToggle}), as the menu's row of ours asks for it.
+ * light or dark by the night mode as ZUI picks them. Last, right of close, our Full screen
+ * ({@link FullScreenWindows#askToggle}), as the menu's row of ours asks for it. The row ends
+ * where ZUI's resize corner begins, and is one of the bar's occluding elements, so it keeps its
+ * touches over an app that draws its own header under a see-through bar.
  *
  * <p>With the buttons there the pill's dots go: hidden, so it takes no touches and the bar under
  * it drags the window, and a double-click on it maximises or restores, as ZUI does on the
@@ -69,6 +72,7 @@ public final class WindowButtons {
 
     private static Ids sIds;
     private static boolean sNoIds;
+    private static int sCornerPx = -1;
 
     private WindowButtons() {
     }
@@ -222,10 +226,32 @@ public final class WindowButtons {
                 button(ctx, ids.minimize, click, "Minimise"),
                 button(ctx, ids.fullscreen, click, "Maximise"), full,
                 button(ctx, ids.close, click, "Close"));
-        for (View b : new View[]{row.minimize, row.toggle, row.full, row.close}) {
+        for (View b : new View[]{row.minimize, row.toggle, row.close, row.full}) {
             if (b != null) {
                 buttons.addView(b, new LinearLayout.LayoutParams(size,
                         ViewGroup.LayoutParams.MATCH_PARENT));
+            }
+        }
+        // The pointer on the bar or leaving it: a full-screen window's bar shown from the top
+        // edge stays while it is there. Leaving the bar for a button is a leave and an enter.
+        Row hovered = row;
+        View.OnHoverListener feel = (v, e) -> {
+            try {
+                int action = e.getActionMasked();
+                if (action == MotionEvent.ACTION_HOVER_ENTER
+                        || action == MotionEvent.ACTION_HOVER_EXIT) {
+                    FullScreenWindows.hover(hovered.taskId,
+                            action == MotionEvent.ACTION_HOVER_ENTER);
+                }
+            } catch (Throwable t) {
+                L.d("window buttons: the pointer left as it is (" + t + ")");
+            }
+            return false;
+        };
+        bar.setOnHoverListener(feel);
+        for (View b : new View[]{row.minimize, row.toggle, row.close, row.full}) {
+            if (b != null) {
+                b.setOnHoverListener(feel);
             }
         }
         if (full != null) {
@@ -240,15 +266,33 @@ public final class WindowButtons {
             });
         }
         int width = rowWidth(ctx);
-        bar.addView(row.balance, 0, new LinearLayout.LayoutParams(width,
-                ViewGroup.LayoutParams.MATCH_PARENT));
+        LinearLayout.LayoutParams balance = new LinearLayout.LayoutParams(width,
+                ViewGroup.LayoutParams.MATCH_PARENT);
+        balance.setMarginStart(cornerPx(ctx));
+        bar.addView(row.balance, 0, balance);
         bar.addView(room(ctx), 1, new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.MATCH_PARENT, 1f));
         bar.addView(room(ctx), new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.MATCH_PARENT, 1f));
-        bar.addView(buttons, new LinearLayout.LayoutParams(width,
-                ViewGroup.LayoutParams.MATCH_PARENT));
+        LinearLayout.LayoutParams end = new LinearLayout.LayoutParams(width,
+                ViewGroup.LayoutParams.MATCH_PARENT);
+        end.setMarginEnd(cornerPx(ctx));
+        bar.addView(buttons, end);
         return row;
+    }
+
+    /**
+     * ZUI's resize corner's reach into a window ({@code ovf_cornerSize_Inner}): the buttons end
+     * that far from the bar's right edge, so a press on the last one is a press, not a resize.
+     */
+    private static int cornerPx(Context ctx) {
+        if (sCornerPx < 0) {
+            Resources res = ctx.getResources();
+            int id = res.getIdentifier(SysUiNames.OVF_CORNER_SIZE_INNER, "dimen",
+                    ctx.getPackageName());
+            sCornerPx = id == 0 ? 0 : res.getDimensionPixelSize(id);
+        }
+        return sCornerPx;
     }
 
     /** The row's width: three of ZUI's buttons, and our Full screen while it is offered. */
@@ -393,7 +437,7 @@ public final class WindowButtons {
             mWidth = params.getField(SysUiNames.M_CAPTION_WIDTH_ID);
             mHeight = params.getField(SysUiNames.M_CAPTION_HEIGHT_ID);
             mElements = params.getField(SysUiNames.M_OCCLUDING_CAPTION_ELEMENTS);
-            mNewElement = element.getDeclaredConstructor();
+            mNewElement = element.getDeclaredConstructors()[0];
             mNewElement.setAccessible(true);
             mElementRect = element.getField(SysUiNames.M_RECT);
             mElementAlignment = element.getField(SysUiNames.M_ALIGNMENT);
@@ -418,12 +462,16 @@ public final class WindowButtons {
             if (bounds == null || height <= 0) {
                 return;
             }
-            int width = rowWidth(ctx);
-            Object element = mNewElement.newInstance();
-            mElementRect.set(element, new Rect(bounds.width() - width, 0, bounds.width(),
-                    height));
+            int end = bounds.width() - cornerPx(ctx);
+            // An inner class here: its constructor takes the parameters it belongs to.
+            Object element = mNewElement.getParameterCount() == 1
+                    ? mNewElement.newInstance(params) : mNewElement.newInstance();
+            mElementRect.set(element, new Rect(end - rowWidth(ctx), 0, end, height));
             mElementAlignment.set(element, mCustomize);
             ((List<Object>) mElements.get(params)).add(element);
+            if (L.once("WindowButtons.room")) {
+                L.i("window buttons: the buttons keep their touches over an app's own header");
+            }
         }
 
         /** ZUI's pill layout, by name, once; -1 (no layout's id) when it is not there. */

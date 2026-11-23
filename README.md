@@ -288,8 +288,8 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   room, so it never covers the app's top menus. Needs System UI ticked in LSPosed, which also
   keeps windows clear of the taskbar wherever it is.
 - **Window buttons on the monitor, as on DeX** (optional, on by default). Minimise, maximise or
-  restore, Full screen and close sit at the right of every window's title bar on the monitor, in
-  place of ZUI's three dots. Each does what the "…" menu's item does; drag the bar to move the
+  restore, close and Full screen sit at the right of every window's title bar on the monitor, in
+  place of ZUI's three dots, also over apps that draw their own header. Each does what the "…" menu's item does; drag the bar to move the
   window, double-click it to maximise or restore. Split-screen windows keep the dots. Needs
   System UI ticked in LSPosed.
 - **Apps and the keyboard stop at the taskbar** (optional, on by default, both screens). Apps
@@ -301,6 +301,7 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   "…" menu and in the taskbar's app menu: the app fills the whole monitor, its title bar hides, and
   the taskbar slides away. Rest the pointer on the bottom edge (the top, for a bar at the top) and
   the bar slides back over the app; it stays while a menu, the drawer or a panel of it is open.
+  Rest it on the top edge and the window's title bar comes back, with its buttons.
   "Exit full screen" in either menu gives the bar back with the window maximised. The "…" menu and
   the hidden title bar need System UI ticked in LSPosed. The drawer, however it opens (the
   Windows key too), brings the bar back with it.

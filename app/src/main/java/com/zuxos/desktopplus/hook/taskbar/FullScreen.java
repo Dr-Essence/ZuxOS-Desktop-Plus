@@ -210,8 +210,10 @@ public final class FullScreen {
                 }
             }
             ActivityManager.RunningTaskInfo front = front(tasks);
-            BarAutoHide.engage(display, front != null && MARKED.containsKey(front.taskId)
-                    && Maximize.windowingMode(front) == WINDOWING_MODE_FULLSCREEN);
+            boolean full = front != null && MARKED.containsKey(front.taskId)
+                    && Maximize.windowingMode(front) == WINDOWING_MODE_FULLSCREEN;
+            BarAutoHide.engage(display, full);
+            TitleEdge.watch(display, full ? front.taskId : -1);
         }
         if (dropped) {
             announce();

@@ -74,8 +74,6 @@ final class SysUiNames {
 
     // The relayout's decision for a title bar, and what it made.
     static final String UPDATE_RELAYOUT_PARAMS = "updateRelayoutParams";
-    static final String M_WINDOW_DECORATION_INSETS = "mWindowDecorationInsets";
-    static final String M_RELAYOUT_PARAMS = "mRelayoutParams";
     static final String M_IS_CAPTION_VISIBLE = "mIsCaptionVisible";
     static final String M_IS_INSET_SOURCE = "mIsInsetSource";
     static final String M_LAYOUT_RES_ID = "mLayoutResId";
@@ -91,6 +89,8 @@ final class SysUiNames {
     static final String M_ALIGNMENT = "mAlignment";
     static final String CUSTOMIZE = "CUSTOMIZE";
     static final String OV_DESKTOP_MODE_WINDOW_DECOR_PAD = "ov_desktop_mode_window_decor_pad";
+    /** How far ZUI's resize corner reaches into a window. */
+    static final String OVF_CORNER_SIZE_INNER = "ovf_cornerSize_Inner";
     /** A task's bounds: {@code TaskInfo.getConfiguration().windowConfiguration.getBounds()}. */
     static final String GET_CONFIGURATION = "getConfiguration";
     static final String WINDOW_CONFIGURATION = "windowConfiguration";
@@ -114,8 +114,6 @@ final class SysUiNames {
     static final String PICTURE_MAX = "max";
     static final String PICTURE_FREEFORM = "freeform";
     static final String PICTURE_CLOSE = "close";
-    static final String M_RESULT = "mResult";
-    static final String M_ROOT_VIEW = "mRootView";
 
     // The monitor's status bar.
     static final String ZUI_DP_MODE_MANAGER = "com.android.systemui.dpmode.ZuiDpModeManager";

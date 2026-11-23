@@ -32,6 +32,11 @@ public final class FullScreenWire {
      * the game launcher, and what it opens.
      */
     public static final String ACTION_ENTER = "com.zuxos.desktopplus.FULL_SCREEN_ENTER";
+    /**
+     * ZUX Home to SystemUI: the pointer rests on the top edge over full-screen
+     * {@link #EXTRA_TASK} - show its title bar for now.
+     */
+    public static final String ACTION_REVEAL = "com.zuxos.desktopplus.FULL_SCREEN_REVEAL";
 
     /** The menus' words: the same in ZUI's window menu and in the taskbar's. */
     public static final String ENTER = "Full screen";

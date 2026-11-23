@@ -4,7 +4,6 @@ import android.app.ActivityManager;
 import android.view.Display;
 import android.view.WindowInsets;
 
-import com.zuxos.desktopplus.core.Cfg;
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
 
@@ -71,20 +70,6 @@ public final class WindowCaptions {
                         answer(param);
                     } catch (Throwable t) {
                         L.d("window captions: left to ZUI (" + t + ")");
-                    }
-                }
-
-                @Override
-                protected void afterHookedMethod(MethodHookParam param) {
-                    try {
-                        if (param.args[0] instanceof ActivityManager.RunningTaskInfo
-                                && FullScreenWindows.displayOf(param.args[0])
-                                != Display.DEFAULT_DISPLAY && Cfg.fullScreen()) {
-                            FullScreenWindows.trace(param.thisObject,
-                                    (ActivityManager.RunningTaskInfo) param.args[0]);
-                        }
-                    } catch (Throwable t) {
-                        L.d("window captions: trace unread (" + t + ")");
                     }
                 }
             };

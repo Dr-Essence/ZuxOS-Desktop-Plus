@@ -263,6 +263,12 @@ final class BarAutoHide {
         }
     }
 
+    /** The display's bar while it is out of a full-screen window's way, or null. */
+    static ViewGroup engagedLayer(int display) {
+        Bar bar = BARS.get(display);
+        return bar == null || !bar.engaged ? null : bar.layer();
+    }
+
     static boolean engagedAnywhere() {
         return !BARS.isEmpty();
     }
