@@ -272,8 +272,8 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
 - **Scrolling.** With more apps than room, the row scrolls and its ends fade.
 - **A status tray:** network, HeliBoard's language as on DeX (a click for the next one, hold
   or right-click for the list; with two languages or more, told by HeliBoard itself, so HeliBoard
-  must be ticked in LSPosed; a physical keyboard follows it to that language's layout, which needs
-  System Framework ticked), the temperatures in three rows, and the time, the date and the
+  must be ticked in LSPosed; a physical keyboard types that language too, as HeliBoard's own
+  layout has it: with Greek on, A types α), the temperatures in three rows, and the time, the date and the
   battery in three rows, with a quick panel behind it for toggles, media and notifications.
 - **On the monitor, the start button sits at the left end** (as far in as the tray is from the
   right end), with the navigation keys right after it.
@@ -326,6 +326,10 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
 - **No "two high-performance apps" prompt** (optional, on by default). ZUI asked before opening a
   game while another heavy app was in sight, then opened it as a small floating window; now the
   app just opens as asked. Needs System Framework ticked in LSPosed.
+- **Mouse on the monitor from boot** (optional, on by default). ZUI moved the mouse to the
+  monitor's desktop only at the next change of a screen, so after a reboot it stayed on the
+  tablet; now it moves as soon as ZUI's monitor desktop comes on. Needs System Framework ticked in
+  LSPosed.
 - **Taskbar taps always open the app** (optional, on by default). With another home app on the
   tablet, ZUI's taskbar could lose its recents screen and then closed its drawer without opening
   the app tapped; it opens now.

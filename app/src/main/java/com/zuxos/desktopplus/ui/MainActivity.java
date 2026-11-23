@@ -168,8 +168,8 @@ public class MainActivity extends Activity {
                         + "hold or right-click for the list. With two languages or more",
                 Const.KEY_TRAY_LANGUAGE, true);
         addSwitch("Physical keyboard follows HeliBoard",
-                "A keyboard plugged into the tablet switches to the layout of HeliBoard's "
-                        + "language (Greek, English...), with Android's own keyboard layouts",
+                "A keyboard plugged into the tablet types HeliBoard's language: with Greek on, "
+                        + "A types α, as HeliBoard's own Greek keys are laid out",
                 Const.KEY_KEYBOARD_FOLLOWS, true);
         addSwitch("Edit the quick panel's tiles",
                 "Hold a tile, or press Edit at the top of the panel, to take tiles off, put "
@@ -471,6 +471,12 @@ public class MainActivity extends Activity {
                         + "On, the app opens as asked; pairs denied in ZUI's Security Center stay "
                         + "denied. Needs System Framework ticked for this module in LSPosed",
                 Const.KEY_NO_LAUNCH_PROMPT, true);
+        addSwitch("Mouse on the monitor from boot",
+                "ZUI puts the mouse on the monitor's desktop only once a screen changes, so after "
+                        + "a reboot it stayed on the tablet. On, it moves to the monitor as soon "
+                        + "as ZUI's monitor desktop comes on. Needs System Framework ticked for "
+                        + "this module in LSPosed",
+                Const.KEY_MOUSE_ON_DESKTOP, true);
         addSwitch("No \"two high-performance apps\" prompt",
                 "ZUI asks before opening a game while another heavy app is in sight, and then "
                         + "opens it as a small floating window. On, the app just opens as asked. "

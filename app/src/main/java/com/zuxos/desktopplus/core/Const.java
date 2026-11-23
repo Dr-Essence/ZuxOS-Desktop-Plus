@@ -172,7 +172,7 @@ public final class Const {
     public static final String KEY_WINDOW_PIN = "window_pin";
     /** A button in the monitor's tray that shows and switches the keyboard's language. */
     public static final String KEY_TRAY_LANGUAGE = "tray_language";
-    /** A physical keyboard takes the layout of HeliBoard's language as it changes. */
+    /** A physical keyboard types HeliBoard's language, as HeliBoard's own layout has it. */
     public static final String KEY_KEYBOARD_FOLLOWS = "keyboard_follows";
     /** Apps' windows and the keyboard end at the taskbar, on both screens, while it takes room. */
     public static final String KEY_BAR_CLEARANCE = "bar_clearance";
@@ -184,6 +184,8 @@ public final class Const {
     public static final String KEY_NO_GAME_TIP = "no_game_tip";
     /** ZUI's "Association Launch App Prompt" left out: an app may open another as asked. */
     public static final String KEY_NO_LAUNCH_PROMPT = "no_launch_prompt";
+    /** The mouse on the monitor as soon as ZUI's monitor desktop comes on, at boot included. */
+    public static final String KEY_MOUSE_ON_DESKTOP = "mouse_on_desktop";
     /** Over an app that hides the bars, the taskbar shows with the drawer and its panels. */
     public static final String KEY_BAR_WITH_DRAWER = "bar_with_drawer";
     /** The game launcher chosen in the settings: a package name, or empty for none. */

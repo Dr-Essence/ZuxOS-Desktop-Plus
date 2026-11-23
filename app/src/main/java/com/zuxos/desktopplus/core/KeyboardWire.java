@@ -27,15 +27,14 @@ public final class KeyboardWire {
     public static final String EXTRA_REPLY = "reply";
 
     /**
-     * HeliBoard's answer: its languages' hashes ({@link #KEY_IDS}), codes, names and BCP 47 tags,
-     * in its own order, and the hash of the one on ({@link #KEY_CURRENT}). None while it is not
-     * the keyboard.
+     * HeliBoard's answer: its languages' hashes ({@link #KEY_IDS}), codes and names, in its own
+     * order, and the hash of the one on ({@link #KEY_CURRENT}). None while it is not the
+     * keyboard.
      */
     public static final int WHAT_LANGUAGES = 1;
     public static final String KEY_IDS = "ids";
     public static final String KEY_CODES = "codes";
     public static final String KEY_NAMES = "names";
-    public static final String KEY_TAGS = "tags";
     public static final String KEY_CURRENT = "current";
 
     private KeyboardWire() {

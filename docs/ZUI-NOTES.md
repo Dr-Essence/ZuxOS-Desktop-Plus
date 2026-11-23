@@ -1313,6 +1313,14 @@ hooks:
   screen, is not in this firmware. The owner's logs said "no setTaskWindowingMode on this build".
   That fallback is gone; the launch options keep recents full screen.
 
+## The mouse's screen and the lock screen on other screens (read 2026-11-23)
+
+- **The mouse's screen** is ZUI's `InputManagerCallback.getPointerDisplayId()`: in work mode (PC mode) `OVDesktopController.getPcDesktopModeDisplayId()`, which is 0; otherwise 0 unless the window manager's `mForceDesktopModeOnExternalDisplays` is set, then the topmost screen that is on and freeform, else the first external one. Displays that are off are skipped, so Sleep, which turns the monitor off too, gives 0.
+- `OVDesktopController.enterExternalDisplayDesktopMode()` sets that flag (with per-display focus, `force_resizable_activities` and `enable_non_resizable_multi_window`); `exitExternalDisplayDesktopMode()` clears them. Both run from its Settings observer on `zui_dp_display_pc_mode`. The path for a screen added after boot (`prepareEnterExternalDisplayDesktopModeInternal`) sets `sIsUnderExternalDisplayDesktopMode` but not the flag, and a screen there before boot is skipped until `sBootCompleted`.
+- The input system asks that rule only when the screens change: `InputManagerService.setDisplayViewportsInternal` (from the display manager's thread) and ZUI's `updateProjectionMode`. Its `getNonOverriddenPointerDisplayId` looks first at Motorola desktop viewports (`MotoDesktopManager.isDesktopSupported()`).
+- **The lock screen on other screens** is SystemUI's `KeyguardDisplayManager.showPresentation(Display)`, which ZUI extends (`ZuiKeyguardDisplayManager`). It uses Motorola's Smart Connect lock screen, `com.android.keyguard.smartconnect.MotoKeyguardPresentation`, when `SystemUIFeatures.isEnabled("feature_zui_smart_connect_keyguard")` and `MotoDesktopManager.isDesktopOrMobileUiMode(display)` both hold (the second needs `ro.product.motodesktop=1` and the display flags 0x200000 with 0x100000, 0x800000 or neither). Otherwise it uses Android's clock, `ConnectedDisplayKeyguardPresentation`.
+- The Smart Connect one inflates `kg_password_view_presentation`, `kg_pin_view_presentation[_land]` or `kg_pattern_view_presentation` (`PtKgSecurityView`, `PresentationKg*View`). It unlocks through `KeyguardUpdateMonitor.onExternalUnlockAuthenticated`, which `RDPUnlockController` turns into wake and unlock, or the bouncer. AOSP's `ShadeWindowGoesAround` and `ShadeDisplaysRepositoryImpl` are there too.
+
 ## The module's hooks inside the system, against `services.jar` 16
 
 Checked 2026-10-09. Every hook below matches by name and parameters, unless marked missing:
@@ -1339,6 +1347,7 @@ Checked 2026-10-09. Every hook below matches by name and parameters, unless mark
 | No game prompt (0.0.308) | before `OvGameTipDialogManager.canShowOvGameDialog(String, TaskDisplayArea)` | found |
 | Game launcher full screen (0.0.308) | the `calculate` hook above; fields `ActivityRecord.packageName`, `launchedFromPackage`, `LaunchParams.mPreferredTaskDisplayArea`; after `ActivityStarter.startActivityInner`, `mTargetTask` | found |
 | Launch trace (0.0.307, read only) | after `ActivityStarter.startActivityInner(ActivityRecord, ActivityRecord, ..., BalVerdict, NeededUriGrants, int)`; fields `mRootWindowContainer`, `mPreferredTaskDisplayArea`, `ActivityRecord.shortComponentName`, `launchedFromPackage`, `Task.mTaskId`; `getTask()`, `getDisplayId()`, `getWindowingMode()`, `RootWindowContainer.getTopFocusedDisplayContent()`, static `OVDesktopController.isUnderExternalDisplayDesktopMode()`; after `LaunchParamsPersister.saveTask(Task, DisplayContent)`, fields `Task.realActivity`, `mLastNonFullscreenBounds` (0.0.308); after `LaunchParamsPersister.getLaunchParams(Task, ActivityRecord, LaunchParams)`, field `ActivityRecord.mActivityComponent` (0.0.309) | found |
+| Mouse on the monitor from boot (0.0.331) | after `OVDesktopController.enterExternalDisplayDesktopMode()` and `exitExternalDisplayDesktopMode()`; static `DisplayThread.getHandler()`; `InputManagerService.mDisplayViewportList`, `setDisplayViewportsInternal(List)` | found (read 2026-11-23) |
 
 ## The roadmap rows against ZUI's code
 

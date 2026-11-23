@@ -156,15 +156,22 @@ final class SysUiNames {
     static final String M_NAV_BAR_FRAME_HEIGHT = "mNavBarFrameHeight";
     static final String M_TASKBAR_FRAME_HEIGHT = "mTaskbarFrameHeight";
 
-    // The lock screen on other screens: Android 16's own pieces, looked for, not reached.
-    /** SystemUI's flags: one moves the shade window, the lock screen with it, between screens. */
-    static final String SYSTEMUI_FLAGS = "com.android.systemui.Flags";
-    static final String SHADE_WINDOW_GOES_AROUND = "shadeWindowGoesAround";
-    static final String SHADE_DISPLAYS_REPOSITORY =
-            "com.android.systemui.shade.data.repository.ShadeDisplaysRepository";
+    // The lock screen on other screens, read only: ZUI's choice of it for each screen, and
+    // Motorola's Smart Connect one, with a password entry, which ZUI keeps for its own screens.
     static final String KEYGUARD_DISPLAY_MANAGER = "com.android.keyguard.KeyguardDisplayManager";
-    static final String CONNECTED_DISPLAY_KEYGUARD_PRESENTATION =
-            "com.android.keyguard.ConnectedDisplayKeyguardPresentation";
+    static final String SHOW_PRESENTATION = "showPresentation";
+    static final String M_PRESENTATIONS = "mPresentations";
+    /** {@code Display}'s, hidden from the SDK: internal, external, virtual. */
+    static final String GET_TYPE = "getType";
+    static final String SYSTEMUI_FEATURES = "com.android.systemui.feature.SystemUIFeatures";
+    static final String GET_INSTANCE = "getInstance";
+    static final String IS_ENABLED = "isEnabled";
+    static final String SMART_CONNECT_KEYGUARD = "feature_zui_smart_connect_keyguard";
+    static final String MOTO_DESKTOP_MANAGER = "com.motorola.internal.app.MotoDesktopManager";
+    static final String IS_DESKTOP_SUPPORTED = "isDesktopSupported";
+    static final String IS_DESKTOP_OR_MOBILE_UI_MODE = "isDesktopOrMobileUiMode";
+    static final String RDP_UNLOCK_CONTROLLER =
+            "com.android.keyguard.smartconnect.RDPUnlockController";
 
     private SysUiNames() {
     }

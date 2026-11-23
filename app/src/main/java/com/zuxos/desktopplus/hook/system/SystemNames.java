@@ -124,31 +124,23 @@ final class SystemNames {
     /** The native input system, and its own account of itself - what dumpsys input prints. */
     static final String M_NATIVE = "mNative";
     static final String DUMP = "dump";
-    /**
-     * A physical keyboard's layout, Android's own: the input manager as a service, its list of
-     * layouts, the user's choice of one for a keyboard and a keyboard app's language, and what it
-     * then uses ({@code KeyboardLayoutSelectionResult}).
-     */
+    /** The input manager as a service: in the system, the input manager itself. */
     static final String SERVICE_MANAGER = "android.os.ServiceManager";
     static final String INPUT_SERVICE = "input";
-    static final String GET_KEYBOARD_LAYOUTS = "getKeyboardLayouts";
-    static final String SET_KEYBOARD_LAYOUT_FOR_INPUT_DEVICE = "setKeyboardLayoutForInputDevice";
-    static final String GET_KEYBOARD_LAYOUT_FOR_INPUT_DEVICE = "getKeyboardLayoutForInputDevice";
-    static final String GET_LAYOUT_DESCRIPTOR = "getLayoutDescriptor";
-    static final String GET_SELECTION_CRITERIA = "getSelectionCriteria";
-    /** {@code ActivityManager}'s, hidden from the SDK: the user in front. */
-    static final String GET_CURRENT_USER = "getCurrentUser";
-    /** {@code KeyboardLayout}'s. */
-    static final String GET_DESCRIPTOR = "getDescriptor";
-    static final String GET_LABEL = "getLabel";
-    static final String GET_LOCALES = "getLocales";
-    static final String GET_LAYOUT_TYPE = "getLayoutType";
     /** The window manager's answer to which screen the mouse's pointer belongs on. */
     static final String INPUT_MANAGER_CALLBACK = "com.android.server.wm.InputManagerCallback";
     static final String GET_POINTER_DISPLAY_ID = "getPointerDisplayId";
+    /**
+     * ZUI's monitor desktop ({@link #OV_DESKTOP_CONTROLLER}) turned on and off: where it sets the
+     * window manager's flag its rule for the mouse's screen reads.
+     */
+    static final String ENTER_EXTERNAL_DISPLAY_DESKTOP_MODE = "enterExternalDisplayDesktopMode";
+    static final String EXIT_EXTERNAL_DISPLAY_DESKTOP_MODE = "exitExternalDisplayDesktopMode";
+    /** The display manager's thread, where it hands the input system the screens. */
+    static final String DISPLAY_THREAD = "com.android.server.DisplayThread";
+    static final String GET_HANDLER = "getHandler";
     /** {@code InputDevice}'s. */
     static final String GET_BLUETOOTH_ADDRESS = "getBluetoothAddress";
-    static final String GET_IDENTIFIER = "getIdentifier";
     /** {@code DisplayViewport}'s. */
     static final String UNIQUE_ID = "uniqueId";
     static final String TYPE = "type";

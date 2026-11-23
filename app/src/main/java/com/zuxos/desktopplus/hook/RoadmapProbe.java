@@ -140,10 +140,6 @@ public final class RoadmapProbe {
             [ -r /sys/kernel/debug/dri/0/state ] && grep -i -A12 -E 'connector.*DP|crtc\\[' /sys/kernel/debug/dri/0/state 2>/dev/null | head -60
             ls /sys/kernel/debug/drm_dp 2>/dev/null | head -40 | tr '\\n' ' ' && echo
             logcat -d -b kernel 2>/dev/null | grep -i -E 'dp_|bpp|link_rate|lane' | tail -30
-            echo "--- USB-C: the picture's lanes (four: pin assignment C or E; two beside USB 3: D)"
-            for p in /sys/class/typec/port*; do [ -d "$p" ] && echo "$(basename "$p"): $(cat "$p/data_role" 2>/dev/null) / $(cat "$p/power_role" 2>/dev/null), orientation $(cat "$p/orientation" 2>/dev/null)"; done | head -12
-            for d in /sys/class/typec/*/* /sys/class/typec/*; do [ -r "$d/svid" ] || continue; echo "$d: svid $(cat "$d/svid" 2>/dev/null), vdo $(cat "$d/vdo" 2>/dev/null), active $(cat "$d/active" 2>/dev/null)"; [ -d "$d/displayport" ] && echo "  DisplayPort: configuration $(cat "$d/displayport/configuration" 2>/dev/null), pin assignment $(cat "$d/displayport/pin_assignment" 2>/dev/null), its file $(stat -c %A "$d/displayport/pin_assignment" 2>/dev/null)"; done | head -30
-            (zcat /proc/config.gz 2>/dev/null || cat /proc/config 2>/dev/null) | grep -E '^CONFIG_(TYPEC|UCSI)[A-Z0-9_]*=' | tr '\\n' ' ' && echo
             echo "--- the kernel's last lines on USB and input (a mouse that stops sending)"
             dmesg 2>/dev/null | grep -v BATTERY_CHG | grep -i -E 'usb [0-9]|hid|input:|xhci' | tail -40
             echo "--- resource overlays on SystemUI (#10 window looks, #16)"

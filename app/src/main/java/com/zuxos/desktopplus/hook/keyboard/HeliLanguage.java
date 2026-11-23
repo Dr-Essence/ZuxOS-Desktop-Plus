@@ -83,9 +83,7 @@ public final class HeliLanguage {
         try {
             Class<?> ime = Reflect.findClass(HeliNames.LATIN_IME, loader);
             Class<?> settings = Reflect.findClass(HeliNames.SUBTYPE_SETTINGS, loader);
-            Class<?> manager = Reflect.findClass(HeliNames.RICH_INPUT_METHOD_MANAGER, loader);
-            Class<?> rich = Reflect.findClass(HeliNames.RICH_INPUT_METHOD_SUBTYPE, loader);
-            if (ime == null || settings == null || manager == null || rich == null) {
+            if (ime == null || settings == null || !findCurrent(loader)) {
                 L.w("heli language: HeliBoard's keyboard or its languages not found - the tray "
                         + "shows no language");
                 return;
@@ -93,11 +91,6 @@ public final class HeliLanguage {
             sEnabled = settings.getMethod(HeliNames.GET_ENABLED_SUBTYPES, boolean.class);
             sSettings = Modifier.isStatic(sEnabled.getModifiers()) ? null
                     : settings.getField(HeliNames.INSTANCE).get(null);
-            sManager = manager.getDeclaredField(HeliNames.MANAGER_INSTANCE);
-            sManager.setAccessible(true);
-            sCurrent = manager.getMethod(HeliNames.GET_CURRENT_SUBTYPE);
-            sRaw = rich.getDeclaredField(HeliNames.RAW_SUBTYPE);
-            sRaw.setAccessible(true);
             sSwitch = ime.getMethod(HeliNames.ON_CURRENT_INPUT_METHOD_SUBTYPE_CHANGED,
                     InputMethodSubtype.class);
             names(loader);
@@ -281,19 +274,16 @@ public final class HeliLanguage {
                 int[] ids = new int[languages.size()];
                 String[] codes = new String[ids.length];
                 String[] names = new String[ids.length];
-                String[] tags = new String[ids.length];
                 for (int i = 0; i < ids.length; i++) {
                     InputMethodSubtype language = (InputMethodSubtype) languages.get(i);
                     ids[i] = language.hashCode();
                     codes[i] = code(language);
                     names[i] = name(language);
-                    tags[i] = tag(language);
                 }
                 Object current = current();
                 state.putIntArray(KeyboardWire.KEY_IDS, ids);
                 state.putStringArray(KeyboardWire.KEY_CODES, codes);
                 state.putStringArray(KeyboardWire.KEY_NAMES, names);
-                state.putStringArray(KeyboardWire.KEY_TAGS, tags);
                 state.putInt(KeyboardWire.KEY_CURRENT, current != null ? current.hashCode() : 0);
                 count = ids.length;
             }
@@ -324,16 +314,33 @@ public final class HeliLanguage {
         return (List<?>) sEnabled.invoke(sSettings, true);
     }
 
-    /** The language on, as Android's subtype. */
-    private static Object current() throws Exception {
-        return sRaw.get(sCurrent.invoke(sManager.get(null)));
+    /**
+     * The pieces that read the language on, found once: false where HeliBoard has none of them.
+     * {@link HeliKeys} types in that language too, with the tray's button on or off.
+     */
+    static synchronized boolean findCurrent(ClassLoader loader) throws Exception {
+        if (sRaw != null) {
+            return true;
+        }
+        Class<?> manager = Reflect.findClass(HeliNames.RICH_INPUT_METHOD_MANAGER, loader);
+        Class<?> rich = Reflect.findClass(HeliNames.RICH_INPUT_METHOD_SUBTYPE, loader);
+        if (manager == null || rich == null) {
+            return false;
+        }
+        Field instance = manager.getDeclaredField(HeliNames.MANAGER_INSTANCE);
+        instance.setAccessible(true);
+        Method current = manager.getMethod(HeliNames.GET_CURRENT_SUBTYPE);
+        Field raw = rich.getDeclaredField(HeliNames.RAW_SUBTYPE);
+        raw.setAccessible(true);
+        sManager = instance;
+        sCurrent = current;
+        sRaw = raw;
+        return true;
     }
 
-    /** The language's BCP 47 tag: its own, or its older locale string made into one. */
-    @SuppressWarnings("deprecation")
-    private static String tag(InputMethodSubtype language) {
-        String tag = language.getLanguageTag();
-        return tag != null && !tag.isEmpty() ? tag : language.getLocale().replace('_', '-');
+    /** The language on, as Android's subtype. */
+    static Object current() throws Exception {
+        return sRaw.get(sCurrent.invoke(sManager.get(null)));
     }
 
     @SuppressWarnings("deprecation")

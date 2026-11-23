@@ -438,6 +438,11 @@ public final class Cfg {
         return getBool(Const.KEY_NO_LAUNCH_PROMPT, true);
     }
 
+    /** The mouse on the monitor as soon as ZUI's monitor desktop comes on, at boot included. */
+    public static boolean mouseOnDesktop() {
+        return getBool(Const.KEY_MOUSE_ON_DESKTOP, true);
+    }
+
     /** Over an app that hides the bars, the taskbar shows with the drawer and its panels. */
     public static boolean barWithDrawer() {
         return getBool(Const.KEY_BAR_WITH_DRAWER, true);

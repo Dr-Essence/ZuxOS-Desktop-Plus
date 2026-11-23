@@ -21,6 +21,7 @@ import com.zuxos.desktopplus.hook.home.LoaderWait;
 import com.zuxos.desktopplus.hook.home.PinRequestHooks;
 import com.zuxos.desktopplus.hook.home.SettingsRestart;
 import com.zuxos.desktopplus.hook.home.StockUnlockHooks;
+import com.zuxos.desktopplus.hook.keyboard.HeliKeys;
 import com.zuxos.desktopplus.hook.keyboard.HeliLanguage;
 import com.zuxos.desktopplus.hook.keyboard.HeliPad;
 import com.zuxos.desktopplus.hook.keyboard.HeliWindow;
@@ -31,6 +32,7 @@ import com.zuxos.desktopplus.hook.system.BarWithDrawer;
 import com.zuxos.desktopplus.hook.system.GameTipOff;
 import com.zuxos.desktopplus.hook.system.LaunchPromptOff;
 import com.zuxos.desktopplus.hook.system.LaunchTrace;
+import com.zuxos.desktopplus.hook.system.MouseScreen;
 import com.zuxos.desktopplus.hook.system.SystemBridge;
 import com.zuxos.desktopplus.hook.system.SystemDrag;
 import com.zuxos.desktopplus.hook.system.SystemFullscreen;
@@ -83,6 +85,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     // Its switches are read as the buttons come: Home's, and L1 and R1's.
                     SystemGamepad.install(lpparam.classLoader);
                     TouchScreens.install(lpparam.classLoader);
+                    MouseScreen.install(lpparam.classLoader);
                     BarClearance.install(lpparam.classLoader);
                     GameTipOff.install(lpparam.classLoader);
                     BarWithDrawer.install(lpparam.classLoader);
@@ -115,7 +118,8 @@ public class XposedEntry implements IXposedHookLoadPackage {
             }
             if (HELIBOARD.equals(lpparam.packageName)) {
                 // HeliBoard, the owner's keyboard - ticked in LSPosed: the controller on its keys,
-                // its window above the taskbar, and its language changed from the tray.
+                // its window above the taskbar, its language changed from the tray and typed by
+                // a physical keyboard.
                 Cfg.reload();
                 if (HELIBOARD.equals(lpparam.processName) && Cfg.enabled()) {
                     if (Cfg.gamepadKeyboard()) {
@@ -127,6 +131,8 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     if (Cfg.trayLanguage()) {
                         HeliLanguage.install(lpparam.classLoader);
                     }
+                    // Its switch is read on each key, so it turns on and off at once.
+                    HeliKeys.install(lpparam.classLoader);
                 }
                 return;
             }

@@ -20,24 +20,19 @@ import com.zuxos.desktopplus.hook.Targets;
 
 /**
  * Inside the system: what the launcher may not do itself, done for it - sending a window to the
- * back (minimise), closing one window of an app, and giving the physical keyboards the layout of
- * HeliBoard's language ({@link KeyboardLayouts}) - each needs a permission the launcher is not
+ * back (minimise) and closing one window of an app - each needs a permission the launcher is not
  * given.
  *
  * <p>Only the launchers this module runs in, the shell and root may ask; the request names a task
  * and nothing else. Its thread also reads the system side's switches again when the settings
  * change, for those that must not be read where they are used ({@link BarClearance},
- * {@link GameTipOff}, {@link LaunchPromptOff}, {@link BarWithDrawer}).
+ * {@link GameTipOff}, {@link LaunchPromptOff}, {@link BarWithDrawer}, {@link MouseScreen}).
  */
 public final class SystemBridge {
 
     public static final String ACTION_MINIMIZE = "com.zuxos.desktopplus.action.MINIMIZE";
     public static final String ACTION_CLOSE_TASK = "com.zuxos.desktopplus.action.CLOSE_TASK";
     public static final String EXTRA_TASK = "task";
-    /** The physical keyboards to the layout of a language: {@link #EXTRA_LANGUAGE}, a tag. */
-    public static final String ACTION_KEYBOARD_LAYOUT =
-            "com.zuxos.desktopplus.action.KEYBOARD_LAYOUT";
-    public static final String EXTRA_LANGUAGE = "language";
 
     private static boolean sInstalled;
 
@@ -68,7 +63,6 @@ public final class SystemBridge {
                 try {
                     IntentFilter filter = new IntentFilter(ACTION_MINIMIZE);
                     filter.addAction(ACTION_CLOSE_TASK);
-                    filter.addAction(ACTION_KEYBOARD_LAYOUT);
                     // The settings app saying a switch changed: the system side's switches that
                     // are read off their hot paths are read again here, on this thread.
                     filter.addAction(Const.ACTION_SETTINGS_CHANGED);
@@ -98,19 +92,12 @@ public final class SystemBridge {
                     BarClearance.reread();
                     GameTipOff.reread();
                     LaunchPromptOff.reread();
+                    MouseScreen.reread();
                     BarWithDrawer.reread();
                     return;
                 }
                 if (!allowed(getSentFromPackage(), getSentFromUid())) {
                     L.w("system bridge: refused a request from " + getSentFromPackage());
-                    return;
-                }
-                if (ACTION_KEYBOARD_LAYOUT.equals(intent.getAction())) {
-                    String language = intent.getStringExtra(EXTRA_LANGUAGE);
-                    if (language != null && !language.isEmpty()) {
-                        KeyboardLayouts.follow(mCtx,
-                                new Handler(android.os.Looper.myLooper()), language);
-                    }
                     return;
                 }
                 int taskId = intent.getIntExtra(EXTRA_TASK, -1);

@@ -1,12 +1,12 @@
 package com.zuxos.desktopplus.hook.keyboard;
 
 /**
- * Every name of HeliBoard's that {@link HeliPad}, {@link HeliWindow} and {@link HeliLanguage}
- * reach, in one place: when HeliBoard changes, these are the ones to check against its source.
- * Read from HeliBoard 4.3-beta1, built without obfuscation, so its names are its source's - but
- * its release build is shrunk by R8, which drops or reshapes small members, so the language's are
- * checked against a release build's own classes (4.2 as F-Droid builds it). Each constant is its
- * name in capitals.
+ * Every name of HeliBoard's that {@link HeliPad}, {@link HeliWindow}, {@link HeliLanguage} and
+ * {@link HeliKeys} reach, in one place: when HeliBoard changes, these are the ones to check
+ * against its source. Read from HeliBoard 4.3-beta1, built without obfuscation, so its names are
+ * its source's - but its release build is shrunk by R8, which drops or reshapes small members, so
+ * the language's and the keys' are checked against a release build's own classes (4.2 as F-Droid
+ * builds it). Each constant is its name in capitals.
  */
 final class HeliNames {
 
@@ -46,6 +46,30 @@ final class HeliNames {
     static final String SUBTYPE_LOCALE_UTILS = "helium314.keyboard.latin.utils.SubtypeLocaleUtils";
     static final String DISPLAY_NAME = "displayName";
     static final String DISPLAY_NAME_DEFAULT = "displayName$default";
+
+    /**
+     * A language's layouts, named in its subtype's extra value ({@code MAIN:greek|...}), and the
+     * main layout's file among its assets, JSON or plain text.
+     */
+    static final String KEYBOARD_LAYOUT_SET = "KeyboardLayoutSet";
+    static final String LAYOUT_ENTRY = "|";
+    static final String LAYOUT_KV = ":";
+    static final String LAYOUT_MAIN = "MAIN:";
+    static final String LAYOUTS_MAIN = "layouts/main/";
+    /** A JSON layout's key: its label, its code, its type, and a selector's choices. */
+    static final String LABEL = "label";
+    static final String CODE = "code";
+    static final String KEY_TYPE = "type";
+    static final String TYPE_SPACER = "spacer";
+    static final String TYPE_PLACEHOLDER = "placeholder";
+    static final String SELECTOR = "$";
+    static final String SHIFT_STATE_SELECTOR = "shift_state_selector";
+    static final String SHIFTED_MANUAL = "shiftedManual";
+    static final String SHIFTED = "shifted";
+    static final String CASE_SELECTOR = "case_selector";
+    static final String LOWER = "lower";
+    static final String UPPER = "upper";
+    static final String DEFAULT = "default";
 
     // Its listener for the keys, and the haptic event a press takes.
     static final String ON_PRESS_KEY = "onPressKey";
