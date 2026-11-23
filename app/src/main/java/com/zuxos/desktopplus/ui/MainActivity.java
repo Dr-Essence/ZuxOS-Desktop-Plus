@@ -37,13 +37,36 @@ import com.zuxos.desktopplus.notify.TestNotifications;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Settings for the module, plus a short explanation of what to expect on the device. */
+/**
+ * Settings for the module, plus a short explanation of what to expect on the device.
+ *
+ * <p>The first screen lists the categories; a tap opens one's page, and Back returns. A search
+ * above them finds any setting by its words, wherever it lives, and it works right there. One
+ * view tree for all of it, shown in parts: nothing is rebuilt as the screens change.
+ */
 public class MainActivity extends Activity {
 
     private static final int REQUEST_NOTIFY = 1;
 
     private SharedPreferences mPrefs;
+    private ScrollView mScroll;
     private LinearLayout mRoot;
+    /** Where the building blocks add their views: the row being built. */
+    private LinearLayout mInto;
+    private EditText mSearch;
+    private View mBackRow;
+    /** The categories, on the first screen. */
+    private LinearLayout mList;
+    private TextView mNothing;
+    private final List<Category> mCategories = new ArrayList<>();
+    /** The category being built, while the page is made. */
+    private Category mCategory;
+    /** The row being built, or null for one outside every category. */
+    private Row mRow;
+    /** The category whose page is open, or null on the first screen. */
+    private Category mOpen;
+    /** Back's handler while there is something to go back from (Android 13 and up). */
+    private Object mBack;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,40 +74,164 @@ public class MainActivity extends Activity {
         mPrefs = Prefs.get(this);
 
         ScrollView scroll = new ScrollView(this);
+        mScroll = scroll;
         mRoot = new LinearLayout(this);
         mRoot.setOrientation(LinearLayout.VERTICAL);
+        // The page holds the focus, not the search field, so the keyboard waits for a tap.
+        mRoot.setFocusableInTouchMode(true);
         int pad = Ui.dp(this, 20);
         mRoot.setPadding(pad, pad, pad, pad);
         scroll.addView(mRoot, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         keepClearOfBars(scroll);
         setContentView(scroll);
+        mInto = mRoot;
 
         addStatus();
-
-        addHeader("General");
         addSwitch("Module enabled", "Turn the whole desktop surface off without uninstalling",
                 Const.KEY_ENABLED, true);
-        addSpinner("Which desktop mode", new String[]{
-                        "External display only (recommended)",
-                        "Tablet screen only",
-                        "Both"},
-                Const.KEY_DISPLAY_MODE, Const.DISPLAY_EXTERNAL);
-        addSummary("ZUI's own home on the tablet is never covered - it keeps its icons, folders "
-                + "and Recents, and gets the taskbar only.");
-        addSpinner("Stock home content", new String[]{
-                        "Leave it alone (overlay on top)",
-                        "Hide the stock icon grid (recommended)",
-                        "Hide everything the stock home draws"},
-                Const.KEY_TAKEOVER, Const.TAKEOVER_GRID);
-        addSwitch("Attach to any activity",
-                "Only if the desktop home is not detected automatically",
-                Const.KEY_ATTACH_ANY, false);
-        addText("Extra launcher packages",
-                "Comma separated, if your ZuxOS build uses a package the module does not know",
-                Const.KEY_EXTRA_TARGETS);
+        addSearch();
 
-        addHeader("Desktop");
+        addCategory("Monitor windows", "Window buttons, Full screen, apps on the external screen");
+        addSwitch("Window buttons on the monitor's title bars",
+                "Minimise, maximise or restore, Full screen and close on the monitor's title "
+                        + "bars, as on DeX, in place of ZUI's three dots. Each does what the "
+                        + "… menu's item does; split-screen windows keep the dots. Needs "
+                        + "System UI ticked for this module in LSPosed",
+                Const.KEY_WINDOW_BUTTONS, true);
+        addSwitch("Window buttons follow the window",
+                "When a window moves between the tablet and the monitor, its title bar and its "
+                        + "\u2026 menu move with it. Needs System UI ticked for this module in "
+                        + "LSPosed",
+                Const.KEY_CAPTION_FOLLOW, true);
+        addSwitch("Full screen on the monitor",
+                "Full screen in a window's \u2026 menu and in the taskbar's app menu: the app "
+                        + "fills the monitor, and the taskbar slides away until the pointer "
+                        + "reaches the bottom of the screen. Needs System UI ticked for this "
+                        + "module in LSPosed for the \u2026 menu and the title bar",
+                Const.KEY_FULL_SCREEN, true);
+        addSwitch("Taskbar comes back with the drawer over full-screen apps",
+                "Over a game or video that hides the bars, the taskbar shows while its drawer, "
+                        + "a folder or a panel of it is open, and hides again when you go back "
+                        + "to the app. Needs System Framework ticked for this module in LSPosed",
+                Const.KEY_BAR_WITH_DRAWER, true);
+        addSwitch("Apps and the keyboard stop at the taskbar",
+                "On both screens, apps and the keyboard end where the taskbar starts instead of "
+                        + "drawing under it, and use that strip only while the bar is hidden. "
+                        + "Needs System Framework ticked for this module in LSPosed and a "
+                        + "reboot once",
+                Const.KEY_BAR_CLEARANCE, true);
+        addSwitch("Hide the monitor's status bar",
+                "ZUI's bar at the top of the external screen only shows icons - it cannot be "
+                        + "pulled down. The tray and its panels do its job, and apps get its "
+                        + "room. Needs System UI ticked in LSPosed; takes effect the next time "
+                        + "the monitor's desktop starts.",
+                Const.KEY_HIDE_MONITOR_STATUS_BAR, true);
+        addSwitch("Never kill apps on the monitor",
+                "Apps open on the external screen are only closed when you close them. They go "
+                        + "on ZUI's own never-kill lists, and root keeps battery limits off them; "
+                        + "for the rest, also tick System Framework for this module in LSPosed "
+                        + "and reboot once",
+                Const.KEY_KEEP_ALIVE, true);
+        addSwitch("Monitor's touchscreen on the monitor",
+                "A touchscreen monitor's touches always land on the monitor - after a replug "
+                        + "Android could send them to the tablet. Needs System Framework ticked "
+                        + "for this module in LSPosed; takes effect at the next plug",
+                Const.KEY_MONITOR_TOUCH, true);
+        addSwitch("Open apps on the screen you tapped",
+                "The launcher starts its own icons without naming a screen, so an app tapped on "
+                        + "the external desktop can open on the tablet. This gives those launches "
+                        + "the display the tap was on. Off by default - it changes where every app "
+                        + "opens",
+                Const.KEY_LAUNCH_DISPLAY, false);
+
+        addCategory("Taskbar", "The bar, its tray, menus, keys and start button");
+        addSpinner("Taskbar position (monitor)", new String[]{
+                        "Bottom",
+                        "Top"},
+                Const.KEY_TASKBAR_EDGE, Const.EDGE_BOTTOM);
+        addSummary("The launcher restarts to apply it. The tablet's taskbar never moves.");
+        addSwitch("Status tray in the taskbar",
+                "Network, battery and a clock next to the navigation buttons, with Wi-Fi and "
+                        + "Bluetooth switches behind them",
+                Const.KEY_TASKBAR_TRAY, true);
+        addSwitch("Show temperatures",
+                "CPU, GPU and battery temperature in the tray, where the kernel lets the "
+                        + "launcher read them",
+                Const.KEY_TASKBAR_TEMPS, true);
+        addSwitch("Edit the quick panel's tiles",
+                "Hold a tile, or press Edit at the top of the panel, to take tiles off, put "
+                        + "them back and drag them into your own order",
+                Const.KEY_TILE_EDIT, true);
+        addSwitch("Taskbar menu",
+                "Hold or right-click empty taskbar space for Task manager and settings",
+                Const.KEY_TASKBAR_MENU, true);
+        addSpinner("Taskbar text and icons", new String[]{
+                        "Follow the background",
+                        "Always black",
+                        "Always white"},
+                Const.KEY_TASKBAR_TEXT_MODE, Tone.MODE_AUTO);
+        addSwitch("Glass taskbar",
+                "Experimental. Replaces the taskbar's own bar with a translucent one. Whether it "
+                        + "works depends on how your firmware paints that bar, so it starts off",
+                Const.KEY_TASKBAR_GLASS, false);
+        addSwitch("Only open apps in the taskbar",
+                "The taskbar shows what is open on its screen, plus your pins - not the "
+                        + "launcher's hotseat and recommendations",
+                Const.KEY_TASKBAR_RUNNING_ONLY, false);
+        addSwitch("Keep the launcher's recents off the taskbar",
+                "With \"Only open apps\" on, the launcher's own recent and recommended apps are "
+                        + "never added to the taskbar - not even for a moment when an app opens "
+                        + "or closes",
+                Const.KEY_HIDE_RECENTS_FLASH, true);
+        addSwitch("Menu on a taskbar icon",
+                "Hold an app in the taskbar for open, close, app info and the app's own "
+                        + "shortcuts",
+                Const.KEY_TASKBAR_APP_MENU, true);
+        addSwitch("App shortcut icons in ZUI's shape",
+                "An app's own shortcuts in the app menus - New chat, Start voice - get the same "
+                        + "icon shape ZUI gives every app icon, instead of the app's square "
+                        + "backing",
+                Const.KEY_SHORTCUT_SHAPES, true);
+        addSwitch("Mark the apps that are open",
+                "A line under every taskbar icon whose app is running - including shortcuts and "
+                        + "folders, which otherwise look the same open or closed",
+                Const.KEY_RUNNING_MARKS, true);
+        addSwitch("Taskbar taps always open the app",
+                "An app tapped in the tablet taskbar's drawer or one of its folders opens even "
+                        + "when ZUI has lost its recents screen - with another home app on the "
+                        + "tablet, ZUI closed the drawer and opened nothing",
+                Const.KEY_TASKBAR_TAPS, true);
+        addSwitch("Navigation keys at the bar's right edge",
+                "On the tablet the back, home and recents keys sit flush with the bar's right "
+                        + "edge; ZUI's room there comes back while it has a button to show in it",
+                Const.KEY_NAV_KEYS_EDGE, true);
+        addSwitch("Navigation keys act on their own screen",
+                "Back, home and recents on the monitor's taskbar act on the monitor - not on "
+                        + "the tablet, which is where the launcher sends them on its own",
+                Const.KEY_NAV_OWN_SCREEN, true);
+        addSwitch("Recents on the screen you pressed",
+                "The recents button opens recents on its own screen - tablet or monitor - full "
+                        + "screen and in front of every app, on the first press",
+                Const.KEY_RECENTS_ROUTE, true);
+        addSwitch("Drawer button on the left",
+                "Moves the launcher's own all-apps button to the left of the taskbar, beside the "
+                        + "navigation keys, instead of leaving it in the middle of the icons",
+                Const.KEY_START_LEFT, true);
+        addSwitch("Android logo on the drawer button",
+                "Shows the green Android head on the launcher's all-apps button, like a start "
+                        + "button, instead of its own icon",
+                Const.KEY_START_ROBOT, true);
+        addSwitch("Start button robot falls asleep",
+                "After 30 seconds with nothing pressed the robot shuts its eyes and dozes off, "
+                        + "z's drifting up; any press wakes it",
+                Const.KEY_ROBOT_SLEEP, true);
+        addSwitch("Start button robot breathes",
+                "The robot's head swells gently with each breath - slower and deeper while it "
+                        + "sleeps",
+                Const.KEY_ROBOT_BREATH, true);
+
+        addCategory("Home screen", "Icons, folders, widgets, pages and the tablet's grid");
         addSwitch("Widgets", "Add widgets through the desktop right-click menu",
                 Const.KEY_WIDGETS_ENABLED, true);
         addSwitch("Folders", "Drop one icon on another to make a folder",
@@ -114,18 +261,13 @@ public class MainActivity extends Activity {
         addSwitch("Catch pinned shortcuts",
                 "A web page or file pinned from any app also lands on the desktop",
                 Const.KEY_CATCH_PINS, true);
-        addSwitch("Glass style", "Translucent panels, with real blur where Android allows it",
-                Const.KEY_GLASS, true);
-        addSwitch("Animations", "Sliding, fading and page transitions",
-                Const.KEY_ANIMATIONS, true);
         addSlider("Grid cell size", "dp", Const.KEY_CELL_SIZE, 104, 72, 180);
         addSlider("Icon size", "dp", Const.KEY_ICON_SIZE, 52, 32, 96);
-
-        addHeader("Tablet home screen");
-        addSummary("Home screen grid: in ZUX Home's own settings (hold the home screen, Home "
-                + "settings), where 6 × 5, 8 × 5, 8 × 6, 10 × 7 and 12 × 8 join ZUI's own grids. "
-                + "10 × 7 and 12 × 8 let an icon land close to wherever you let it go. Going back "
-                + "to a smaller grid, ZUI moves what no longer fits onto more pages (9 at most).");
+        addNote("Home screen grid: in ZUX Home's own settings (hold the home screen, Home "
+                + "settings), where 6 × 5, 8 × 5, 8 × 6, 10 × 7 and 12 × 8 join ZUI's own "
+                + "grids. 10 × 7 and 12 × 8 let an icon land close to wherever you let it go. "
+                + "Going back to a smaller grid, ZUI moves what no longer fits onto more pages "
+                + "(9 at most).");
         addSwitch("Fit icons to fine grids",
                 "On the finer grids, icons, names and dots shrink to fit their cells, widgets "
                         + "keep their size on screen and icons keep their places. The launcher "
@@ -144,28 +286,12 @@ public class MainActivity extends Activity {
                 "Hold a folder on the home screen: Remove folder puts its apps back on the home "
                         + "screen, in the first free places, and the folder goes",
                 Const.KEY_HOME_FOLDER_REMOVE, true);
+        addSwitch("Select apps on the home screen",
+                "Select in a home-screen app's menu opens ZUI's edit mode with that app selected: "
+                        + "tap others to add them, then drag them together. Selected apps shake",
+                Const.KEY_HOME_SELECT, true);
 
-        addHeader("Customize");
-        addSpinner("Theme", new String[]{
-                        "Glass",
-                        "Retro (monitor)"},
-                Const.KEY_THEME, Theme.GLASS_ID);
-        addSummary("Retro is Windows 98 on the external screen: grey bevelled boxes, a pixel font, "
-                + "no blur and no live glass, which also saves the GPU there. The tablet keeps "
-                + "glass. The launcher restarts to apply it.");
-        addSpinner("Taskbar position (monitor)", new String[]{
-                        "Bottom",
-                        "Top"},
-                Const.KEY_TASKBAR_EDGE, Const.EDGE_BOTTOM);
-        addSummary("The launcher restarts to apply it. The tablet's taskbar never moves.");
-        addSwitch("Hide the monitor's status bar",
-                "ZUI's bar at the top of the external screen only shows icons - it cannot be "
-                        + "pulled down. The tray and its panels do its job, and apps get its "
-                        + "room. Needs System UI ticked in LSPosed; takes effect the next time "
-                        + "the monitor's desktop starts.",
-                Const.KEY_HIDE_MONITOR_STATUS_BAR, true);
-
-        addHeader("App drawer");
+        addCategory("App drawer", "Order, look and arranging in both drawers");
         addSwitch("Use the stock taskbar drawer too",
                 "Applies your folders, order and hidden apps to the launcher's own app drawer",
                 Const.KEY_NATIVE_DRAWER, true);
@@ -178,45 +304,41 @@ public class MainActivity extends Activity {
                 "After a boot or a restart ZUX Home fills its drawer within a second, instead of "
                         + "only once an app has been opened",
                 Const.KEY_LOADER_NO_WAIT, true);
+        addSwitch("Tablet drawer ends at the taskbar",
+                "The taskbar drawer's apps scroll up to the bar and stop there, instead of "
+                        + "passing under the bar's icons",
+                Const.KEY_DRAWER_ABOVE_BAR, true);
+        addSwitch("Glass app drawer",
+                "Puts the same translucent pane behind the launcher's own app drawer, in whatever "
+                        + "tone the drawer already uses so its labels stay readable",
+                Const.KEY_DRAWER_GLASS, true);
+        addSwitch("Rearrange ZUX Home's drawer by dragging",
+                "Drag an app in ZUX Home's drawer and the others make room, as on ZUI's home "
+                        + "screen; rest it on an app to make a folder, on a folder to put it in, "
+                        + "and drag past the top of the apps to place it on the home screen",
+                Const.KEY_DRAWER_REARRANGE, true);
+        addSwitch("Rearrange in the taskbar's drawer",
+                "On the tablet, an app dragged inside the taskbar's drawer only moves there; the "
+                        + "floating window starts once it leaves the drawer. Cancel at the top "
+                        + "stops it, and resting on the start button opens the drawer again",
+                Const.KEY_TASKBAR_DRAWER_REARRANGE, true);
+        addSwitch("Drawer folders open under a dragged app",
+                "Rest a dragged app on a drawer folder and it opens, as ZUI's home folders do, "
+                        + "so the app can be placed anywhere inside",
+                Const.KEY_DRAWER_FOLDER_SPRING, true);
+        addSwitch("Select in the drawers",
+                "Select in a drawer app's menu marks it: tap others to add them, then drag them "
+                        + "together into a new place, a folder or the taskbar",
+                Const.KEY_DRAWER_SELECT, true);
+        addSwitch("Taps on drawer apps always count",
+                "A tap anywhere on a drawer app's icon or name opens it. ZUI measures where an "
+                        + "icon can be touched by the home screen's icon size, so taps near the "
+                        + "edge of a larger drawer icon went nowhere. Applies after ZUX Home "
+                        + "restarts",
+                Const.KEY_DRAWER_TAPS, true);
 
-        addHeader("Taskbar");
-        addSwitch("Status tray in the taskbar",
-                "Network, battery and a clock next to the navigation buttons, with Wi-Fi and "
-                        + "Bluetooth switches behind them",
-                Const.KEY_TASKBAR_TRAY, true);
-        addSwitch("Show temperatures",
-                "CPU, GPU and battery temperature in the tray, where the kernel lets the "
-                        + "launcher read them",
-                Const.KEY_TASKBAR_TEMPS, true);
-        addSwitch("Edit the quick panel's tiles",
-                "Hold a tile, or press Edit at the top of the panel, to take tiles off, put "
-                        + "them back and drag them into your own order",
-                Const.KEY_TILE_EDIT, true);
-        addSwitch("Taskbar menu",
-                "Hold or right-click empty taskbar space for Task manager and settings",
-                Const.KEY_TASKBAR_MENU, true);
-        addSpinner("Taskbar text and icons", new String[]{
-                        "Follow the background",
-                        "Always black",
-                        "Always white"},
-                Const.KEY_TASKBAR_TEXT_MODE, Tone.MODE_AUTO);
-        addSwitch("Glass taskbar",
-                "Experimental. Replaces the taskbar's own bar with a translucent one. Whether it "
-                        + "works depends on how your firmware paints that bar, so it starts off",
-                Const.KEY_TASKBAR_GLASS, false);
-        addSwitch("Only open apps in the taskbar",
-                "The taskbar shows what is open on its screen, plus your pins - not the "
-                        + "launcher's hotseat and recommendations",
-                Const.KEY_TASKBAR_RUNNING_ONLY, false);
-        addSwitch("Menu on a taskbar icon",
-                "Hold an app in the taskbar for open, close, app info and the app's own "
-                        + "shortcuts",
-                Const.KEY_TASKBAR_APP_MENU, true);
-        addSwitch("App shortcut icons in ZUI's shape",
-                "An app's own shortcuts in the app menus - New chat, Start voice - get the same "
-                        + "icon shape ZUI gives every app icon, instead of the app's square "
-                        + "backing",
-                Const.KEY_SHORTCUT_SHAPES, true);
+        addCategory("Drag and drop",
+                "Moving apps between the drawers, the taskbar and the home screen");
         addSwitch("Drag apps onto the taskbar to pin them",
                 "An app dragged out of ZUI's taskbar drawer and let go on the taskbar is pinned "
                         + "there; anywhere else it still opens in a floating window or split "
@@ -237,39 +359,14 @@ public class MainActivity extends Activity {
                 "In ZUX Home's drawer, hold one of our folders and move your finger: it lands on "
                         + "the home screen as ZUI's own folder with its apps; the drawer keeps it",
                 Const.KEY_DRAWER_FOLDER_HOME, true);
-        addSwitch("Rearrange ZUX Home's drawer by dragging",
-                "Drag an app in ZUX Home's drawer and the others make room, as on ZUI's home "
-                        + "screen; rest it on an app to make a folder, on a folder to put it in, "
-                        + "and drag past the top of the apps to place it on the home screen",
-                Const.KEY_DRAWER_REARRANGE, true);
-        addSwitch("Rearrange in the taskbar's drawer",
-                "On the tablet, an app dragged inside the taskbar's drawer only moves there; the "
-                        + "floating window starts once it leaves the drawer. Cancel at the top "
-                        + "stops it, and resting on the start button opens the drawer again",
-                Const.KEY_TASKBAR_DRAWER_REARRANGE, true);
-        addSwitch("Drawer folders open under a dragged app",
-                "Rest a dragged app on a drawer folder and it opens, as ZUI's home folders do, "
-                        + "so the app can be placed anywhere inside",
-                Const.KEY_DRAWER_FOLDER_SPRING, true);
-        addSwitch("Select apps on the home screen",
-                "Select in a home-screen app's menu opens ZUI's edit mode with that app selected: "
-                        + "tap others to add them, then drag them together. Selected apps shake",
-                Const.KEY_HOME_SELECT, true);
-        addSwitch("Select in the drawers",
-                "Select in a drawer app's menu marks it: tap others to add them, then drag them "
-                        + "together into a new place, a folder or the taskbar",
-                Const.KEY_DRAWER_SELECT, true);
-        addSwitch("Taps on drawer apps always count",
-                "A tap anywhere on a drawer app's icon or name opens it. ZUI measures where an "
-                        + "icon can be touched by the home screen's icon size, so taps near the "
-                        + "edge of a larger drawer icon went nowhere. Applies after ZUX Home "
-                        + "restarts",
-                Const.KEY_DRAWER_TAPS, true);
-        addSwitch("Taskbar taps always open the app",
-                "An app tapped in the tablet taskbar's drawer or one of its folders opens even "
-                        + "when ZUI has lost its recents screen - with another home app on the "
-                        + "tablet, ZUI closed the drawer and opened nothing",
-                Const.KEY_TASKBAR_TAPS, true);
+        addSwitch("Drag apps out of the stock drawer",
+                "Hold an app in the launcher's own drawer to drag it onto the desktop, or onto "
+                        + "the taskbar to pin it there. Pins are this module's own and go away "
+                        + "with it; the launcher's own hotseat is never written to",
+                Const.KEY_DRAWER_DRAG, true);
+
+        addCategory("Game controller",
+                "Its buttons on the drawers, the taskbar and the keyboard; a game launcher");
         addSwitch("Game controller's Home button opens the drawer",
                 "Press it to open or close the app drawer, then move with the stick or D-pad, "
                         + "A to open, B to go back. Folders are reached too. Hold it to go to "
@@ -315,132 +412,8 @@ public class MainActivity extends Activity {
                         + "deletes, Y is space, Start is Enter, L1 and R1 move the cursor, L2 "
                         + "is shift, R2 is caps lock, B closes it",
                 Const.KEY_GAMEPAD_KEYBOARD, true);
-        addSwitch("Navigation keys at the bar's right edge",
-                "On the tablet the back, home and recents keys sit flush with the bar's right "
-                        + "edge; ZUI's room there comes back while it has a button to show in it",
-                Const.KEY_NAV_KEYS_EDGE, true);
-        addSwitch("Start button robot falls asleep",
-                "After 30 seconds with nothing pressed the robot shuts its eyes and dozes off, "
-                        + "z's drifting up; any press wakes it",
-                Const.KEY_ROBOT_SLEEP, true);
-        addSwitch("Start button robot breathes",
-                "The robot's head swells gently with each breath - slower and deeper while it "
-                        + "sleeps",
-                Const.KEY_ROBOT_BREATH, true);
-        addSwitch("Keep the launcher's recents off the taskbar",
-                "With \"Only open apps\" on, the launcher's own recent and recommended apps are "
-                        + "never added to the taskbar - not even for a moment when an app opens "
-                        + "or closes",
-                Const.KEY_HIDE_RECENTS_FLASH, true);
-        addSwitch("Navigation keys act on their own screen",
-                "Back, home and recents on the monitor's taskbar act on the monitor - not on "
-                        + "the tablet, which is where the launcher sends them on its own",
-                Const.KEY_NAV_OWN_SCREEN, true);
-        addSwitch("Recents on the screen you pressed",
-                "The recents button opens recents on its own screen - tablet or monitor - full "
-                        + "screen and in front of every app, on the first press",
-                Const.KEY_RECENTS_ROUTE, true);
-        addSwitch("Never kill apps on the monitor",
-                "Apps open on the external screen are only closed when you close them. They go "
-                        + "on ZUI's own never-kill lists, and root keeps battery limits off them; "
-                        + "for the rest, also tick System Framework for this module in LSPosed "
-                        + "and reboot once",
-                Const.KEY_KEEP_ALIVE, true);
-        addSwitch("Monitor's touchscreen on the monitor",
-                "A touchscreen monitor's touches always land on the monitor - after a replug "
-                        + "Android could send them to the tablet. Needs System Framework ticked "
-                        + "for this module in LSPosed; takes effect at the next plug",
-                Const.KEY_MONITOR_TOUCH, true);
-        addSwitch("Window buttons follow the window",
-                "When a window moves between the tablet and the monitor, its title bar and its "
-                        + "\u2026 menu move with it. Needs System UI ticked for this module in "
-                        + "LSPosed",
-                Const.KEY_CAPTION_FOLLOW, true);
-        addSwitch("Window buttons on the monitor's title bars",
-                "Minimise, maximise or restore, Full screen and close on the monitor's title "
-                        + "bars, as on DeX, in place of ZUI's three dots. Each does what the "
-                        + "… menu's item does; split-screen windows keep the dots. Needs "
-                        + "System UI ticked for this module in LSPosed",
-                Const.KEY_WINDOW_BUTTONS, true);
-        addSwitch("Apps and the keyboard stop at the taskbar",
-                "On both screens, apps and the keyboard end where the taskbar starts instead of "
-                        + "drawing under it, and use that strip only while the bar is hidden. "
-                        + "Needs System Framework ticked for this module in LSPosed and a "
-                        + "reboot once",
-                Const.KEY_BAR_CLEARANCE, true);
-        addSwitch("No \"Association Launch App Prompt\"",
-                "ZUI asks \"A is attempting to launch B, allow?\" whenever an app other than the "
-                        + "home screen opens another, a game launcher's every game included. "
-                        + "On, the app opens as asked; pairs denied in ZUI's Security Center stay "
-                        + "denied. Needs System Framework ticked for this module in LSPosed",
-                Const.KEY_NO_LAUNCH_PROMPT, true);
-        addSwitch("No \"two high-performance apps\" prompt",
-                "ZUI asks before opening a game while another heavy app is in sight, and then "
-                        + "opens it as a small floating window. On, the app just opens as asked. "
-                        + "Needs System Framework ticked for this module in LSPosed",
-                Const.KEY_NO_GAME_TIP, true);
-        addSwitch("Full screen on the monitor",
-                "Full screen in a window's \u2026 menu and in the taskbar's app menu: the app "
-                        + "fills the monitor, and the taskbar slides away until the pointer "
-                        + "reaches the bottom of the screen. Needs System UI ticked for this "
-                        + "module in LSPosed for the \u2026 menu and the title bar",
-                Const.KEY_FULL_SCREEN, true);
-        addSwitch("Taskbar comes back with the drawer over full-screen apps",
-                "Over a game or video that hides the bars, the taskbar shows while its drawer, "
-                        + "a folder or a panel of it is open, and hides again when you go back "
-                        + "to the app. Needs System Framework ticked for this module in LSPosed",
-                Const.KEY_BAR_WITH_DRAWER, true);
-        addSwitch("Tablet drawer ends at the taskbar",
-                "The taskbar drawer's apps scroll up to the bar and stop there, instead of "
-                        + "passing under the bar's icons",
-                Const.KEY_DRAWER_ABOVE_BAR, true);
-        addSwitch("Drawer button on the left",
-                "Moves the launcher's own all-apps button to the left of the taskbar, beside the "
-                        + "navigation keys, instead of leaving it in the middle of the icons",
-                Const.KEY_START_LEFT, true);
-        addSwitch("Android logo on the drawer button",
-                "Shows the green Android head on the launcher's all-apps button, like a start "
-                        + "button, instead of its own icon",
-                Const.KEY_START_ROBOT, true);
-        addSwitch("Mark the apps that are open",
-                "A line under every taskbar icon whose app is running - including shortcuts and "
-                        + "folders, which otherwise look the same open or closed",
-                Const.KEY_RUNNING_MARKS, true);
-        addSwitch("Drag apps out of the stock drawer",
-                "Hold an app in the launcher's own drawer to drag it onto the desktop, or onto "
-                        + "the taskbar to pin it there. Pins are this module's own and go away "
-                        + "with it; the launcher's own hotseat is never written to",
-                Const.KEY_DRAWER_DRAG, true);
-        addSwitch("Open apps on the screen you tapped",
-                "The launcher starts its own icons without naming a screen, so an app tapped on "
-                        + "the external desktop can open on the tablet. This gives those launches "
-                        + "the display the tap was on. Off by default - it changes where every app "
-                        + "opens",
-                Const.KEY_LAUNCH_DISPLAY, false);
-        addSwitch("Glass app drawer",
-                "Puts the same translucent pane behind the launcher's own app drawer, in whatever "
-                        + "tone the drawer already uses so its labels stay readable",
-                Const.KEY_DRAWER_GLASS, true);
-        addSwitch("Use root",
-                "Lets the quick settings switch Bluetooth, aeroplane mode, eye protection and "
-                        + "take screenshots, which an ordinary launcher may not. Turn off and "
-                        + "those buttons open the matching settings screen instead",
-                Const.KEY_USE_ROOT, true);
-        addSwitch("ZUI's sidebar never waits for a missing AI service",
-                "With ZUI's AI service removed, the sidebar froze on every drag of an app and "
-                        + "Android said it was not responding. It no longer asks a service "
-                        + "that is not there. Needs ZUI's sidebar ticked in LSPosed",
-                Const.KEY_SIDEBAR_AI_WAIT, true);
 
-        addHeader("Stock launcher unlocking (optional)");
-        addSwitch("Try to unlock the stock launcher",
-                "Flips the launcher's own \"editing disabled\" flags where we can name them",
-                Const.KEY_UNLOCK_STOCK, true);
-        addSwitch("Aggressive unlocking",
-                "Also guesses by method name. Turn off if the launcher misbehaves",
-                Const.KEY_UNLOCK_AGGRESSIVE, false);
-
-        addHeader("Notifications");
+        addCategory("Notifications", "The quick panel's list and pop-ups on the monitor");
         addSwitch("Notifications in the quick panel",
                 "Shows what is in the shade, with a tap to open and a cross to dismiss",
                 Const.KEY_NOTIFICATIONS, true);
@@ -479,7 +452,67 @@ public class MainActivity extends Activity {
                 + "a long one with two buttons; a plain one. With the monitor's desktop on, they "
                 + "pop up above its tray. Replying updates the first without popping it up again.");
 
-        addHeader("Diagnostics");
+        addCategory("ZUI fixes", "ZUI's prompts and limits, switched off");
+        addSwitch("No \"Association Launch App Prompt\"",
+                "ZUI asks \"A is attempting to launch B, allow?\" whenever an app other than the "
+                        + "home screen opens another, a game launcher's every game included. "
+                        + "On, the app opens as asked; pairs denied in ZUI's Security Center stay "
+                        + "denied. Needs System Framework ticked for this module in LSPosed",
+                Const.KEY_NO_LAUNCH_PROMPT, true);
+        addSwitch("No \"two high-performance apps\" prompt",
+                "ZUI asks before opening a game while another heavy app is in sight, and then "
+                        + "opens it as a small floating window. On, the app just opens as asked. "
+                        + "Needs System Framework ticked for this module in LSPosed",
+                Const.KEY_NO_GAME_TIP, true);
+        addSwitch("ZUI's sidebar never waits for a missing AI service",
+                "With ZUI's AI service removed, the sidebar froze on every drag of an app and "
+                        + "Android said it was not responding. It no longer asks a service "
+                        + "that is not there. Needs ZUI's sidebar ticked in LSPosed",
+                Const.KEY_SIDEBAR_AI_WAIT, true);
+        addSwitch("Try to unlock the stock launcher",
+                "Flips the launcher's own \"editing disabled\" flags where we can name them",
+                Const.KEY_UNLOCK_STOCK, true);
+        addSwitch("Aggressive unlocking",
+                "Also guesses by method name. Turn off if the launcher misbehaves",
+                Const.KEY_UNLOCK_AGGRESSIVE, false);
+
+        addCategory("General", "Where the desktop shows, its look, root");
+        addSpinner("Which desktop mode", new String[]{
+                        "External display only (recommended)",
+                        "Tablet screen only",
+                        "Both"},
+                Const.KEY_DISPLAY_MODE, Const.DISPLAY_EXTERNAL);
+        addSummary("ZUI's own home on the tablet is never covered - it keeps its icons, folders "
+                + "and Recents, and gets the taskbar only.");
+        addSpinner("Stock home content", new String[]{
+                        "Leave it alone (overlay on top)",
+                        "Hide the stock icon grid (recommended)",
+                        "Hide everything the stock home draws"},
+                Const.KEY_TAKEOVER, Const.TAKEOVER_GRID);
+        addSwitch("Attach to any activity",
+                "Only if the desktop home is not detected automatically",
+                Const.KEY_ATTACH_ANY, false);
+        addText("Extra launcher packages",
+                "Comma separated, if your ZuxOS build uses a package the module does not know",
+                Const.KEY_EXTRA_TARGETS);
+        addSpinner("Theme", new String[]{
+                        "Glass",
+                        "Retro (monitor)"},
+                Const.KEY_THEME, Theme.GLASS_ID);
+        addSummary("Retro is Windows 98 on the external screen: grey bevelled boxes, a pixel font, "
+                + "no blur and no live glass, which also saves the GPU there. The tablet keeps "
+                + "glass. The launcher restarts to apply it.");
+        addSwitch("Glass style", "Translucent panels, with real blur where Android allows it",
+                Const.KEY_GLASS, true);
+        addSwitch("Animations", "Sliding, fading and page transitions",
+                Const.KEY_ANIMATIONS, true);
+        addSwitch("Use root",
+                "Lets the quick settings switch Bluetooth, aeroplane mode, eye protection and "
+                        + "take screenshots, which an ordinary launcher may not. Turn off and "
+                        + "those buttons open the matching settings screen instead",
+                Const.KEY_USE_ROOT, true);
+
+        addCategory("Diagnostics", "Logs, feature health and help");
         addSwitch("Verbose log", "Writes details to the LSPosed log", Const.KEY_DEBUG, false);
         addSwitch("Dump launcher info on attach",
                 "Writes the activity and view tree to the launcher's files dir",
@@ -489,8 +522,8 @@ public class MainActivity extends Activity {
                         + "firmware, once each time it starts",
                 Const.KEY_HEALTH, true);
         addButton("Feature health", this::showHealth);
-
         addButton("How to use this", this::showHelp);
+        showHome();
     }
 
     // --- building blocks -------------------------------------------------
@@ -528,20 +561,307 @@ public class MainActivity extends Activity {
         mRoot.addView(tv, lp);
     }
 
-    private void addHeader(String title) {
-        TextView tv = new TextView(this);
-        tv.setText(title);
-        tv.setTextSize(13);
-        tv.setAllCaps(true);
-        tv.setAlpha(0.7f);
+    /** The search field, then the back row, the category list and "nothing matches". */
+    private void addSearch() {
+        mSearch = new EditText(this);
+        mSearch.setSingleLine(true);
+        mSearch.setHint("Search settings");
+        mSearch.setTextSize(16);
+        mSearch.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
+        // The results are already there as you type: the keyboard's search key only makes room.
+        mSearch.setOnEditorActionListener((v, action, event) -> {
+            android.view.inputmethod.InputMethodManager imm =
+                    getSystemService(android.view.inputmethod.InputMethodManager.class);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+            }
+            return true;
+        });
+        mSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                filter(s.toString());
+            }
+        });
+        LinearLayout.LayoutParams lp = rowParams();
+        lp.topMargin = Ui.dp(this, 8);
+        mRoot.addView(mSearch, lp);
+
+        TextView back = new TextView(this);
+        back.setText("\u2039  All settings");
+        back.setTextSize(16);
+        back.setPadding(0, Ui.dp(this, 14), 0, Ui.dp(this, 6));
+        back.setBackground(ripple());
+        back.setOnClickListener(v -> showHome());
+        mBackRow = back;
+        mRoot.addView(back, rowParams());
+
+        mList = new LinearLayout(this);
+        mList.setOrientation(LinearLayout.VERTICAL);
+        mRoot.addView(mList, rowParams());
+
+        mNothing = new TextView(this);
+        mNothing.setText("Nothing matches.");
+        mNothing.setAlpha(0.7f);
+        mNothing.setPadding(0, Ui.dp(this, 20), 0, 0);
+        mRoot.addView(mNothing, rowParams());
+    }
+
+    /** A category: its title on its page, and the rows that follow until the next one. */
+    private void addCategory(String title, String blurb) {
+        TextView header = new TextView(this);
+        header.setText(title);
+        header.setTextSize(13);
+        header.setAllCaps(true);
+        header.setAlpha(0.7f);
         LinearLayout.LayoutParams lp = rowParams();
         lp.topMargin = Ui.dp(this, 20);
         lp.bottomMargin = Ui.dp(this, 4);
-        mRoot.addView(tv, lp);
+        mRoot.addView(header, lp);
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        mRoot.addView(body, rowParams());
+        mCategory = new Category(title, blurb, header, body);
+        mCategories.add(mCategory);
+    }
+
+    /**
+     * A new row for one setting, in the category being built (or above them all, outside any):
+     * its views go into it, and its words are what the search looks through.
+     */
+    private void beginRow(String title) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        (mCategory == null ? mRoot : mCategory.body).addView(row, rowParams());
+        mInto = row;
+        mRow = mCategory == null ? null : new Row(row, title, mCategory.title);
+        if (mRow != null) {
+            mCategory.rows.add(mRow);
+        }
+    }
+
+    /** A note of the category's own, searched like a setting. */
+    private void addNote(String text) {
+        beginRow("");
+        addSummary(text);
+    }
+
+    /** The first screen: the categories, each with its number of settings. */
+    private void showHome() {
+        if (mList.getChildCount() == 0) {
+            for (Category c : mCategories) {
+                mList.addView(entry(c), rowParams());
+            }
+        }
+        mOpen = null;
+        if (mSearch.getText().length() > 0) {
+            mSearch.setText("");
+        }
+        mList.setVisibility(View.VISIBLE);
+        mBackRow.setVisibility(View.GONE);
+        mNothing.setVisibility(View.GONE);
+        for (Category c : mCategories) {
+            c.show(false);
+        }
+        mScroll.scrollTo(0, 0);
+        backHandled(false);
+    }
+
+    /** One category's page: its title and all its rows. */
+    private void open(Category category) {
+        mOpen = category;
+        mList.setVisibility(View.GONE);
+        mBackRow.setVisibility(View.VISIBLE);
+        mNothing.setVisibility(View.GONE);
+        for (Category c : mCategories) {
+            c.show(c == category);
+            for (Row r : c.rows) {
+                r.view.setVisibility(View.VISIBLE);
+            }
+        }
+        mScroll.scrollTo(0, 0);
+        backHandled(true);
+    }
+
+    /**
+     * The settings whose words hold every typed word, under their categories' titles, from every
+     * category; an empty search goes back to where it was.
+     */
+    private void filter(String query) {
+        String[] words = query.trim().toLowerCase(java.util.Locale.ROOT).split("\\s+");
+        if (words.length == 0 || words[0].isEmpty()) {
+            if (mOpen != null) {
+                open(mOpen);
+            } else {
+                showHome();
+            }
+            return;
+        }
+        mList.setVisibility(View.GONE);
+        mBackRow.setVisibility(View.GONE);
+        boolean any = false;
+        for (Category c : mCategories) {
+            boolean shown = false;
+            for (Row r : c.rows) {
+                boolean match = r.matches(words);
+                r.view.setVisibility(match ? View.VISIBLE : View.GONE);
+                shown |= match;
+            }
+            c.show(shown);
+            any |= shown;
+        }
+        mNothing.setVisibility(any ? View.GONE : View.VISIBLE);
+        backHandled(true);
+    }
+
+    /** A category's line on the first screen: its name, what is in it, how many, a chevron. */
+    private View entry(Category c) {
+        LinearLayout entry = new LinearLayout(this);
+        entry.setOrientation(LinearLayout.HORIZONTAL);
+        entry.setGravity(Gravity.CENTER_VERTICAL);
+        entry.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 12));
+        entry.setBackground(ripple());
+        entry.setOnClickListener(v -> open(c));
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        TextView name = new TextView(this);
+        name.setText(c.title);
+        name.setTextSize(17);
+        texts.addView(name);
+        TextView blurb = new TextView(this);
+        blurb.setText(c.blurb);
+        blurb.setTextSize(13);
+        blurb.setAlpha(0.7f);
+        texts.addView(blurb);
+        entry.addView(texts, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView count = new TextView(this);
+        count.setText(c.settings() + "  \u203A");
+        count.setTextSize(15);
+        count.setAlpha(0.6f);
+        entry.addView(count);
+        return entry;
+    }
+
+    private android.graphics.drawable.Drawable ripple() {
+        android.content.res.TypedArray a = obtainStyledAttributes(
+                new int[]{android.R.attr.selectableItemBackground});
+        try {
+            return a.getDrawable(0);
+        } finally {
+            a.recycle();
+        }
+    }
+
+    /** Back from a page or a search; false when there is nothing to go back from. */
+    private boolean back() {
+        if (mSearch.getText().length() > 0) {
+            mSearch.setText("");
+            return true;
+        }
+        if (mOpen != null) {
+            showHome();
+            return true;
+        }
+        return false;
+    }
+
+    /** Back as a key: before Android 13, and wherever its back handlers are not in use. */
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onBackPressed() {
+        if (!back()) {
+            super.onBackPressed();
+        }
+    }
+
+    /**
+     * Android 13 and up, this app being made for 16: Back reaches the app only through a
+     * handler, held while there is something to go back from, so Back on the first screen
+     * still leaves.
+     */
+    private void backHandled(boolean on) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+        android.window.OnBackInvokedDispatcher dispatcher = getOnBackInvokedDispatcher();
+        if (on && mBack == null) {
+            android.window.OnBackInvokedCallback callback = this::back;
+            mBack = callback;
+            dispatcher.registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback);
+        } else if (!on && mBack != null) {
+            dispatcher.unregisterOnBackInvokedCallback(
+                    (android.window.OnBackInvokedCallback) mBack);
+            mBack = null;
+        }
+    }
+
+    /** One category: its page's title and rows, and its line on the first screen. */
+    private static final class Category {
+        final String title;
+        final String blurb;
+        final View header;
+        final LinearLayout body;
+        final List<Row> rows = new ArrayList<>();
+
+        Category(String title, String blurb, View header, LinearLayout body) {
+            this.title = title;
+            this.blurb = blurb;
+            this.header = header;
+            this.body = body;
+        }
+
+        void show(boolean shown) {
+            int visibility = shown ? View.VISIBLE : View.GONE;
+            header.setVisibility(visibility);
+            body.setVisibility(visibility);
+        }
+
+        /** Its settings, its notes left out. */
+        int settings() {
+            int n = 0;
+            for (Row r : rows) {
+                n += r.title.isEmpty() ? 0 : 1;
+            }
+            return n;
+        }
+    }
+
+    /** One setting's views, and the words the search finds it by. */
+    private static final class Row {
+        final View view;
+        final String title;
+        final StringBuilder words = new StringBuilder();
+
+        Row(View view, String title, String category) {
+            this.view = view;
+            this.title = title;
+            words.append(title).append(' ').append(category);
+        }
+
+        boolean matches(String[] query) {
+            String text = words.toString().toLowerCase(java.util.Locale.ROOT);
+            for (String w : query) {
+                if (!text.contains(w)) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 
     @SuppressWarnings("deprecation")
     private void addSwitch(String title, String summary, String key, boolean def) {
+        beginRow(title);
         Switch sw = new Switch(this);
         sw.setText(title);
         sw.setTextSize(16);
@@ -549,7 +869,7 @@ public class MainActivity extends Activity {
         sw.setPadding(0, Ui.dp(this, 10), 0, summary == null ? Ui.dp(this, 10) : 0);
         sw.setOnCheckedChangeListener((v, checked) ->
                 save(key, mPrefs.edit().putBoolean(key, checked)));
-        mRoot.addView(sw, rowParams());
+        mInto.addView(sw, rowParams());
         if (summary != null) {
             addSummary(summary);
         }
@@ -568,13 +888,14 @@ public class MainActivity extends Activity {
 
     /** A row naming the app chosen for {@code key}; a tap lists the apps that can be opened. */
     private void addAppPicker(String title, String summary, String key) {
+        beginRow(title);
         TextView tv = new TextView(this);
         tv.setTextSize(16);
         tv.setPadding(0, Ui.dp(this, 10), 0, summary == null ? Ui.dp(this, 10) : 0);
         Runnable show = () -> tv.setText(title + ": " + appLabel(mPrefs.getString(key, "")));
         show.run();
         tv.setOnClickListener(v -> pickApp(title, key, show));
-        mRoot.addView(tv, rowParams());
+        mInto.addView(tv, rowParams());
         if (summary != null) {
             addSummary(summary);
         }
@@ -629,15 +950,22 @@ public class MainActivity extends Activity {
         tv.setAlpha(0.7f);
         LinearLayout.LayoutParams lp = rowParams();
         lp.bottomMargin = Ui.dp(this, 8);
-        mRoot.addView(tv, lp);
+        mInto.addView(tv, lp);
+        if (mRow != null) {
+            mRow.words.append(' ').append(summary);
+        }
     }
 
     private void addSpinner(String title, String[] options, String key, int def) {
+        beginRow(title);
+        if (mRow != null) {
+            mRow.words.append(' ').append(String.join(" ", options));
+        }
         TextView tv = new TextView(this);
         tv.setText(title);
         tv.setTextSize(16);
         tv.setPadding(0, Ui.dp(this, 10), 0, 0);
-        mRoot.addView(tv, rowParams());
+        mInto.addView(tv, rowParams());
 
         Spinner spinner = new Spinner(this);
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
@@ -659,16 +987,17 @@ public class MainActivity extends Activity {
             public void onNothingSelected(AdapterView<?> parent) {
             }
         });
-        mRoot.addView(spinner, rowParams());
+        mInto.addView(spinner, rowParams());
     }
 
     private void addSlider(String title, String unit, String key, int def, int min, int max) {
+        beginRow(title);
         int value = mPrefs.getInt(key, def);
         TextView tv = new TextView(this);
         tv.setText(title + ": " + value + " " + unit);
         tv.setTextSize(16);
         tv.setPadding(0, Ui.dp(this, 10), 0, 0);
-        mRoot.addView(tv, rowParams());
+        mInto.addView(tv, rowParams());
 
         SeekBar bar = new SeekBar(this);
         bar.setMax(max - min);
@@ -694,15 +1023,16 @@ public class MainActivity extends Activity {
                 save(key, mPrefs.edit().putInt(key, min + seekBar.getProgress()));
             }
         });
-        mRoot.addView(bar, rowParams());
+        mInto.addView(bar, rowParams());
     }
 
     private void addText(String title, String summary, String key) {
+        beginRow(title);
         TextView tv = new TextView(this);
         tv.setText(title);
         tv.setTextSize(16);
         tv.setPadding(0, Ui.dp(this, 10), 0, 0);
-        mRoot.addView(tv, rowParams());
+        mInto.addView(tv, rowParams());
 
         EditText et = new EditText(this);
         et.setSingleLine(true);
@@ -722,7 +1052,7 @@ public class MainActivity extends Activity {
                 mPrefs.edit().putString(key, s.toString()).apply();
             }
         });
-        mRoot.addView(et, rowParams());
+        mInto.addView(et, rowParams());
         if (summary != null) {
             addSummary(summary);
         }
@@ -813,13 +1143,14 @@ public class MainActivity extends Activity {
     }
 
     private void addButton(String title, Runnable action) {
+        beginRow(title);
         Button b = new Button(this);
         b.setText(title);
         b.setOnClickListener(v -> action.run());
         LinearLayout.LayoutParams lp = rowParams();
         lp.topMargin = Ui.dp(this, 20);
         lp.gravity = Gravity.START;
-        mRoot.addView(b, lp);
+        mInto.addView(b, lp);
     }
 
     private LinearLayout.LayoutParams rowParams() {

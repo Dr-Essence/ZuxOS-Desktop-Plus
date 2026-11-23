@@ -458,6 +458,11 @@ survives restarts and reboots.
 
 ## Settings worth knowing
 
+The settings app opens on a list of categories (Monitor windows, Taskbar, Home screen, App
+drawer, Drag and drop, Game controller, Notifications, ZUI fixes, General, Diagnostics); tap one
+to open it. The search above them finds any setting by its words, on every page at once, and
+Back clears it, then returns to the list.
+
 | Setting | Default | Why you would change it |
 |---|---|---|
 | **Which desktop mode** | External only | The tablet has a desktop mode of its own too |

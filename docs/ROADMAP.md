@@ -9,7 +9,7 @@ in a fresh session: it is the project's memory.
 the owner asked for Full screen on the monitor: 0.0.305. It and 0.0.302 await the owner's test -
 pick up from their rows and the Open table.
 
-**Where we are (2026-11-23, build 0.0.315): early alpha, experimental.** Builds are numbered 0.0.<commit count> from 0.0.214; earlier ones were 1.0.1-1.0.213 (the same count, so installing over them keeps every setting and folder). Made mainly for the owner's tablet; anyone may try it at their own risk, and feedback is welcome, never required. No public release until
+**Where we are (2026-11-23, build 0.0.316): early alpha, experimental.** Builds are numbered 0.0.<commit count> from 0.0.214; earlier ones were 1.0.1-1.0.213 (the same count, so installing over them keeps every setting and folder). Made mainly for the owner's tablet; anyone may try it at their own risk, and feedback is welcome, never required. No public release until
 it is fully stable on the owner's tablet; then alpha testers on every ZuxOS device (#26). The current work is moving every feature onto ZUI's
 own code paths ("Through ZUI's own path" below), one at a time:
 - Tablet drawers (ZUX Home's and the taskbar's): our folders are ZUI's own `FolderIcon` and `Folder`, with ZUI's motion, menus, Add apps and Uninstall.
@@ -112,6 +112,7 @@ have on the monitor; they stay ours, built from ZUI's pieces where ZUI has them.
 |-------|------|
 | 2026-10 | Live liquid glass (blur + real refraction) on everything translucent, CPU-tuned, there from the first frame |
 | 2026-10 | iOS folder morph: folders grow out of their icon and back, icon hidden while open, one material closed and open |
+| 0.0.316 | The module's settings in category pages, with a search (owner: "we have so many options that u get lost"; chose category pages, and a search of the settings, not the apps). The first screen keeps the status card and Module enabled, then the search and ten categories: Monitor windows, Taskbar, Home screen, App drawer, Drag and drop, Game controller, Notifications, ZUI fixes, General, Diagnostics, each with its number of settings. A tap opens one; the search finds a setting by any words of its name, its summary, its choices or its category, from every page, and it works right there; Back clears the search, then returns to the list. Every setting keeps its key, default and meaning; only the settings app changed |
 
 ## Fixed
 
