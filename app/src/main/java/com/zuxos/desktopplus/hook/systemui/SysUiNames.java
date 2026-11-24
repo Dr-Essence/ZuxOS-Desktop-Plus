@@ -199,6 +199,14 @@ final class SysUiNames {
     static final String CREATE_CURRENT_CLOCK = "createCurrentClock";
     static final String ROOT_VIEW = "rootView";
     static final String SET_CLOCK = "setClock";
+    /**
+     * Evidence for the look: the clock each lock screen asks ZUI's registry for, the faces it
+     * offers, and the tablet's setting for its face.
+     */
+    static final String CLOCK_REGISTRY_CLASS = "com.android.systemui.shared.clocks.ClockRegistry";
+    static final String GET_CURRENT_CLOCK_ID = "getCurrentClockId";
+    static final String AVAILABLE_CLOCKS = "availableClocks";
+    static final String LOCK_SCREEN_CUSTOM_CLOCK_FACE = "lock_screen_custom_clock_face";
     /** ZUI's mirror check: whether the window manager shows decorations on a screen. */
     static final String WINDOW_MANAGER_PROXY = "android.view.IWindowManager$Stub$Proxy";
     static final String SHOULD_SHOW_SYSTEM_DECORS = "shouldShowSystemDecors";

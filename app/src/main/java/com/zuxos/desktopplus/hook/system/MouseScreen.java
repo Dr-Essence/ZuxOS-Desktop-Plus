@@ -40,7 +40,8 @@ import de.robv.android.xposed.XposedBridge;
  * <p>At the first lock after a boot ZUI's monitor desktop is not up yet - ZUX Home waits for the
  * first unlock - so the rule gave the tablet, and the monitor's lock screen could not be clicked.
  * So while the lock screen is up before ZUI's monitor desktop, with the monitor set to be that
- * desktop ({@code zui_dp_display_pc_mode} = 1) and on, the rule's tablet becomes that screen;
+ * desktop ({@code zui_dp_display_pc_mode} = 1, which ZUI turns off at boot until that desktop is
+ * up - so also before the first unlock since boot) and on, the rule's tablet becomes that screen;
  * once ZUI's desktop is up, its rule decides alone. The switch is read at boot and when the
  * settings change ({@link SystemBridge}).
  */
@@ -68,6 +69,10 @@ public final class MouseScreen {
     private static Field sState;
     private static Field sType;
     private static Field sDisplayId;
+    /** Whether the user has unlocked since boot: {@code LocalServices}' user manager. */
+    private static Method sLocalService;
+    private static Class<?> sUsersClass;
+    private static Method sUnlocked;
     /** The state a screen had as the window manager took a new one, on that thread. */
     private static final ThreadLocal<Integer> BEFORE = new ThreadLocal<>();
     /** The rule's answer last written, MIN_VALUE before the first; and this hour's lines. */
@@ -103,6 +108,16 @@ public final class MouseScreen {
             sState = info.getField(SystemNames.STATE);
             sType = info.getField(SystemNames.TYPE);
             sDisplayId = info.getField(SystemNames.DISPLAY_ID);
+            try {
+                sUsersClass = Class.forName(SystemNames.USER_MANAGER_INTERNAL, false, loader);
+                sUnlocked = sUsersClass.getMethod(SystemNames.IS_USER_UNLOCKED, int.class);
+                sLocalService = Class.forName(SystemNames.LOCAL_SERVICES, false, loader)
+                        .getMethod(SystemNames.GET_SERVICE, Class.class);
+            } catch (Throwable t) {
+                sUnlocked = null;
+                L.w("mouse screen: the first unlock since boot not readable - the mouse at the "
+                        + "first lock goes by ZUI's setting alone (" + t + ")");
+            }
             int hooked = XposedBridge.hookAllMethods(desktop,
                     SystemNames.ENTER_EXTERNAL_DISPLAY_DESKTOP_MODE, CHANGED).size()
                     + XposedBridge.hookAllMethods(desktop,
@@ -273,7 +288,8 @@ public final class MouseScreen {
 
     /**
      * The monitor that is to be ZUI's desktop, while the lock screen is up before that desktop
-     * is: an external screen that is on, with {@code zui_dp_display_pc_mode} = 1. Null
+     * is: an external screen that is on, with {@code zui_dp_display_pc_mode} = 1 - or before the
+     * first unlock since boot, which ZUI turns that setting off for until its desktop is up. Null
      * otherwise, and once ZUI's desktop is up.
      */
     private static Integer beforeDesktop(Object callback) throws Exception {
@@ -289,9 +305,9 @@ public final class MouseScreen {
         Object thread = Class.forName(SystemNames.ACTIVITY_THREAD)
                 .getMethod(SystemNames.CURRENT_ACTIVITY_THREAD).invoke(null);
         Object context = Reflect.call(thread, SystemNames.GET_SYSTEM_CONTEXT);
-        if (!(context instanceof Context) || Settings.System.getInt(
+        if (!(context instanceof Context) || (Settings.System.getInt(
                 ((Context) context).getContentResolver(), SystemNames.ZUI_DP_DISPLAY_PC_MODE, 0)
-                != 1) {
+                != 1 && !firstLock())) {
             return null;
         }
         Object screens = Reflect.field(Reflect.field(wm, SystemNames.M_ROOT),
@@ -308,6 +324,22 @@ public final class MouseScreen {
             }
         }
         return null;
+    }
+
+    /** Whether the owner has not unlocked since boot: the first lock, before ZUI's desktop. */
+    private static boolean firstLock() throws Exception {
+        if (sUnlocked == null) {
+            return false;
+        }
+        Object users = sLocalService.invoke(null, sUsersClass);
+        if (users == null || !Boolean.FALSE.equals(sUnlocked.invoke(users, 0))) {
+            return false;
+        }
+        if (L.once("MouseScreen.firstLock")) {
+            L.i("mouse screen: before the first unlock since boot - the monitor is taken as ZUI's"
+                    + " desktop to be");
+        }
+        return true;
     }
 
     /** Whether this change of answer is written: null when not, else the line's ending. */

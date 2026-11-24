@@ -192,6 +192,9 @@ final class SystemNames {
     static final String M_POLICY = "mPolicy";
     static final String IS_KEYGUARD_LOCKED = "isKeyguardLocked";
     static final String ZUI_DP_DISPLAY_PC_MODE = "zui_dp_display_pc_mode";
+    /** ZUI turns that setting off at boot: the first lock is told by the user not unlocked. */
+    static final String USER_MANAGER_INTERNAL = "com.android.server.pm.UserManagerInternal";
+    static final String IS_USER_UNLOCKED = "isUserUnlocked";
     static final String M_CHILDREN = "mChildren";
     static final String DISPLAY_ID = "displayId";
     /**

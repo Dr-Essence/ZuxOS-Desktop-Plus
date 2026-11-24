@@ -458,6 +458,11 @@ public final class Cfg {
         return getBool(Const.KEY_UNLOCK_ON_MONITOR, true);
     }
 
+    /** USB mice are reset when the tablet wakes, instead of left dead until replugged. */
+    public static boolean usbMiceReset() {
+        return getBool(Const.KEY_USB_MICE_RESET, true);
+    }
+
     /** Over an app that hides the bars, the taskbar shows with the drawer and its panels. */
     public static boolean barWithDrawer() {
         return getBool(Const.KEY_BAR_WITH_DRAWER, true);

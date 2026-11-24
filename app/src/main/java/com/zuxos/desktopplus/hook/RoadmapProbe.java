@@ -131,10 +131,12 @@ public final class RoadmapProbe {
             dumpsys input 2>/dev/null | grep -i -E 'Device [0-9]+:|Enabled:|Sources:|PointerChoreographer|MouseDisplay|PointerDisplay|DefaultMouse' | head -120
             echo "--- who holds the pointer: touch state, pointer capture, gesture monitors (a mouse that stops until replugged)"
             dumpsys input 2>/dev/null | grep -i -E 'TouchStates|TouchedWindow|touchedWindows|Window:|PointerCapture|pointer capture|Capture|GestureMonitor|Monitors|FocusedWindow|FocusedDisplay|pilfer' | head -80
-            echo "--- each USB device asleep or awake (a mouse put to sleep when idle that never wakes)"
+            echo "--- each USB device asleep or awake, and reset on wake (a mouse that does not come back from a sleep)"
             for d in /sys/bus/usb/devices/*; do
-              [ -f "$d/product" ] && echo "$(cat "$d/product" 2>/dev/null): control $(cat "$d/power/control" 2>/dev/null), now $(cat "$d/power/runtime_status" 2>/dev/null), wakeup $(cat "$d/power/wakeup" 2>/dev/null), sleeps after $(cat "$d/power/autosuspend_delay_ms" 2>/dev/null) ms"
-            done | head -20
+              [ -f "$d/product" ] && echo "$(cat "$d/product" 2>/dev/null) ($(cat "$d/idVendor" 2>/dev/null):$(cat "$d/idProduct" 2>/dev/null), ${d##*/}): control $(cat "$d/power/control" 2>/dev/null), now $(cat "$d/power/runtime_status" 2>/dev/null), wakeup $(cat "$d/power/wakeup" 2>/dev/null), sleeps after $(cat "$d/power/autosuspend_delay_ms" 2>/dev/null) ms, quirks $(cat "$d/quirks" 2>/dev/null)"
+            done | head -24
+            echo "the kernel's quirk list: $(cat /sys/module/usbcore/parameters/quirks 2>/dev/null)"
+            echo "the tablet has slept $(cat /sys/power/suspend_stats/success 2>/dev/null) times; last woken by $(head -3 /sys/kernel/wakeup_reasons/last_resume_reason 2>/dev/null | tr '\n' ' ')"
             echo "ZUI's touchpad on the tablet: $(dumpsys activity activities 2>/dev/null | grep -c 'touchpad.TouchPadActivity') record(s)"
             echo "--- the monitor's mode and link (colour bands at 144 Hz: too few lanes for full colour)"
             dumpsys display 2>/dev/null | grep -E 'mActiveModeId|mActiveSfDisplayMode|mUserPreferredModeId' | head -8
@@ -144,6 +146,18 @@ public final class RoadmapProbe {
             logcat -d -b kernel 2>/dev/null | grep -i -E 'dp_|bpp|link_rate|lane' | tail -30
             echo "--- the kernel's last lines on USB and input (a mouse that stops sending)"
             dmesg 2>/dev/null | grep -v BATTERY_CHG | grep -i -E 'usb [0-9]|hid|input:|xhci' | tail -40
+            echo "--- Motorola's desktop: Smart Connect's apps and Motorola's display settings (#30)"
+            for p in com.motorola.mobiledesktop com.motorola.mobiledesktop.core; do
+              echo "$p: $(pm list packages -e "$p" 2>/dev/null | grep -c "package:$p$") enabled, $(dumpsys package "$p" 2>/dev/null | grep -m1 versionName | tr -d ' ')"
+              dumpsys package "$p" 2>/dev/null | grep -E '^ +[0-9a-f]+ [a-z.]+/|Action: |Category: |Scheme: ' | head -120
+              n=0
+              for a in $(pm path "$p" 2>/dev/null | cut -d: -f2); do
+                n=$((n + 1)); f="/sdcard/Download/$p-$n.apk"
+                [ -f "$f" ] || cp "$a" "$f" 2>/dev/null
+                [ -f "$f" ] && echo "copied: $f ($(basename "$a"))"
+              done
+            done
+            content query --uri content://com.motorola.android.providers.settings/global 2>/dev/null | grep -i -E 'display|ready|desktop|mobile_ui' | head -30
             echo "--- resource overlays on SystemUI (#10 window looks, #16)"
             cmd overlay list com.android.systemui 2>/dev/null | head -30
             echo "fabricated overlays offered: $(cmd overlay help 2>/dev/null | grep -c fabricate)"

@@ -2,9 +2,11 @@ package com.zuxos.desktopplus.hook.systemui;
 
 import android.app.Presentation;
 import android.app.WallpaperManager;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.provider.Settings;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.View;
@@ -25,15 +27,16 @@ import de.robv.android.xposed.XposedBridge;
  * ({@link LockScreenDisplays}) dressed in ZUI's own pieces, its password check and unlock left
  * as they are. Its clock is Motorola's ({@code PtClockView}), on the desktop wallpaper.
  *
- * <p>So its clock is the tablet's own clock face, run by ZUI's own code for a lock screen on
- * another screen: a {@code ConnectedDisplayKeyguardPresentation} is made by ZUI's own factory
- * (never shown), and its clock - ZUI's {@code ClockRegistry} clock, the one the tablet's lock
- * screen shows - is put in Motorola's clock's place, attached, ticked and let go with the lock
- * screen ({@code setClock}, {@code onAttachedToWindow}, {@code onDetachedFromWindow}). Motorola's
- * clock stays there unseen, so its own showing and hiding still works, and the tablet's, beside
- * it in the lock screen's plain root, follows it. Its background is the lock
- * wallpaper, the tablet's, where one is set apart from the home wallpaper. Each piece that fails
- * is written once and leaves Motorola's.
+ * <p>So its clock is the one ZUI's own code gives a lock screen on another screen: a
+ * {@code ConnectedDisplayKeyguardPresentation} is made by ZUI's own factory (never shown), and its
+ * clock - ZUI's {@code ClockRegistry} clock, whose only provider in this SystemUI is Android's own
+ * - is put in Motorola's clock's place, attached, ticked and let go with the lock screen
+ * ({@code setClock}, {@code onAttachedToWindow}, {@code onDetachedFromWindow}). Motorola's clock
+ * stays there unseen, so its own showing and hiding still works, and this one, beside it in the
+ * lock screen's plain root, follows it. Its background is the lock wallpaper, the tablet's, where
+ * one is set apart from the home wallpaper. Each piece that fails is written once and leaves
+ * Motorola's. Whether the tablet's own lock screen asks the registry for the same face is written
+ * down once ({@link #traceClock}), for the look to follow the tablet's.
  */
 final class LockScreenLook {
 
@@ -50,6 +53,59 @@ final class LockScreenLook {
                 .size()
                 + XposedBridge.hookAllMethods(lock, SysUiNames.ON_DETACHED_FROM_WINDOW, GONE)
                 .size();
+    }
+
+    /**
+     * Evidence for the look: which clock each lock screen asks ZUI's registry for - the tablet's
+     * own and the monitor's borrowed one - with the faces the registry offers and the tablet's
+     * setting for its face, once for each that asks. Read-only.
+     */
+    static int traceClock(ClassLoader loader) {
+        Class<?> registry = Reflect.findClass(SysUiNames.CLOCK_REGISTRY_CLASS, loader);
+        return registry == null ? 0
+                : XposedBridge.hookAllMethods(registry, SysUiNames.CREATE_CURRENT_CLOCK, ASKED)
+                .size();
+    }
+
+    private static final XC_MethodHook ASKED = new XC_MethodHook() {
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) {
+            try {
+                String asker = asker();
+                if (!L.once("LockScreenLook.asked." + asker)) {
+                    return;
+                }
+                Object id = Reflect.call(param.thisObject, SysUiNames.GET_CURRENT_CLOCK_ID);
+                Object clocks = Reflect.field(param.thisObject, SysUiNames.AVAILABLE_CLOCKS);
+                Object context = Reflect.field(param.thisObject, SysUiNames.CONTEXT);
+                String face = context instanceof Context ? Settings.Secure.getString(
+                        ((Context) context).getContentResolver(),
+                        SysUiNames.LOCK_SCREEN_CUSTOM_CLOCK_FACE) : "?";
+                Object clock = param.getResult();
+                L.i("lock screen: " + asker + " asks ZUI's clock registry for '" + id
+                        + "' and gets " + (clock == null ? "none" : clock.getClass().getName())
+                        + "; faces offered " + (clocks instanceof Map
+                        ? ((Map<?, ?>) clocks).keySet() : "?") + ", the tablet's setting "
+                        + face);
+            } catch (Throwable ignored) {
+                // A line less; the clock went through untouched.
+            }
+        }
+    };
+
+    /** The first caller outside the registry and the hooking itself. */
+    private static String asker() {
+        for (StackTraceElement frame : new Throwable().getStackTrace()) {
+            String cls = frame.getClassName();
+            if (cls.startsWith(SysUiNames.CLOCK_REGISTRY_CLASS) || cls.startsWith("java.")
+                    || cls.startsWith("dalvik.") || cls.startsWith("de.robv.")
+                    || cls.startsWith("org.lsposed.") || cls.startsWith("LSPHooker")
+                    || cls.startsWith(LockScreenLook.class.getName() + "$")) {
+                continue;
+            }
+            return cls + "." + frame.getMethodName();
+        }
+        return "?";
     }
 
     private static final XC_MethodHook MADE = new XC_MethodHook() {

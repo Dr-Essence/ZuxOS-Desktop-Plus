@@ -485,6 +485,13 @@ public class MainActivity extends Activity {
                         + "the mouse is on the monitor for its lock screen. Needs System Framework "
                         + "ticked for this module in LSPosed",
                 Const.KEY_MOUSE_ON_DESKTOP, true);
+        addSwitch("USB mice wake reliably",
+                "A USB mouse could stop after the screens went off, or after a minute idle, "
+                        + "until it was unplugged and plugged in again. On, each USB mouse is "
+                        + "reset when the tablet wakes instead, as Linux does for such devices, "
+                        + "and is never put to sleep when idle; it is plugged out and in once, "
+                        + "by itself, as ZUX Home starts. Needs root",
+                Const.KEY_USB_MICE_RESET, true);
         addSwitch("No launcher chooser on the tablet",
                 "Android could forget its saved home and ask which launcher to use, at boot and "
                         + "at Home. On, the tablet's home is the default home app Android's "
@@ -494,9 +501,9 @@ public class MainActivity extends Activity {
         addSwitch("Unlock on the monitor",
                 "The monitor's lock screen was a clock alone, so unlocking meant reaching for "
                         + "the tablet. On, it is ZUI's Smart Connect one from the first lock "
-                        + "after a reboot, with the tablet's clock and lock wallpaper: click it, "
-                        + "then type the PIN or password, or draw the pattern. If it fails, the "
-                        + "clock comes back. Needs System UI ticked for this module in LSPosed",
+                        + "after a reboot, with the lock screen clock and lock wallpaper: click "
+                        + "it, then type the PIN or password, or draw the pattern. If it fails, "
+                        + "the clock comes back. Needs System UI ticked for this module in LSPosed",
                 Const.KEY_UNLOCK_ON_MONITOR, true);
         addSwitch("No \"two high-performance apps\" prompt",
                 "ZUI asks before opening a game while another heavy app is in sight, and then "

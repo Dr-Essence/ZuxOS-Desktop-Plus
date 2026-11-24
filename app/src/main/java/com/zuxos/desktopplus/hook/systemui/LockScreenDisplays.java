@@ -4,6 +4,7 @@ import android.app.Dialog;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.UserManager;
 import android.provider.Settings;
 import android.util.SparseArray;
 import android.view.Display;
@@ -34,7 +35,8 @@ import de.robv.android.xposed.XposedBridge;
  * flags, so the monitor only ever had the clock, and unlocking meant reaching for the tablet.
  *
  * <p>So while ZUI chooses the lock screen of the screen that is its monitor desktop (an external
- * screen, with {@code zui_dp_display_pc_mode} on), and on that thread only, Motorola's check
+ * screen, with {@code zui_dp_display_pc_mode} on - or before the first unlock since boot, which
+ * ZUI turns that setting off for), and on that thread only, Motorola's check
  * answers yes. At the first lock after a boot ZUI's monitor desktop is not up yet, and ZUI's
  * mirror check would refuse the screen (the window manager's {@code shouldShowSystemDecors},
  * false until that desktop is up), so on that thread it answers yes too. ZUI's lock screen,
@@ -119,7 +121,7 @@ public final class LockScreenDisplays {
                     held++;
                 }
             }
-            int dressed = LockScreenLook.install(lock);
+            int dressed = LockScreenLook.install(lock) + LockScreenLook.traceClock(loader);
             XposedBridge.hookMethod(moto.getMethod(SysUiNames.IS_DESKTOP_OR_MOBILE_UI_MODE,
                     Display.class), MONITOR);
             return "ZUI's own, its " + held + " parts held, in the tablet's look x" + dressed
@@ -185,7 +187,8 @@ public final class LockScreenDisplays {
             } else {
                 int mode = Settings.System.getInt(((Context) context).getContentResolver(),
                         SysUiNames.DP_DISPLAY_PC_MODE, 0);
-                why = mode == 1 ? null : SysUiNames.DP_DISPLAY_PC_MODE + " " + mode;
+                why = mode == 1 || firstLock((Context) context) ? null
+                        : SysUiNames.DP_DISPLAY_PC_MODE + " " + mode + ", unlocked since boot";
             }
             if (why == null) {
                 CHOOSING.set(display);
@@ -198,6 +201,23 @@ public final class LockScreenDisplays {
                 L.w("lock screen: the monitor's lock screen left to ZUI (" + t + ")");
             }
         }
+    }
+
+    /**
+     * The first lock after a boot: ZUI turns {@code zui_dp_display_pc_mode} off as SystemUI
+     * starts and on only once its monitor desktop is up, after the first unlock, so until then
+     * the setting says nothing about the screen that desktop will be.
+     */
+    private static boolean firstLock(Context context) {
+        UserManager users = context.getSystemService(UserManager.class);
+        if (users == null || users.isUserUnlocked()) {
+            return false;
+        }
+        if (L.once("LockScreenDisplays.firstLock")) {
+            L.i("lock screen: before the first unlock since boot - the monitor's is ZUI's"
+                    + " Smart Connect one");
+        }
+        return true;
     }
 
     /** Motorola's "is this one of our desktops", while ZUI chooses the monitor's lock screen. */

@@ -331,6 +331,11 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   after the screens woke it could be gone until replugged; now ZUI is asked again as its monitor
   desktop comes on and as a screen wakes, and at the first lock after a reboot the mouse is on the
   monitor for its lock screen. Needs System Framework ticked in LSPosed.
+- **USB mice wake reliably** (optional, on by default). A USB mouse could stop after the screens
+  went off, or after a minute idle, until it was unplugged and plugged in again. Now each USB
+  mouse is reset when the tablet wakes instead, as Linux does for devices that cannot resume, and
+  is never put to sleep when idle; it is plugged out and in once, by itself, as ZUX Home starts.
+  Needs root.
 - **Windows stay as they are when they open another app** (optional, on by default). A maximised
   app that opened Files' save or open screen, a picker or a chooser turned into a small floating
   window and lost its floating size; now it stays maximised, floating or in Full screen. Needs
@@ -341,8 +346,8 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   in LSPosed.
 - **Unlock on the monitor** (optional, on by default). The monitor's lock screen was a clock
   alone; now it is ZUI's own Smart Connect one, from the first lock after a reboot, with the
-  tablet's clock and lock wallpaper: click it, then type the PIN or password, or draw the pattern.
-  If it fails, the clock comes back. Needs System UI ticked in LSPosed.
+  lock screen clock and lock wallpaper: click it, then type the PIN or password, or draw the
+  pattern. If it fails, the clock comes back. Needs System UI ticked in LSPosed.
 - **Taskbar taps always open the app** (optional, on by default). With another home app on the
   tablet, ZUI's taskbar could lose its recents screen and then closed its drawer without opening
   the app tapped; it opens now.
