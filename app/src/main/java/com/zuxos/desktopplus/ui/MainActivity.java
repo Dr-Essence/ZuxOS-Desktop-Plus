@@ -1223,17 +1223,20 @@ public class MainActivity extends Activity {
 
     private Button mWhenButton;
 
+    /**
+     * Android's page, opened inside this window, as the xscreensaver app opens it. Opened as a
+     * task of its own, Settings turns it into its two-pane page on a large screen
+     * ({@code DeepLinkHomepageActivity}), and on the monitor that froze input on both screens;
+     * opened inside another window it is the plain page, which worked on the monitor.
+     */
     private void openScreenSaverSettings() {
-        Intent page = new Intent(Settings.ACTION_DREAM_SETTINGS)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
-            startActivity(page);
+            startActivity(new Intent(Settings.ACTION_DREAM_SETTINGS));
         } catch (Throwable t) {
             try {
-                // The page by name, as the xscreensaver app opens it.
+                // The page by name, for a firmware whose Settings does not answer the action.
                 startActivity(new Intent().setClassName("com.android.settings",
-                                "com.android.settings.Settings$DreamSettingsActivity")
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                        "com.android.settings.Settings$DreamSettingsActivity"));
             } catch (Throwable t2) {
                 android.widget.Toast.makeText(this, "Could not open the screen saver settings",
                         android.widget.Toast.LENGTH_LONG).show();
