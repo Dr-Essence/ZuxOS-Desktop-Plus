@@ -35,12 +35,15 @@ import de.robv.android.xposed.XposedBridge;
  *
  * <p>So while ZUI chooses the lock screen of the screen that is its monitor desktop (an external
  * screen, with {@code zui_dp_display_pc_mode} on), and on that thread only, Motorola's check
- * answers yes. ZUI's lock screen, password check and unlock are then its own, untouched. Every
- * method of that lock screen runs in a try/catch: the first failure takes it down, is written
- * once, and the monitor gets Android's clock from ZUI for the rest of SystemUI's run; where ZUI
- * puts no lock screen there after all, it is asked again as before. The switch is read each time
- * ZUI chooses. Each screen's line says what ZUI's checks gave and what it put there, when it
- * differs from the last.
+ * answers yes. At the first lock after a boot ZUI's monitor desktop is not up yet, and ZUI's
+ * mirror check would refuse the screen (the window manager's {@code shouldShowSystemDecors},
+ * false until that desktop is up), so on that thread it answers yes too. ZUI's lock screen,
+ * password check and unlock are then its own, untouched, dressed in the tablet's look
+ * ({@link LockScreenLook}). Every method of that lock screen runs in a try/catch: the first
+ * failure takes it down, is written once, and the monitor gets Android's clock from ZUI for the
+ * rest of SystemUI's run; where ZUI puts no lock screen there after all, it is asked again as
+ * before. The switch is read each time ZUI chooses. Each screen's line says what ZUI's checks
+ * gave and what it put there, when it differs from the last, and why a screen was left to ZUI.
  */
 public final class LockScreenDisplays {
 
@@ -116,13 +119,41 @@ public final class LockScreenDisplays {
                     held++;
                 }
             }
+            int dressed = LockScreenLook.install(lock);
             XposedBridge.hookMethod(moto.getMethod(SysUiNames.IS_DESKTOP_OR_MOBILE_UI_MODE,
                     Display.class), MONITOR);
-            return "ZUI's own, its " + held + " parts held" + (on() ? "" : ", switched off");
+            return "ZUI's own, its " + held + " parts held, in the tablet's look x" + dressed
+                    + (on() ? "" : ", switched off") + decors(loader);
         } catch (Throwable t) {
             sBroken = true;
             return "left to ZUI (" + t + ")";
         }
+    }
+
+    /**
+     * ZUI's mirror check, answered for the monitor while ZUI chooses its lock screen: before
+     * ZUI's monitor desktop is up - at the first lock after a boot - the window manager does not
+     * show decorations there yet, and ZUI would put Android's clock there for a mirror.
+     */
+    private static String decors(ClassLoader loader) {
+        try {
+            Class<?> proxy = Class.forName(SysUiNames.WINDOW_MANAGER_PROXY, false, loader);
+            XposedBridge.hookMethod(proxy.getMethod(SysUiNames.SHOULD_SHOW_SYSTEM_DECORS,
+                    int.class), DECORS);
+            return ", from boot";
+        } catch (Throwable t) {
+            return ", once ZUI's monitor desktop is up (" + t + ")";
+        }
+    }
+
+    /** ZUI's chooser, for the tablet's look's borrowed clock ({@link LockScreenLook}). */
+    static Object manager() {
+        return sManager;
+    }
+
+    /** Whether ZUI's lock screen on the monitor is dressed in the tablet's look. */
+    static boolean dressed() {
+        return !sBroken && on();
     }
 
     private static boolean on() {
@@ -135,20 +166,32 @@ public final class LockScreenDisplays {
         try {
             sManager = param.thisObject;
             if (sBroken || AGAIN.get() != null || param.args.length == 0
-                    || !(param.args[0] instanceof Display) || !on()) {
+                    || !(param.args[0] instanceof Display)) {
                 return;
             }
             Display display = (Display) param.args[0];
-            if (display.getDisplayId() == Display.DEFAULT_DISPLAY
-                    || !Integer.valueOf(EXTERNAL).equals(Reflect.call(display, SysUiNames.GET_TYPE))
-                    || !(Reflect.field(param.thisObject, SysUiNames.M_CONTEXT)
-                            instanceof Context)) {
+            if (display.getDisplayId() == Display.DEFAULT_DISPLAY) {
                 return;
             }
-            Context context = (Context) Reflect.field(param.thisObject, SysUiNames.M_CONTEXT);
-            if (Settings.System.getInt(context.getContentResolver(),
-                    SysUiNames.DP_DISPLAY_PC_MODE, 0) == 1) {
+            Object type = Reflect.call(display, SysUiNames.GET_TYPE);
+            Object context = Reflect.field(param.thisObject, SysUiNames.M_CONTEXT);
+            String why;
+            if (!on()) {
+                why = "switched off";
+            } else if (!Integer.valueOf(EXTERNAL).equals(type)) {
+                why = "type " + type;
+            } else if (!(context instanceof Context)) {
+                why = "no context";
+            } else {
+                int mode = Settings.System.getInt(((Context) context).getContentResolver(),
+                        SysUiNames.DP_DISPLAY_PC_MODE, 0);
+                why = mode == 1 ? null : SysUiNames.DP_DISPLAY_PC_MODE + " " + mode;
+            }
+            if (why == null) {
                 CHOOSING.set(display);
+            } else if (L.once("LockScreenDisplays.refused." + display.getDisplayId() + why)) {
+                L.i("lock screen: screen " + display.getDisplayId() + " left to ZUI's own choice ("
+                        + why + ")");
             }
         } catch (Throwable t) {
             if (L.once("LockScreenDisplays.choosing")) {
@@ -176,6 +219,31 @@ public final class LockScreenDisplays {
             } catch (Throwable t) {
                 if (L.once("LockScreenDisplays.monitor")) {
                     L.w("lock screen: Motorola's check left as it was (" + t + ")");
+                }
+            }
+        }
+    };
+
+    /** The window manager's "decorations on this screen", while ZUI chooses its lock screen. */
+    private static final XC_MethodHook DECORS = new XC_MethodHook() {
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) {
+            try {
+                Display display = CHOOSING.get();
+                if (display == null || !(param.args[0] instanceof Integer)
+                        || (Integer) param.args[0] != display.getDisplayId()
+                        || Boolean.TRUE.equals(param.getResult())) {
+                    return;
+                }
+                param.setResult(true);
+                if (L.once("LockScreenDisplays.decors." + display.getDisplayId())) {
+                    L.i("lock screen: screen " + display.getDisplayId() + " is to be ZUI's "
+                            + "monitor desktop, not up yet - its lock screen is ZUI's all the "
+                            + "same");
+                }
+            } catch (Throwable t) {
+                if (L.once("LockScreenDisplays.decorsFailed")) {
+                    L.w("lock screen: the window manager's answer left as it was (" + t + ")");
                 }
             }
         }

@@ -44,6 +44,7 @@ public final class LaunchTrace {
     private static final int MAX_SAVES = 40;
     private static final int MAX_ERRORS = 20;
     private static final int MAX_HOMES = 30;
+    private static final int MAX_MODES = 30;
     private static final long HOUR_MS = 3_600_000L;
     /** How much of the background-start verdict is kept: its code and reason come first. */
     private static final int VERDICT_CHARS = 90;
@@ -60,6 +61,9 @@ public final class LaunchTrace {
     /** What the home resolved to last, so an unchanged one is not written again. */
     private static String sHome;
     private static int sHomes;
+    private static int sModes;
+    /** A launch's windowing mode before each step of its calculation, on this thread. */
+    private static final ThreadLocal<Integer> MODE_BEFORE = new ThreadLocal<>();
     /** The hour the counts above are for. */
     private static long sHour = -1;
 
@@ -100,7 +104,67 @@ public final class LaunchTrace {
             L.w("launch trace: not installed (" + t + ")");
         }
         installHome(loader);
+        installModifiers(loader);
     }
+
+    /**
+     * Each step of a launch's calculation that changes its windowing mode, on the monitor: ZUI
+     * hands a window back maximised and it still opens floating, and this names the step.
+     */
+    private static void installModifiers(ClassLoader loader) {
+        int hooked = 0;
+        for (String name : new String[]{SystemNames.TASK_LAUNCH_PARAMS_MODIFIER,
+                SystemNames.DESKTOP_MODE_LAUNCH_PARAMS_MODIFIER}) {
+            try {
+                hooked += XposedBridge.hookAllMethods(Class.forName(name, false, loader),
+                        SystemNames.ON_CALCULATE, STEP).size();
+            } catch (Throwable t) {
+                L.d("launch trace: " + name + " not watched (" + t + ")");
+            }
+        }
+        L.i("launch trace: the steps that change a launch's mode written down x" + hooked);
+    }
+
+    /** One step of the calculation: its result's mode before and after, when it changed. */
+    private static final XC_MethodHook STEP = new XC_MethodHook() {
+        @Override
+        protected void beforeHookedMethod(MethodHookParam param) {
+            try {
+                Object mode = param.args.length > 8
+                        ? Reflect.field(param.args[8], SystemNames.M_WINDOWING_MODE) : null;
+                MODE_BEFORE.set(mode instanceof Integer ? (Integer) mode : null);
+            } catch (Throwable t) {
+                MODE_BEFORE.remove();
+            }
+        }
+
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) {
+            Integer before = MODE_BEFORE.get();
+            MODE_BEFORE.remove();
+            newHour();
+            if (before == null || sModes >= MAX_MODES || sErrors > MAX_ERRORS) {
+                return;
+            }
+            try {
+                Object after = Reflect.field(param.args[8], SystemNames.M_WINDOWING_MODE);
+                if (!(after instanceof Integer) || before.equals(after)
+                        || !Boolean.TRUE.equals(sDesktopOn.invoke(null))) {
+                    return;
+                }
+                Object record = param.args[2];
+                L.i("launch trace: " + param.thisObject.getClass().getSimpleName() + " (phase "
+                        + param.args[6] + ") made " + (record == null ? "a task"
+                        : Reflect.field(record, SystemNames.SHORT_COMPONENT_NAME))
+                        + " mode " + after + ", it was " + before
+                        + (++sModes == MAX_MODES ? " (the last line this hour)" : ""));
+            } catch (Throwable t) {
+                if (++sErrors == MAX_ERRORS) {
+                    L.w("launch trace: stopped for this boot (" + t + ")");
+                }
+            }
+        }
+    };
 
     private static void installHome(ClassLoader loader) {
         try {
@@ -272,6 +336,7 @@ public final class LaunchTrace {
             sLines = 0;
             sSaves = 0;
             sHomes = 0;
+            sModes = 0;
         }
     }
 

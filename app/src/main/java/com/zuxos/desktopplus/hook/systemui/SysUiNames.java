@@ -137,6 +137,18 @@ final class SysUiNames {
     /** An app's own top, from its {@code TaskDescription}: hidden from the SDK. */
     static final String GET_SYSTEM_BARS_APPEARANCE = "getSystemBarsAppearance";
     static final String GET_STATUS_BAR_COLOR = "getStatusBarColor";
+    /**
+     * A window's own pixels under its bar: the decoration's task surface and its own surfaces,
+     * left out of the capture, and the framework's layer capture.
+     */
+    static final String M_TASK_SURFACE = "mTaskSurface";
+    static final String M_DECORATION_CONTAINER_SURFACE = "mDecorationContainerSurface";
+    static final String M_VIEW_HOST = "mViewHost";
+    static final String GET_SURFACE_CONTROL = "getSurfaceControl";
+    static final String SCREEN_CAPTURE = "android.window.ScreenCapture";
+    static final String CAPTURE_LAYERS_EXCLUDING = "captureLayersExcluding";
+    static final String AS_BITMAP = "asBitmap";
+    static final String GET_HARDWARE_BUFFER = "getHardwareBuffer";
 
     // The monitor's status bar.
     static final String ZUI_DP_MODE_MANAGER = "com.android.systemui.dpmode.ZuiDpModeManager";
@@ -171,6 +183,25 @@ final class SysUiNames {
             "com.android.keyguard.smartconnect.MotoKeyguardPresentation";
     /** ZUI's monitor desktop, in {@code Settings.System}: 1 while it is on. */
     static final String DP_DISPLAY_PC_MODE = "zui_dp_display_pc_mode";
+    /**
+     * The lock screen in the tablet's look: Motorola's clock and root, ZUI's own lock screen for
+     * other screens made by its factory, and that one's clock from ZUI's clock registry.
+     */
+    static final String ON_CREATE = "onCreate";
+    static final String ON_ATTACHED_TO_WINDOW = "onAttachedToWindow";
+    static final String ON_DETACHED_FROM_WINDOW = "onDetachedFromWindow";
+    static final String M_KEYGUARD_CLOCK_CONTAINER = "mKeyguardClockContainer";
+    static final String M_ROOT_VIEW = "mRootView";
+    static final String M_CONNECTED_DISPLAY_FACTORY =
+            "mConnectedDisplayKeyguardPresentationFactory";
+    static final String CREATE = "create";
+    static final String CLOCK_REGISTRY = "clockRegistry";
+    static final String CREATE_CURRENT_CLOCK = "createCurrentClock";
+    static final String ROOT_VIEW = "rootView";
+    static final String SET_CLOCK = "setClock";
+    /** ZUI's mirror check: whether the window manager shows decorations on a screen. */
+    static final String WINDOW_MANAGER_PROXY = "android.view.IWindowManager$Stub$Proxy";
+    static final String SHOULD_SHOW_SYSTEM_DECORS = "shouldShowSystemDecors";
     /** {@code Display}'s, hidden from the SDK: internal, external, virtual. */
     static final String GET_TYPE = "getType";
     static final String SYSTEMUI_FEATURES = "com.android.systemui.feature.SystemUIFeatures";

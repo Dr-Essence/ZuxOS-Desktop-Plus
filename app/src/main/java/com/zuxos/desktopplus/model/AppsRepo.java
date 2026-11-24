@@ -221,6 +221,34 @@ public final class AppsRepo {
         final Collator collator = Collator.getInstance();
         Collections.sort(mApps, (a, b) -> collator.compare(a.label, b.label));
         L.d("loaded " + mApps.size() + " launchable activities");
+        followMoved();
+    }
+
+    /** Every launcher entry's key, in the list's order. */
+    public synchronized List<String> launchableKeys() {
+        List<String> keys = new ArrayList<>(mApps.size());
+        for (AppEntry entry : mApps) {
+            keys.add(entry.key());
+        }
+        return keys;
+    }
+
+    /**
+     * The drawer's apps whose launcher entry moved follow it: kept, F-Droid's folder icon was
+     * the old entry's, with no icon of its own, and Android would not open it from a launcher.
+     */
+    private void followMoved() {
+        if (mApps.isEmpty()) {
+            return;
+        }
+        try {
+            List<String> moved = DrawerStore.shared(mCtx).followMoved(launchableKeys());
+            if (!moved.isEmpty()) {
+                L.i("apps: launcher entries moved, the drawer's apps follow " + moved);
+            }
+        } catch (Throwable t) {
+            L.d("apps: moved launcher entries not followed (" + t + ")");
+        }
     }
 
     public UserHandle userFor(long serial) {

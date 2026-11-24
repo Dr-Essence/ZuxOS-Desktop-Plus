@@ -9,7 +9,11 @@ import com.zuxos.desktopplus.core.Storage;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import com.zuxos.desktopplus.logic.DrawerArrange;
+import com.zuxos.desktopplus.logic.MovedEntry;
+
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -80,6 +84,49 @@ public final class DrawerStore {
         return keys;
     }
 
+    /**
+     * Apps whose launcher entry moved follow it ({@link MovedEntry}) - in the folders, the
+     * order and the hidden ones - and the drawer is saved when any did. What moved, for the log.
+     *
+     * @param launchable every launcher entry's key, in the app list's order
+     */
+    public synchronized List<String> followMoved(Collection<String> launchable) {
+        List<String> moved = new ArrayList<>();
+        for (int i = mOrder.size() - 1; i >= 0; i--) {
+            String now = MovedEntry.replacement(mOrder.get(i), launchable);
+            if (now != null) {
+                moved.add(mOrder.get(i) + " -> " + now);
+                if (mOrder.contains(now)) {
+                    mOrder.remove(i);
+                } else {
+                    mOrder.set(i, now);
+                }
+            }
+        }
+        for (Item folder : mFolders) {
+            for (Item child : folder.children) {
+                String before = child.key();
+                if (MovedEntry.follow(child, launchable)) {
+                    moved.add(before + " -> " + child.key());
+                }
+            }
+        }
+        for (String key : new ArrayList<>(mHidden)) {
+            String now = MovedEntry.replacement(key, launchable);
+            if (now != null) {
+                mHidden.remove(key);
+                mHidden.add(now);
+                moved.add(key + " -> " + now);
+            }
+        }
+        if (!moved.isEmpty()) {
+            // An app moved into a folder that held its new entry already is there once.
+            DrawerArrange.dedupe(mOrder, mFolders);
+            save();
+        }
+        return moved;
+    }
+
     public synchronized void load() {
         mOrder.clear();
         mFolders.clear();
@@ -117,7 +164,7 @@ public final class DrawerStore {
             // A file from an older build can hold each app of a folder several times, saved again
             // every time ZUI bound it: the copies go, and a folder they leave with one app gives
             // its place to it - kept, it showed one app and ZUI would not open it.
-            int tidied = com.zuxos.desktopplus.logic.DrawerArrange.dedupe(mOrder, mFolders);
+            int tidied = DrawerArrange.dedupe(mOrder, mFolders);
             if (tidied > 0) {
                 L.i("drawer: " + tidied + " repeated app(s) or one-app folder(s) tidied");
                 save();

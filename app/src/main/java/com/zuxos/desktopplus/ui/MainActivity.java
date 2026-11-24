@@ -481,20 +481,22 @@ public class MainActivity extends Activity {
                 "ZUI puts the mouse on the monitor's desktop only once a screen changes, so after "
                         + "a reboot it stayed on the tablet, and after the screens woke it could "
                         + "be gone until replugged. On, ZUI is asked again as its monitor desktop "
-                        + "comes on and as a screen wakes. Needs System Framework ticked for this "
-                        + "module in LSPosed",
+                        + "comes on and as a screen wakes, and at the first lock after a reboot "
+                        + "the mouse is on the monitor for its lock screen. Needs System Framework "
+                        + "ticked for this module in LSPosed",
                 Const.KEY_MOUSE_ON_DESKTOP, true);
         addSwitch("No launcher chooser on the tablet",
-                "With the monitor in use, Home on the tablet could open Android's \"Open with\" "
-                        + "chooser instead of the tablet's home: ZUI gave every home the "
-                        + "monitor's launcher. On, each screen gets its own. Needs System "
-                        + "Framework ticked for this module in LSPosed",
+                "Android could forget its saved home and ask which launcher to use, at boot and "
+                        + "at Home. On, the tablet's home is the default home app Android's "
+                        + "settings show, and each screen gets its own. Needs System Framework "
+                        + "ticked for this module in LSPosed",
                 Const.KEY_NO_HOME_CHOOSER, true);
         addSwitch("Unlock on the monitor",
                 "The monitor's lock screen was a clock alone, so unlocking meant reaching for "
-                        + "the tablet. On, it is ZUI's Smart Connect one: click it, then type "
-                        + "the PIN or password, or draw the pattern. If it fails, the clock comes "
-                        + "back. Needs System UI ticked for this module in LSPosed",
+                        + "the tablet. On, it is ZUI's Smart Connect one from the first lock "
+                        + "after a reboot, with the tablet's clock and lock wallpaper: click it, "
+                        + "then type the PIN or password, or draw the pattern. If it fails, the "
+                        + "clock comes back. Needs System UI ticked for this module in LSPosed",
                 Const.KEY_UNLOCK_ON_MONITOR, true);
         addSwitch("No \"two high-performance apps\" prompt",
                 "ZUI asks before opening a game while another heavy app is in sight, and then "

@@ -72,6 +72,16 @@ final class SystemNames {
     static final String GET_CURRENT_FOCUS_DISLAY_ID_WHEN_UNDER_EXTEND_DISPLAY =
             "getCurrentFocusDislayIdWhenUnderExtendDisplay";
     /**
+     * Android's own default home - the home role holder's home activity among those there are -
+     * and how the window manager prepares a home's activity for its user.
+     */
+    static final String LOCAL_SERVICES = "com.android.server.LocalServices";
+    static final String PACKAGE_MANAGER_INTERNAL = "android.content.pm.PackageManagerInternal";
+    static final String GET_HOME_ACTIVITIES_AS_USER = "getHomeActivitiesAsUser";
+    static final String ACTIVITY_TASK_MANAGER_SERVICE =
+            "com.android.server.wm.ActivityTaskManagerService";
+    static final String GET_APP_INFO_FOR_USER = "getAppInfoForUser";
+    /**
      * A launch into a window already open: the window's mode set to the launch's
      * ({@code TaskDisplayArea.getOrCreateRootTask}), and its bounds laid out again
      * ({@code LaunchParamsController.layoutTask}).
@@ -94,6 +104,12 @@ final class SystemNames {
     /** {@code WindowManagerService}'s, reached through the drag's service. */
     static final String M_INPUT_TO_WINDOW_MAP = "mInputToWindowMap";
     static final String LAUNCH_PARAMS_CONTROLLER = "com.android.server.wm.LaunchParamsController";
+    /** The steps of a launch's calculation, each a {@code LaunchParamsModifier}. */
+    static final String TASK_LAUNCH_PARAMS_MODIFIER =
+            "com.android.server.wm.TaskLaunchParamsModifier";
+    static final String DESKTOP_MODE_LAUNCH_PARAMS_MODIFIER =
+            "com.android.server.wm.DesktopModeLaunchParamsModifier";
+    static final String ON_CALCULATE = "onCalculate";
     static final String CALCULATE = "calculate";
     static final String LAUNCH_PARAMS =
             "com.android.server.wm.LaunchParamsController$LaunchParams";
@@ -169,6 +185,15 @@ final class SystemNames {
     static final String M_DISPLAY_INFO = "mDisplayInfo";
     static final String DISPLAY_INFO = "android.view.DisplayInfo";
     static final String STATE = "state";
+    /**
+     * The mouse at the first lock after a boot: whether the lock screen is up, ZUI's setting for
+     * the monitor as its desktop, and the screens the window manager has.
+     */
+    static final String M_POLICY = "mPolicy";
+    static final String IS_KEYGUARD_LOCKED = "isKeyguardLocked";
+    static final String ZUI_DP_DISPLAY_PC_MODE = "zui_dp_display_pc_mode";
+    static final String M_CHILDREN = "mChildren";
+    static final String DISPLAY_ID = "displayId";
     /**
      * ZUI's monitor desktop ({@link #OV_DESKTOP_CONTROLLER}) turned on and off: where it sets the
      * window manager's flag its rule for the mouse's screen reads.

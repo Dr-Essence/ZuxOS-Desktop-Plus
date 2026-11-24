@@ -218,13 +218,19 @@ public final class WindowButtons {
         }
         boolean night = night(caption.getContext());
         // Our solid bar is ZUI's own colour for the night mode; any other shows what is under it.
-        boolean dark = solid(task) ? night : dark(caption, task, night);
+        boolean solid = solid(task);
+        boolean dark = solid ? night : dark(caption, task, night);
         boolean floating = mode == FREEFORM;
         if (wanted && !floating) {
             KeepOnTop.maximised(sLoader, task.taskId);
         }
-        row.show(wanted, floating, dark, task.taskId, displayOf(task),
+        row.show(wanted, floating, dark, task, displayOf(task),
                 floating && KeepOnTop.shown(task));
+        if (wanted && !solid) {
+            Context ctx = caption.getContext();
+            BarSample.ask(sLoader, task, rowWidth(ctx, floating),
+                    Math.max(caption.getHeight(), Ui.dp(ctx, BUTTON_DP)), WindowButtons::reshade);
+        }
         if (wanted && solid(task)) {
             // ZUI clears a maximised window's bar; over a full-screen app's header nothing would
             // show through but the header itself.
@@ -397,8 +403,8 @@ public final class WindowButtons {
 
     /**
      * Whether the bar under the buttons is dark ({@link BarShade}): its own colour, else the
-     * app's own top as its task description has it, else the night mode. One line a task, when
-     * that is not the night mode.
+     * app's own top as read from its pixels ({@link BarSample}), else as its task description has
+     * it, else the night mode. One line a task and shade, with what it was judged by.
      */
     private static boolean dark(View caption, ActivityManager.RunningTaskInfo task,
             boolean night) {
@@ -409,15 +415,34 @@ public final class WindowButtons {
                 : Reflect.call(description, SysUiNames.GET_SYSTEM_BARS_APPEARANCE);
         Object status = description == null ? null
                 : Reflect.call(description, SysUiNames.GET_STATUS_BAR_COLOR);
-        boolean dark = BarShade.dark(bar, appearance instanceof Integer ? (Integer) appearance : 0,
+        Boolean sampled = BarSample.light(task.taskId);
+        boolean dark = BarShade.dark(bar, sampled,
+                appearance instanceof Integer ? (Integer) appearance : 0,
                 status instanceof Integer ? (Integer) status : 0, night);
-        if (dark != night && L.once("WindowButtons.shade." + task.taskId + dark)) {
+        if (L.once("WindowButtons.shade." + task.taskId + dark + sampled)) {
             L.i("window buttons: task " + task.taskId + "'s bar is " + (dark ? "dark" : "light")
-                    + " (bar 0x" + Integer.toHexString(bar) + ", app top " + appearance + "/0x"
+                    + " (bar 0x" + Integer.toHexString(bar) + ", read "
+                    + (sampled == null ? "not yet" : sampled ? "light" : "dark") + ", app top "
+                    + appearance + "/0x"
                     + (status instanceof Integer ? Integer.toHexString((Integer) status) : "?")
-                    + ") - its buttons drawn " + (dark ? "light" : "dark"));
+                    + ", night " + night + ") - its buttons drawn " + (dark ? "light" : "dark"));
         }
         return dark;
+    }
+
+    /** A window's top read as another shade: its bar's buttons drawn again for it. */
+    private static void reshade(int taskId) {
+        try {
+            for (Map.Entry<View, Row> entry : ROWS.entrySet()) {
+                Row row = entry.getValue();
+                if (row.task != null && row.task.taskId == taskId && !solid(row.task)) {
+                    View caption = entry.getKey();
+                    row.reshade(dark(caption, row.task, night(caption.getContext())));
+                }
+            }
+        } catch (Throwable t) {
+            L.d("window buttons: a bar left in its shade (" + t + ")");
+        }
     }
 
     /** ZUI's own night test for its title bars' light or dark buttons. */
@@ -642,12 +667,14 @@ public final class WindowButtons {
             return mPill;
         }
 
-        private static Rect taskBounds(ActivityManager.RunningTaskInfo task) {
-            Object config = Reflect.call(task, SysUiNames.GET_CONFIGURATION);
-            Object window = Reflect.field(config, SysUiNames.WINDOW_CONFIGURATION);
-            Object bounds = Reflect.call(window, SysUiNames.GET_BOUNDS);
-            return bounds instanceof Rect ? (Rect) bounds : null;
-        }
+    }
+
+    /** The window's bounds on its screen, as ZUI's task info has them; null when unknown. */
+    static Rect taskBounds(ActivityManager.RunningTaskInfo task) {
+        Object config = Reflect.call(task, SysUiNames.GET_CONFIGURATION);
+        Object window = Reflect.field(config, SysUiNames.WINDOW_CONFIGURATION);
+        Object bounds = Reflect.call(window, SysUiNames.GET_BOUNDS);
+        return bounds instanceof Rect ? (Rect) bounds : null;
     }
 
     /** One bar's buttons, the block that balances them, and ZUI's pill they replace. */
@@ -664,9 +691,14 @@ public final class WindowButtons {
         final ImageView close;
         /** The window the bar stands for now, for our Full screen. */
         int taskId = -1;
+        /** That window as ZUI last bound it, for a shade read after. */
+        ActivityManager.RunningTaskInfo task;
         int display = Display.DEFAULT_DISPLAY;
         /** Whether the bar was last shown dark, for the pin's glyph on its click. */
         boolean dark;
+        /** How it was last shown, for its pictures drawn again in another shade. */
+        boolean floating;
+        boolean onTop;
 
         Row(View balance, View buttons, View pill, ImageView pin, ImageView minimize,
                 ImageView toggle, ImageView full, ImageView close) {
@@ -685,8 +717,8 @@ public final class WindowButtons {
          * one's its floating, and only a floating window has the pin. ZUI's "normal" pictures
          * are dark glyphs for a light theme.
          */
-        void show(boolean shown, boolean floating, boolean dark, int taskId, int display,
-                boolean onTop) {
+        void show(boolean shown, boolean floating, boolean dark,
+                ActivityManager.RunningTaskInfo task, int display, boolean onTop) {
             int visibility = shown ? View.VISIBLE : View.GONE;
             if (buttons.getVisibility() != visibility) {
                 buttons.setVisibility(visibility);
@@ -700,14 +732,39 @@ public final class WindowButtons {
             if (!shown) {
                 return;
             }
-            this.taskId = taskId;
+            this.task = task;
+            this.taskId = task.taskId;
             this.display = display;
             this.dark = dark;
+            this.floating = floating;
+            this.onTop = onTop;
+            Ids ids = sIds;
+            toggle.setId(floating ? ids.fullscreen : ids.freeform);
+            toggle.setContentDescription(floating ? "Maximise" : "Restore");
+            if (pin != null) {
+                int shows = floating ? View.VISIBLE : View.GONE;
+                if (pin.getVisibility() != shows) {
+                    pin.setVisibility(shows);
+                    width(rowWidth(pin.getContext(), floating));
+                }
+            }
+            paint();
+        }
+
+        /** The pictures again, in the shade the window's top was read in after. */
+        void reshade(boolean dark) {
+            if (dark == this.dark || buttons.getVisibility() != View.VISIBLE) {
+                return;
+            }
+            this.dark = dark;
+            paint();
+        }
+
+        /** Each button's picture in the bar's shade. */
+        private void paint() {
             Ids ids = sIds;
             int[] pictures = dark ? ids.dark : ids.light;
             minimize.setImageResource(pictures[0]);
-            toggle.setId(floating ? ids.fullscreen : ids.freeform);
-            toggle.setContentDescription(floating ? "Maximise" : "Restore");
             toggle.setImageResource(floating ? pictures[1] : pictures[2]);
             close.setImageResource(pictures[3]);
             if (full != null) {
@@ -715,20 +772,14 @@ public final class WindowButtons {
                 glyph(full, on ? Glyphs.EXIT_FULL_SCREEN : Glyphs.FULL_SCREEN, dark);
                 full.setContentDescription(on ? FullScreenWire.EXIT : FullScreenWire.ENTER);
             }
-            if (pin != null) {
-                int shows = floating ? View.VISIBLE : View.GONE;
-                if (pin.getVisibility() != shows) {
-                    pin.setVisibility(shows);
-                    width(rowWidth(pin.getContext(), floating));
-                }
-                if (floating) {
-                    mark(onTop);
-                }
+            if (pin != null && floating) {
+                mark(onTop);
             }
         }
 
         /** The pin clicked: what it asked shown at once, with a press that springs back. */
         void pinned(boolean onTop) {
+            this.onTop = onTop;
             mark(onTop);
             pin.animate().cancel();
             pin.setScaleX(PIN_PRESS_SCALE);

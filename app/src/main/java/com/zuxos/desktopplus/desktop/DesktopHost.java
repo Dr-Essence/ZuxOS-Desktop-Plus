@@ -498,6 +498,7 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
         mLocale = locale;
         if (appsChanged) {
             forgetUninstalled();
+            followMoved();
         }
         long signature = configSignature();
         // Resuming is not a reason to tear the desktop down: rebuild only when the apps or the
@@ -544,6 +545,29 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
         }
         if (drawer) {
             mDrawerStore.save();
+        }
+    }
+
+    /**
+     * Apps on the desktop and in its folders whose launcher entry moved follow it, as the
+     * drawer's do ({@link com.zuxos.desktopplus.model.DrawerStore#followMoved}).
+     */
+    private void followMoved() {
+        List<String> launchable = mRepo.launchableKeys();
+        List<String> moved = new ArrayList<>();
+        for (Item item : mStore.items()) {
+            List<Item> apps = item.type == Item.TYPE_FOLDER ? item.children
+                    : java.util.Collections.singletonList(item);
+            for (Item app : apps) {
+                String before = app.key();
+                if (com.zuxos.desktopplus.logic.MovedEntry.follow(app, launchable)) {
+                    moved.add(before + " -> " + app.key());
+                }
+            }
+        }
+        if (!moved.isEmpty()) {
+            save();
+            L.i("desktop: launcher entries moved, its apps follow " + moved);
         }
     }
 

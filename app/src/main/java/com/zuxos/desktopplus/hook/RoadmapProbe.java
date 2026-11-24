@@ -111,8 +111,10 @@ public final class RoadmapProbe {
             getprop | grep -i -E 'pc_?mode|ovdesktop' | head -10
             echo "home: $(cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null | tail -1)"
             echo "home role held by: $(cmd role get-role-holders android.app.role.HOME 2>/dev/null) (a launcher chooser at boot)"
-            echo "every app that offers itself as a home:"
-            cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null | head -20
+            echo "every app that offers itself as a home (only the monitor's launcher while ZUI's focus is on the monitor):"
+            cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null | grep '/' | head -30
+            echo "the choice Android saved for the home (skipped, so a chooser, when it names a home that is off):"
+            dumpsys package preferred-activities 2>/dev/null | grep -B3 -A8 'category.HOME' | head -40
             echo "Work Launcher pid: $(pidof com.zui.desktoplauncher)"
             dumpsys activity processes com.zui.desktoplauncher 2>/dev/null | grep -E 'ProcessRecord|oom:|curProcState|lastPss' | head -8
             dumpsys window windows 2>/dev/null | grep -E 'Window[{].*com[.]zui[.]desktoplauncher' | head -10
