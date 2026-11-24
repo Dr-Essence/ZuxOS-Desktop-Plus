@@ -164,6 +164,29 @@ final class SystemNames {
     static final String GET_INPUT_DEVICES = "getInputDevices";
     /** The native input system, and its own account of itself - what dumpsys input prints. */
     static final String M_NATIVE = "mNative";
+    /**
+     * The focus handed to the input system with the mouse's screen
+     * ({@code NativeInputManagerService.setFocusedDisplay(focus, pointer)}), and ZUI's native
+     * report of the mouse's screen.
+     */
+    static final String SET_FOCUSED_DISPLAY = "setFocusedDisplay";
+    static final String NATIVE_INPUT_MANAGER_SERVICE =
+            "com.android.server.input.NativeInputManagerService";
+    static final String INPUT_MANAGER_SERVICE_DELEGATE =
+            "com.android.server.input.InputManagerServiceDelegate";
+    static final String NOTIFY_POINTER_DISPLAY_ID_CHANGE = "notifyPointerDisplayIdChange";
+    /**
+     * The power manager starting a screen saver, and ZUI's standby mode's gate on it
+     * ({@code PowerManagerService.handleSandman}).
+     */
+    static final String POWER_MANAGER_SERVICE = "com.android.server.power.PowerManagerService";
+    static final String HANDLE_SANDMAN = "handleSandman";
+    static final String M_DREAM_MANAGER = "mDreamManager";
+    static final String IS_DREAMING = "isDreaming";
+    static final String M_ZUI_STANDBY_MODE = "mZuiStandbyMode";
+    static final String IS_DREAMING_ALLOWED = "isDreamingAllowed";
+    static final String ZUI_STANDBY_MODE_MANAGER = "android.app.ZuiStandbyModeManager";
+    static final String GET_SWITCH_FOR_STANDBY = "getSwitchForStandby";
     static final String DUMP = "dump";
     /** The input manager as a service: in the system, the input manager itself. */
     static final String SERVICE_MANAGER = "android.os.ServiceManager";

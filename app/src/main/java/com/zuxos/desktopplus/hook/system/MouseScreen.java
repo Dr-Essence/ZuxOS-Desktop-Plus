@@ -40,6 +40,15 @@ import de.robv.android.xposed.XposedBridge;
  * screen, asleep or not: the mouse never leaves the monitor while it sleeps, and moving it still
  * wakes the tablet, the monitor being one of its screens.
  *
+ * <p>The focus moved it too. Android hands the focused screen to the input system as both the
+ * focus and the mouse's screen ({@code InputManagerService.setFocusedDisplay(i)} calls the native
+ * {@code setFocusedDisplay(i, i)}), so the mouse followed every change of focus - at each lock the
+ * tablet's lock screen took the focus before the monitor's, and so did a dialog on the tablet -
+ * with the same drop after. So while ZUI's monitor desktop is on, the focus moves and the mouse
+ * stays on the screen ZUI last reported it on ({@code InputManagerServiceDelegate
+ * .notifyPointerDisplayIdChange}, the native code's own report, which follows the mouse across an
+ * edge), through that same native call.
+ *
  * <p>At the first lock after a boot ZUI's monitor desktop is not up yet - ZUX Home waits for the
  * first unlock - so the rule gave the tablet, and the monitor's lock screen could not be clicked.
  * So while the lock screen is up before ZUI's monitor desktop, with the monitor set to be that
@@ -76,6 +85,12 @@ public final class MouseScreen {
     private static Method sLocalService;
     private static Class<?> sUsersClass;
     private static Method sUnlocked;
+    /** The native code's own last report of the mouse's screen; -1 before the first. */
+    private static volatile int sPointerOn = -1;
+    /** The native {@code setFocusedDisplay(focus, mouse's screen)}. */
+    private static Method sNativeFocus;
+    private static final Hourly FOCUS_LINES = new Hourly(RULE_LINES_AN_HOUR);
+    private static final Hourly REPORT_LINES = new Hourly(RULE_LINES_AN_HOUR);
     /** The rule's answer last written, MIN_VALUE before the first; and this hour's lines. */
     private static volatile int sRuleDisplay = Integer.MIN_VALUE;
     private static long sRuleHour = -1;
@@ -135,6 +150,116 @@ public final class MouseScreen {
             L.w("mouse screen: not installed, the mouse's screen is ZUI's alone (" + t + ")");
         }
         watchRule(loader);
+        watchFocus(loader);
+    }
+
+    /** The mouse kept on its screen as the focus changes screen; ZUI's reports of where it is. */
+    private static void watchFocus(ClassLoader loader) {
+        try {
+            Class<?> input = Class.forName(SystemNames.INPUT_MANAGER_SERVICE, false, loader);
+            sNativeFocus = Class.forName(SystemNames.NATIVE_INPUT_MANAGER_SERVICE, false, loader)
+                    .getMethod(SystemNames.SET_FOCUSED_DISPLAY, int.class, int.class);
+            Class<?> delegate = Class.forName(SystemNames.INPUT_MANAGER_SERVICE_DELEGATE, false,
+                    loader);
+            int reports = XposedBridge.hookAllMethods(delegate,
+                    SystemNames.NOTIFY_POINTER_DISPLAY_ID_CHANGE, REPORT).size();
+            if (reports == 0) {
+                L.w("mouse screen: ZUI's reports of the mouse's screen not found - the mouse "
+                        + "follows the focus, as ZUI has it");
+                return;
+            }
+            XposedBridge.hookMethod(input.getMethod(SystemNames.SET_FOCUSED_DISPLAY, int.class),
+                    FOCUS);
+            L.i("mouse screen: kept on its screen as the focus changes screen, by ZUI's reports"
+                    + " x" + reports);
+        } catch (Throwable t) {
+            sNativeFocus = null;
+            L.w("mouse screen: the mouse follows the focus, as ZUI has it (" + t + ")");
+        }
+    }
+
+    /** The native code reporting the mouse's screen: kept, and written as it changes. */
+    private static final XC_MethodHook REPORT = new XC_MethodHook() {
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) {
+            try {
+                if (param.args.length == 0 || !(param.args[0] instanceof Integer)) {
+                    return;
+                }
+                int screen = (Integer) param.args[0];
+                if (screen != sPointerOn) {
+                    sPointerOn = screen;
+                    if (REPORT_LINES.take()) {
+                        L.i("mouse screen: ZUI has the mouse on screen " + screen);
+                    }
+                }
+            } catch (Throwable ignored) {
+                // A report less; the next one is kept.
+            }
+        }
+    };
+
+    /**
+     * The focus handed to the input system: while ZUI's monitor desktop is on, the mouse's screen
+     * handed with it is the one the mouse is on, not the focus's.
+     */
+    private static final XC_MethodHook FOCUS = new XC_MethodHook() {
+        @Override
+        protected void beforeHookedMethod(MethodHookParam param) {
+            try {
+                if (!sOn || sNativeFocus == null || param.args.length == 0
+                        || !(param.args[0] instanceof Integer) || sDesktopOn == null
+                        || !Boolean.TRUE.equals(sDesktopOn.invoke(null))) {
+                    return;
+                }
+                int focus = (Integer) param.args[0];
+                Object desktop = sDesktopDisplay.invoke(null);
+                if (!(desktop instanceof Integer) || (Integer) desktop <= 0) {
+                    return;
+                }
+                // Only the tablet or ZUI's desktop screen: a report of a screen since unplugged
+                // would put the mouse nowhere.
+                int pointer = sPointerOn == 0 ? 0 : (Integer) desktop;
+                if (pointer == focus) {
+                    return;
+                }
+                Object nativeInput = Reflect.field(param.thisObject, SystemNames.M_NATIVE);
+                if (nativeInput == null) {
+                    return;
+                }
+                sNativeFocus.invoke(nativeInput, focus, pointer);
+                param.setResult(null);
+                if (FOCUS_LINES.take()) {
+                    L.i("mouse screen: focus to screen " + focus + ", the mouse kept on screen "
+                            + pointer);
+                }
+            } catch (Throwable t) {
+                // The original call runs: the mouse follows the focus, as ZUI has it.
+                if (L.once("MouseScreen.focus")) {
+                    L.w("mouse screen: the mouse follows the focus this time (" + t + ")");
+                }
+            }
+        }
+    };
+
+    /** At most so many lines an hour. */
+    private static final class Hourly {
+        private final int mMax;
+        private long mHour = -1;
+        private int mLines;
+
+        Hourly(int max) {
+            mMax = max;
+        }
+
+        synchronized boolean take() {
+            long hour = SystemClock.elapsedRealtime() / HOUR_MS;
+            if (hour != mHour) {
+                mHour = hour;
+                mLines = 0;
+            }
+            return mLines++ < mMax;
+        }
     }
 
     /** The switch, read off ZUI's path: at boot, and when the settings change. */

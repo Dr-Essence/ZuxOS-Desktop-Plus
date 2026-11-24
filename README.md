@@ -329,9 +329,11 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
 - **Mouse stays on the monitor** (optional, on by default). ZUI moved the mouse to the monitor's
   desktop only at the next change of a screen, so after a reboot it stayed on the tablet; and each
   time the screens slept it went to the tablet and back, after which ZUI's pointer across screens
-  left it dead until replugged. Now ZUI is asked again as its monitor desktop comes on, the mouse
-  stays on the monitor while it sleeps, and at the first lock after a reboot it is on the monitor
-  for its lock screen. Needs System Framework ticked in LSPosed.
+  left it dead until replugged; the focus moving to the tablet (its lock screen, a dialog) moved it
+  too. Now ZUI is asked again as its monitor desktop comes on, the mouse stays on the monitor while
+  it sleeps and when the tablet takes the focus (crossing an edge with the mouse still works), and
+  at the first lock after a reboot it is on the monitor for its lock screen. Needs System Framework
+  ticked in LSPosed.
 - **Windows stay as they are when they open another app** (optional, on by default). A maximised
   app that opened Files' save or open screen, a picker or a chooser turned into a small floating
   window and lost its floating size; now it stays maximised, floating or in Full screen. Needs

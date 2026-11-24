@@ -482,9 +482,9 @@ public class MainActivity extends Activity {
                         + "a reboot it stayed on the tablet; and each time the screens slept it "
                         + "went to the tablet and back, after which it was dead until replugged. "
                         + "On, ZUI is asked again as its monitor desktop comes on, the mouse stays "
-                        + "on the monitor while it sleeps, and at the first lock after a reboot it "
-                        + "is on the monitor for its lock screen. Needs System Framework ticked "
-                        + "for this module in LSPosed",
+                        + "on the monitor while it sleeps and when the tablet takes the focus, and "
+                        + "at the first lock after a reboot it is on the monitor for its lock "
+                        + "screen. Needs System Framework ticked for this module in LSPosed",
                 Const.KEY_MOUSE_ON_DESKTOP, true);
         addSwitch("No launcher chooser on the tablet",
                 "Android could forget its saved home and ask which launcher to use, at boot and "

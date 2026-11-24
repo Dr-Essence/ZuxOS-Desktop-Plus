@@ -139,6 +139,12 @@ public final class RoadmapProbe {
             echo "--- ZUI's pointer across screens (a mouse sent to a screen with no pointer: dead until replugged)"
             echo "projection_mode_last_value $(settings get system projection_mode_last_value 2>/dev/null), extend_screen_position $(settings get global extend_screen_position 2>/dev/null), zui_pointer_display_change $(settings get global zui_pointer_display_change 2>/dev/null)"
             logcat -d -b main -s PointerChoreographer MouseCursorController InputManagerServiceDelegate InputManager-JNI 2>/dev/null | tail -60
+            echo "--- screen savers, and ZUI's standby mode that takes their place (screen savers on both screens)"
+            for k in screensaver_enabled screensaver_components screensaver_activate_on_sleep screensaver_activate_on_dock screensaver_default_component; do echo "$k $(settings get secure $k 2>/dev/null)"; done
+            for t in system secure global; do for k in standby_mode_switch standby_mode_regular_switch standby_mode_auto_close; do v=$(settings get $t $k 2>/dev/null); [ "$v" != "null" ] && echo "$t $k $v"; done; done
+            dumpsys dreams 2>/dev/null | head -40
+            dumpsys power 2>/dev/null | grep -i -E 'dream|sandman|standby' | head -20
+            logcat -d -b main,system 2>/dev/null | grep -E 'may be start dream|Starting dream|Dreaming[.][.][.]|Stopping dream|ZuiStandbyModeService' | tail -30
             echo "ZUI's touchpad on the tablet: $(dumpsys activity activities 2>/dev/null | grep -c 'touchpad.TouchPadActivity') record(s)"
             echo "--- the monitor's mode and link (colour bands at 144 Hz: too few lanes for full colour)"
             dumpsys display 2>/dev/null | grep -E 'mActiveModeId|mActiveSfDisplayMode|mUserPreferredModeId' | head -8
