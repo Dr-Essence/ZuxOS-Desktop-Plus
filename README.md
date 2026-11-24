@@ -333,9 +333,8 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   monitor for its lock screen. Needs System Framework ticked in LSPosed.
 - **USB mice wake reliably** (optional, on by default). A USB mouse could stop after the screens
   went off, or after a minute idle, until it was unplugged and plugged in again. Now each USB
-  mouse is reset when the tablet wakes instead, as Linux does for devices that cannot resume, and
-  is never put to sleep when idle; it is plugged out and in once, by itself, as ZUX Home starts.
-  Needs root.
+  mouse is never put to sleep when idle, and from its next plug-in it is reset when the tablet
+  wakes instead, as Linux does for devices that cannot resume. Needs root.
 - **Windows stay as they are when they open another app** (optional, on by default). A maximised
   app that opened Files' save or open screen, a picker or a chooser turned into a small floating
   window and lost its floating size; now it stays maximised, floating or in Full screen. Needs

@@ -488,9 +488,9 @@ public class MainActivity extends Activity {
         addSwitch("USB mice wake reliably",
                 "A USB mouse could stop after the screens went off, or after a minute idle, "
                         + "until it was unplugged and plugged in again. On, each USB mouse is "
-                        + "reset when the tablet wakes instead, as Linux does for such devices, "
-                        + "and is never put to sleep when idle; it is plugged out and in once, "
-                        + "by itself, as ZUX Home starts. Needs root",
+                        + "never put to sleep when idle, and from its next plug-in it is reset "
+                        + "when the tablet wakes instead, as Linux does for such devices. "
+                        + "Needs root",
                 Const.KEY_USB_MICE_RESET, true);
         addSwitch("No launcher chooser on the tablet",
                 "Android could forget its saved home and ask which launcher to use, at boot and "

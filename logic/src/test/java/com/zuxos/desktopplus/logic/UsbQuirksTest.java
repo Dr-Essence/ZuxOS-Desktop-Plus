@@ -6,17 +6,16 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 
 import org.junit.Test;
 
-/** A USB mouse gets the kernel's reset on resume, once, and nothing loops. */
+/** A USB mouse gets the kernel's reset on resume, without turning off a quirk it has. */
 public class UsbQuirksTest {
 
     private static final String READ = "list \n"
-            + "dev 2-1.4.2|248a|5b2e|0x0|auto|active|1|USB Gaming Mouse\n"
-            + "dev 1-1.3|2dc8|5200|0x2|on|active|1|8BitDo Retro Keyboard\n";
+            + "dev 2-1.4.2|248a|5b2e|0x0|auto|active|USB Gaming Mouse\n"
+            + "dev 1-1.3|2dc8|5200|0x2|on|active|8BitDo Retro Keyboard\n";
 
     @Test
     public void theRootReadIsParsed() {
@@ -28,7 +27,6 @@ public class UsbQuirksTest {
         assertEquals("248a:5b2e", mouse.id);
         assertEquals(0, mouse.quirks);
         assertEquals("auto", mouse.control);
-        assertTrue(mouse.port);
         assertFalse(mouse.resets());
         assertTrue(state.devices.get(1).resets());
         assertEquals("USB Gaming Mouse (248a:5b2e)", mouse.toString());
@@ -59,20 +57,9 @@ public class UsbQuirksTest {
     }
 
     @Test
-    public void eachDeviceIsReplugged() {
-        List<UsbQuirks.Device> devices = UsbQuirks.parse(READ).devices;
-        List<UsbQuirks.Device> first = UsbQuirks.toReplug(devices, new HashSet<>());
-        assertEquals(1, first.size());
-        assertEquals("2-1.4.2", first.get(0).name);
-        assertTrue(UsbQuirks.toReplug(devices,
-                new HashSet<>(Collections.singleton("2-1.4.2"))).isEmpty());
-    }
-
-    @Test
-    public void aPortThatCannotBeTurnedOffIsLeftForTheNextReplug() {
+    public void aDeviceWithoutQuirksGetsTheEntry() {
         List<UsbQuirks.Device> devices = UsbQuirks.parse(
-                "dev 3-1|248a|5b2e|0x0|auto|active|0|Mouse").devices;
-        assertTrue(UsbQuirks.toReplug(devices, null).isEmpty());
+                "dev 3-1|248a|5b2e|0x0|auto|active|Mouse").devices;
         assertEquals("248a:5b2e:b", UsbQuirks.merged(null, devices));
     }
 
@@ -81,7 +68,7 @@ public class UsbQuirksTest {
         assertEquals(-1, UsbQuirks.hex(""));
         assertEquals(-1, UsbQuirks.hex("x"));
         assertEquals(0x402, UsbQuirks.hex("0x402"));
-        UsbQuirks.Device device = UsbQuirks.parse("dev 3-1|248a|5b2e||auto|active|1|M")
+        UsbQuirks.Device device = UsbQuirks.parse("dev 3-1|248a|5b2e||auto|active|M")
                 .devices.get(0);
         assertFalse(device.resets());
     }

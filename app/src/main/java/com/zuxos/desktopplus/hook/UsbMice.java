@@ -15,7 +15,6 @@ import com.zuxos.desktopplus.core.Su;
 import com.zuxos.desktopplus.logic.UsbQuirks;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -30,15 +29,18 @@ import java.util.regex.Pattern;
  * sent nothing. That is a device that cannot resume, and Linux's own answer for one is the quirk
  * {@code USB_QUIRK_RESET_RESUME}: reset on wake, never put to sleep while its driver needs it to
  * wake the tablet. So, through root, each USB mouse gets that quirk in the kernel's list
- * ({@code usbcore.quirks}, read at enumeration), its port is turned off and on once so the
- * kernel enumerates it again with it, and it is kept out of idle sleep ({@code power/control}).
- * The decisions are {@link UsbQuirks}'s.
+ * ({@code usbcore.quirks}), which the kernel reads when the mouse is next plugged in, and it is
+ * kept out of idle sleep at once ({@code power/control}). The decisions are {@link UsbQuirks}'s.
  *
- * <p>It runs when ZUX Home starts and when an input device is added - no polling - and each
- * device is replugged at most once per process, so a write that does not take never loops. The
- * first wakes of each run write whether the tablet slept and what woke it, with each mouse's
- * state, so a mouse that still dies says what came before. Bluetooth mice match no USB device and
- * are left alone. Without root, or with the switch off, nothing is done.
+ * <p>No port is ever turned off to make the kernel take the quirk sooner: a USB port turned off
+ * ignores every replug until the tablet restarts, and its device's folder - the way back to it -
+ * is gone the moment it is off. Nothing on this tablet turns a port off on purpose, so as ZUX Home
+ * starts any port found off is turned back on, root allowing, whatever the switch.
+ *
+ * <p>It runs when ZUX Home starts and when an input device is added - no polling. The first
+ * wakes of each run write whether the tablet slept and what woke it, with each mouse's state, so
+ * a mouse that still dies says what came before. Bluetooth mice match no USB device and are left
+ * alone. Without root, or with the switch off, nothing is done to the mice.
  */
 public final class UsbMice {
 
@@ -53,12 +55,13 @@ public final class UsbMice {
     private static final Pattern NAME = Pattern.compile("[0-9]+-[0-9.]+");
     /** What the kernel's quirk list may hold. */
     private static final Pattern LIST = Pattern.compile("[0-9A-Za-z:,]*");
-    private static final Pattern ID = Pattern.compile("[0-9a-f]{4}:[0-9a-f]{4}");
 
     private static boolean sStarted;
     private static Context sCtx;
-    /** The devices replugged this run, by name. Main thread only. */
-    private static final Set<String> REPLUGGED = new HashSet<>();
+    /** Whether the ports have been looked at for one left off, and the tries. Main thread only. */
+    private static boolean sPortsChecked;
+    private static int sPortTries;
+    private static final int PORT_TRIES = 5;
     /** The mice's ids last looked at, for the wake lines. Main thread only. */
     private static Set<String> sIds = new LinkedHashSet<>();
     private static boolean sRetried;
@@ -119,6 +122,10 @@ public final class UsbMice {
     /** The USB mice as root sees them, and what they need. */
     private static void look() {
         try {
+            if (!sPortsChecked && Cfg.useRoot()) {
+                portsOn();
+                return;
+            }
             if (!Cfg.usbMiceReset() || !Cfg.useRoot()) {
                 if (L.once("UsbMice.off")) {
                     L.i("mice: USB mice left as they are (" + (Cfg.usbMiceReset()
@@ -135,6 +142,34 @@ public final class UsbMice {
         } catch (Throwable t) {
             L.w("mice: not looked at (" + t + ")");
         }
+    }
+
+    /**
+     * Every USB port found off turned back on: a device behind one is dead through any replug.
+     * Then the mice are looked at.
+     */
+    private static void portsOn() {
+        String script = "for f in /sys/bus/usb/devices/*/*-port*/disable; do\n"
+                + "  [ \"$(cat \"$f\" 2>/dev/null)\" = 1 ] && echo 0 > \"$f\" && echo \"$f\"\n"
+                + "done\n"
+                + "true";
+        Su.read((outcome, text) -> MAIN.post(() -> {
+            if (outcome == Su.Outcome.BUSY && sPortTries < PORT_TRIES) {
+                // Root busy with another request: this one matters, so it is asked again.
+                sPortTries++;
+                MAIN.postDelayed(LOOK, RETRY_MS);
+                return;
+            }
+            sPortsChecked = true;
+            if (!outcome.ok()) {
+                L.w("mice: the USB ports not looked at (" + outcome + ")");
+            }
+            if (outcome.ok() && text != null && !text.trim().isEmpty()) {
+                L.w("mice: USB ports found off, turned back on: " + text.replace('\n', ' ')
+                        .trim());
+            }
+            soon();
+        }), script);
     }
 
     /** Every external mouse's {@code vendor:product} that Android has now. */
@@ -160,10 +195,9 @@ public final class UsbMice {
                 + "  v=$(cat \"$d/idVendor\"); p=$(cat \"$d/idProduct\")\n"
                 + "  case \" " + String.join(" ", ids) + " \" in *\" $v:$p \"*) ;; *) continue;;"
                 + " esac\n"
-                + "  pd=0; [ -f \"$d/port/disable\" ] && pd=1\n"
                 + "  echo \"dev ${d##*/}|$v|$p|$(cat \"$d/quirks\" 2>/dev/null)"
                 + "|$(cat \"$d/power/control\" 2>/dev/null)"
-                + "|$(cat \"$d/power/runtime_status\" 2>/dev/null)|$pd"
+                + "|$(cat \"$d/power/runtime_status\" 2>/dev/null)"
                 + "|$(cat \"$d/product\" 2>/dev/null)\"\n"
                 + "done\n"
                 + "true";
@@ -193,33 +227,31 @@ public final class UsbMice {
                 return;
             }
             String list = UsbQuirks.merged(state.list, state.devices);
-            List<UsbQuirks.Device> replug = UsbQuirks.toReplug(state.devices, REPLUGGED);
             List<UsbQuirks.Device> awake = new ArrayList<>();
             for (UsbQuirks.Device device : state.devices) {
                 if (!"on".equals(device.control)) {
                     awake.add(device);
                 }
             }
-            if (list == null && replug.isEmpty() && awake.isEmpty()) {
+            if (list == null && awake.isEmpty()) {
                 for (UsbQuirks.Device device : state.devices) {
                     if (L.once("UsbMice.has." + device.name + "." + device.quirks)) {
                         L.i("mice: " + device + " is " + (device.resets()
-                                ? "reset on wake" : "without the reset (quirks 0x"
-                                + Integer.toHexString(device.quirks) + ")")
+                                ? "reset on wake" : "reset on wake from its next plug-in")
                                 + ", kept awake when idle");
                     }
                 }
                 return;
             }
-            write(list, replug, awake, state.devices);
+            write(list, awake, state.devices);
         } catch (Throwable t) {
             L.w("mice: not set (" + t + ")");
         }
     }
 
-    /** The kernel's list, idle sleep off, and the replugs that make the kernel take the list. */
-    private static void write(String list, List<UsbQuirks.Device> replug,
-            List<UsbQuirks.Device> awake, List<UsbQuirks.Device> all) {
+    /** The kernel's list, and idle sleep off. */
+    private static void write(String list, List<UsbQuirks.Device> awake,
+            List<UsbQuirks.Device> all) {
         StringBuilder sh = new StringBuilder();
         if (list != null) {
             if (!LIST.matcher(list).matches()) {
@@ -235,50 +267,21 @@ public final class UsbMice {
                         .append("/power/control\n");
             }
         }
-        List<UsbQuirks.Device> unplugged = new ArrayList<>();
-        for (UsbQuirks.Device device : replug) {
-            if (NAME.matcher(device.name).matches() && ID.matcher(device.id).matches()) {
-                REPLUGGED.add(device.name);
-                unplugged.add(device);
-                sh.append("echo 1 > /sys/bus/usb/devices/").append(device.name)
-                        .append("/port/disable\n");
-            }
-        }
-        if (!unplugged.isEmpty()) {
-            sh.append("sleep 0.5\n");
-            for (UsbQuirks.Device device : unplugged) {
-                // Twice if need be: a port left off is a mouse gone until it is replugged.
-                String port = "/sys/bus/usb/devices/" + device.name + "/port/disable";
-                sh.append("echo 0 > ").append(port).append(" || { sleep 0.5; echo 0 > ")
-                        .append(port).append("; }\n");
-            }
-        }
-        sh.append("true");
-        Su.run(outcome -> MAIN.post(() -> written(outcome, list, unplugged, all)),
+        Su.read((outcome, text) -> MAIN.post(() -> written(outcome, text, list, all)),
                 sh.toString());
     }
 
-    private static void written(Su.Outcome outcome, String list,
-            List<UsbQuirks.Device> unplugged, List<UsbQuirks.Device> all) {
-        if (!outcome.ok()) {
-            L.w("mice: the reset on wake not set (" + outcome + ")");
+    private static void written(Su.Outcome outcome, String text, String list,
+            List<UsbQuirks.Device> all) {
+        // The script's own errors come back as its output: a write refused is not success.
+        if (!outcome.ok() || (text != null && !text.trim().isEmpty())) {
+            L.w("mice: the reset on wake not set (" + outcome + (text == null ? ""
+                    : ", " + text.replace('\n', ' ').trim()) + ")");
             return;
         }
         for (UsbQuirks.Device device : all) {
-            boolean again = unplugged.contains(device);
-            String how;
-            if (device.resets()) {
-                how = "is reset on wake, kept awake when idle";
-            } else if (again) {
-                how = "is reset on wake instead of resumed, never put to sleep idle - plugged"
-                        + " out and in at its port once to take it";
-            } else if (!device.port) {
-                how = "is kept awake when idle; the reset on wake takes at its next replug"
-                        + " (its port cannot be turned off here)";
-            } else {
-                how = "is kept awake when idle";
-            }
-            L.i("mice: " + device + " " + how);
+            L.i("mice: " + device + (device.resets() ? " is reset on wake"
+                    : " is reset on wake from its next plug-in") + ", kept awake when idle");
         }
         if (list != null) {
             L.i("mice: the kernel's quirk list is now " + list);

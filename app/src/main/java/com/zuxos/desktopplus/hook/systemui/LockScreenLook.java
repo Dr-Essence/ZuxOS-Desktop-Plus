@@ -99,8 +99,13 @@ final class LockScreenLook {
             String cls = frame.getClassName();
             if (cls.startsWith(SysUiNames.CLOCK_REGISTRY_CLASS) || cls.startsWith("java.")
                     || cls.startsWith("dalvik.") || cls.startsWith("de.robv.")
-                    || cls.startsWith("org.lsposed.") || cls.startsWith("LSPHooker")
-                    || cls.startsWith(LockScreenLook.class.getName() + "$")) {
+                    || cls.startsWith("org.lsposed.") || cls.startsWith("LSPHooker")) {
+                continue;
+            }
+            if (cls.startsWith(LockScreenLook.class.getName())) {
+                if ("clock".equals(frame.getMethodName())) {
+                    return "the monitor's lock screen";
+                }
                 continue;
             }
             return cls + "." + frame.getMethodName();

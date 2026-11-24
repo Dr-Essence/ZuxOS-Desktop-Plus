@@ -17,10 +17,9 @@ import java.util.Set;
  * {@code vendor:product:b}, and applies it when the device is next enumerated.
  *
  * <p>This reads root's account of the devices and decides what to write: the list with the quirk
- * added for each device without it, and which of those to unplug and plug back in at their port
- * so the kernel takes it now. Each letter in the list toggles a quirk the kernel may already
- * give the device, so an entry is added only for a device whose own quirks lack it, and an entry
- * already there for a device is left as it is.
+ * added for each device without it. Each letter in the list toggles a quirk the kernel may
+ * already give the device, so an entry is added only for a device whose own quirks lack it, and
+ * an entry already there for a device is left as it is.
  */
 public final class UsbQuirks {
 
@@ -42,18 +41,15 @@ public final class UsbQuirks {
         public final int quirks;
         public final String control;
         public final String state;
-        /** Whether its port can be turned off and on ({@code port/disable}). */
-        public final boolean port;
         public final String product;
 
         public Device(String name, String id, int quirks, String control, String state,
-                boolean port, String product) {
+                String product) {
             this.name = name;
             this.id = id;
             this.quirks = quirks;
             this.control = control;
             this.state = state;
-            this.port = port;
             this.product = product;
         }
 
@@ -86,7 +82,7 @@ public final class UsbQuirks {
 
     /**
      * Reads the root read's lines: {@code list <usbcore.quirks>}, then for each device
-     * {@code dev name|vendor|product|quirks|control|state|port|product name}.
+     * {@code dev name|vendor|product|quirks|control|state|product name}.
      */
     public static State parse(String text) {
         String list = "";
@@ -103,13 +99,12 @@ public final class UsbQuirks {
                 }
             } else if (line.startsWith("dev ")) {
                 String[] f = line.substring(4).split("\\|", -1);
-                if (f.length < 8 || f[0].isEmpty() || f[1].isEmpty() || f[2].isEmpty()) {
+                if (f.length < 7 || f[0].isEmpty() || f[1].isEmpty() || f[2].isEmpty()) {
                     continue;
                 }
                 devices.add(new Device(f[0].trim(),
                         (f[1].trim() + ":" + f[2].trim()).toLowerCase(Locale.ROOT),
-                        hex(f[3]), f[4].trim(), f[5].trim(), "1".equals(f[6].trim()),
-                        f[7].trim()));
+                        hex(f[3]), f[4].trim(), f[5].trim(), f[6].trim()));
             }
         }
         return new State(list, devices);
@@ -144,24 +139,6 @@ public final class UsbQuirks {
             added = true;
         }
         return added ? String.join(",", entries) : null;
-    }
-
-    /**
-     * The devices to unplug and plug back in at their port, so the kernel enumerates them again
-     * with the quirk: those still without it, with a port that can be turned off, not done
-     * already.
-     *
-     * @param done the names already done; each device is done at most once, so a write that does
-     *             not take can never loop
-     */
-    public static List<Device> toReplug(Collection<Device> devices, Set<String> done) {
-        List<Device> out = new ArrayList<>();
-        for (Device device : devices == null ? Collections.<Device>emptyList() : devices) {
-            if (!device.resets() && device.port && (done == null || !done.contains(device.name))) {
-                out.add(device);
-            }
-        }
-        return out;
     }
 
     /** A {@code quirks} file's number ({@code 0x2}); -1 when there is none. */
