@@ -112,6 +112,8 @@ public final class PowerProbe {
             done
             echo "--- apps force-stopped or cleaned lately (#12)"
             logcat -d -b main,system 2>/dev/null | grep -E 'Force stopping|force stop \\[|ZuiMemoryCleaner\\[' | tail -20
+            echo "--- why ZUX Home and this module's app last stopped (Android's own record of each exit)"
+            for p in com.zui.launcher com.zuxos.desktopplus; do echo "$p:"; dumpsys activity exit-info "$p" 2>/dev/null | grep -E 'ApplicationExitInfo #|timestamp=|reason=|description=|pss=' | head -40; done
             echo "--- properties"
             getprop | grep -i -E 'perf|therm|power|game' | head -40
             echo "--- voltage controls (read only)"

@@ -36,7 +36,8 @@ import de.robv.android.xposed.XposedBridge;
  * ({@code userActivityFromNative}, which Motorola's code already uses to wake its desktop), so
  * input on any screen but the screen saver's ends it, as if it had been on the screen saver. The
  * first click or key there still reaches the window under the copy; a mouse moved first is not a
- * click.
+ * click. That hook is on every input of both screens, so it is put on only while a copy is up and
+ * taken off with it: with no screen saver showing, input takes exactly the path it always did.
  *
  * <p>The copy goes when the dream manager says the screen saver stopped
  * ({@code reportDreamingStopped}, for every dream, previews included), and before any new one.
@@ -59,6 +60,9 @@ public final class DreamBothScreens {
     private static Method sDesktopDisplay;
     private static Method sMirror;
     private static Method sGetActivity;
+    /** The power manager's input from each screen, hooked only while a copy is up. */
+    private static Method sInput;
+    private static XC_MethodHook.Unhook sInputHook;
 
     /** The copy on screen, its screen and the screen saver's own; guarded by the class. */
     private static SurfaceControl sCopy;
@@ -95,10 +99,11 @@ public final class DreamBothScreens {
                     SystemNames.START_DREAM_ACTIVITY_INTERNAL, STARTED).size();
             hooked += XposedBridge.hookAllMethods(dreams, SystemNames.REPORT_DREAMING_STOPPED,
                     STOPPED).size();
-            hooked += XposedBridge.hookAllMethods(power, SystemNames.USER_ACTIVITY_FROM_NATIVE,
-                    INPUT).size();
+            sInput = power.getDeclaredMethod(SystemNames.USER_ACTIVITY_FROM_NATIVE, long.class,
+                    int.class, int.class, int.class);
             L.i("screen saver: a copy on the other screen while the monitor's desktop is on x"
-                    + hooked + (sOn ? "" : ", switched off"));
+                    + hooked + ", input on it watched only while it is up"
+                    + (sOn ? "" : ", switched off"));
         } catch (Throwable t) {
             sMirror = null;
             L.w("screen saver: on one screen only, as Android has it (" + t + ")");
@@ -247,6 +252,12 @@ public final class DreamBothScreens {
             sCopyScreen = to;
             sCopySince = SystemClock.uptimeMillis();
             sDreamScreen = from;
+            try {
+                sInputHook = XposedBridge.hookMethod(sInput, INPUT);
+            } catch (Throwable t) {
+                // The copy stays; input on the screen saver's own screen still ends it.
+                sInputHook = null;
+            }
         }
         if (take()) {
             L.i("screen saver: a copy on screen " + to + " (it runs on screen " + from
@@ -269,9 +280,18 @@ public final class DreamBothScreens {
         }
     }
 
-    /** Holding the class: removes and releases the copy, and stops the input check. */
+    /** Holding the class: removes and releases the copy, and takes the input hook off. */
     private static void drop() {
         sDreamScreen = -1;
+        XC_MethodHook.Unhook input = sInputHook;
+        sInputHook = null;
+        if (input != null) {
+            try {
+                input.unhook();
+            } catch (Throwable ignored) {
+                // Left on, it reads one value per input and returns.
+            }
+        }
         SurfaceControl copy = sCopy;
         sCopy = null;
         sCopyScreen = -1;

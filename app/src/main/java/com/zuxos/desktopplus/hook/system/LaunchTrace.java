@@ -153,11 +153,15 @@ public final class LaunchTrace {
                     return;
                 }
                 Object record = param.args[2];
-                L.i("launch trace: " + param.thisObject.getClass().getSimpleName() + " (phase "
+                String line = MODE_REPEATS.fresh("launch trace: "
+                        + param.thisObject.getClass().getSimpleName() + " (phase "
                         + param.args[6] + ") made " + (record == null ? "a task"
                         : Reflect.field(record, SystemNames.SHORT_COMPONENT_NAME))
-                        + " mode " + after + ", it was " + before
-                        + (++sModes == MAX_MODES ? " (the last line this hour)" : ""));
+                        + " mode " + after + ", it was " + before);
+                if (line == null) {
+                    return;
+                }
+                L.i(line + (++sModes == MAX_MODES ? " (the last line this hour)" : ""));
             } catch (Throwable t) {
                 if (++sErrors == MAX_ERRORS) {
                     L.w("launch trace: stopped for this boot (" + t + ")");
@@ -248,7 +252,10 @@ public final class LaunchTrace {
                     return;
                 }
                 Object result = param.getResult();
-                String line = describe(param.thisObject, param.args, result);
+                String line = LAUNCH_REPEATS.fresh(describe(param.thisObject, param.args, result));
+                if (line == null) {
+                    return;
+                }
                 if (++sLines == MAX_LINES) {
                     line += " (the last line this hour)";
                 }
@@ -327,6 +334,33 @@ public final class LaunchTrace {
             }
         }
     };
+
+    /**
+     * Lines the same as the one before them, counted instead of written: at boot the monitor's
+     * home was started some sixty times in half a second, every start the same line, and that
+     * spent the hour's lines before the launches that mattered.
+     */
+    private static final Repeats LAUNCH_REPEATS = new Repeats();
+    private static final Repeats MODE_REPEATS = new Repeats();
+
+    /** The last line of one kind, and how often it came again since it was written. */
+    private static final class Repeats {
+        private String mLast;
+        private int mAgain;
+
+        /** The line to write, with the count of the one before; null for a repeat. */
+        synchronized String fresh(String line) {
+            if (line.equals(mLast)) {
+                mAgain++;
+                return null;
+            }
+            String out = mAgain > 0 ? line + " (the line before came " + mAgain
+                    + " more time" + (mAgain == 1 ? ")" : "s)") : line;
+            mLast = line;
+            mAgain = 0;
+            return out;
+        }
+    }
 
     /** The counts start again each hour, so a long day stays in the log. */
     private static synchronized void newHour() {

@@ -221,6 +221,14 @@ final class SystemNames {
     /** The window manager's answer to which screen the mouse's pointer belongs on. */
     static final String INPUT_MANAGER_CALLBACK = "com.android.server.wm.InputManagerCallback";
     static final String GET_POINTER_DISPLAY_ID = "getPointerDisplayId";
+    /**
+     * The input dispatcher's reports to the window manager of a window that stops taking input,
+     * takes it again, or a key with no focused window; {@code InputApplicationHandle.name}.
+     */
+    static final String NOTIFY_WINDOW_UNRESPONSIVE = "notifyWindowUnresponsive";
+    static final String NOTIFY_WINDOW_RESPONSIVE = "notifyWindowResponsive";
+    static final String NOTIFY_NO_FOCUSED_WINDOW_ANR = "notifyNoFocusedWindowAnr";
+    static final String NAME = "name";
     /** What that rule reads: the window manager's flag ZUI sets, and each screen's power state. */
     static final String M_FORCE_DESKTOP_MODE_ON_EXTERNAL_DISPLAYS =
             "mForceDesktopModeOnExternalDisplays";

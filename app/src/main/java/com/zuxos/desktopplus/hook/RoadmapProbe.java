@@ -171,6 +171,13 @@ public final class RoadmapProbe {
               done
             done
             content query --uri content://com.motorola.android.providers.settings/global 2>/dev/null | grep -i -E 'display|ready|desktop|mobile_ui' | head -30
+            echo "--- ZUI's settings app, copied for its code (the screen saver page shows no pictures)"
+            p=com.android.settings; n=0
+            for a in $(pm path "$p" 2>/dev/null | cut -d: -f2); do
+              n=$((n + 1)); f="/sdcard/Download/$p-$n.apk"
+              [ -f "$f" ] || cp "$a" "$f" 2>/dev/null
+              [ -f "$f" ] && echo "copied: $f ($(basename "$a"))"
+            done
             echo "--- resource overlays on SystemUI (#10 window looks, #16)"
             cmd overlay list com.android.systemui 2>/dev/null | head -30
             echo "fabricated overlays offered: $(cmd overlay help 2>/dev/null | grep -c fabricate)"
