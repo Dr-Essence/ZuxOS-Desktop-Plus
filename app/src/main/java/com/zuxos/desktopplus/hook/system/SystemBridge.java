@@ -97,6 +97,7 @@ public final class SystemBridge {
                     KeepWindowOnLaunch.reread();
                     HomeForItsScreen.reread();
                     BarWithDrawer.reread();
+                    DreamBothScreens.reread();
                     return;
                 }
                 if (!allowed(getSentFromPackage(), getSentFromUid())) {

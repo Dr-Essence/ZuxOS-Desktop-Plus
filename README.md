@@ -334,6 +334,14 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   it sleeps and when the tablet takes the focus (crossing an edge with the mouse still works), and
   at the first lock after a reboot it is on the monitor for its lock screen. Needs System Framework
   ticked in LSPosed.
+- **Screen saver, on both screens** (optional, on by default). ZUI's settings no longer list
+  Android's screen saver page; our settings open it, and set Android's own "When to start" with
+  root. Android starts a screen saver only while the tablet charges, and a USB-C hub is no dock to
+  it, so "While docked" (this firmware's default) never started one: choose "While charging".
+  While ZUI's Standby mode is on, only its own standby screen shows; the settings offer to turn it
+  off. With the monitor's desktop on, the other screen shows a live copy of the screen saver,
+  filling it, and moving the mouse or pressing a key there ends it; a click or key there also
+  reaches the window under it. The copy needs System Framework ticked in LSPosed.
 - **Windows stay as they are when they open another app** (optional, on by default). A maximised
   app that opened Files' save or open screen, a picker or a chooser turned into a small floating
   window and lost its floating size; now it stays maximised, floating or in Full screen. Needs

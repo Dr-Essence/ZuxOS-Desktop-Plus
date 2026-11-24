@@ -9,6 +9,7 @@ import android.content.pm.ResolveInfo;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Gravity;
@@ -29,6 +30,7 @@ import android.widget.TextView;
 import com.zuxos.desktopplus.core.Const;
 import com.zuxos.desktopplus.core.ModuleStatus;
 import com.zuxos.desktopplus.core.Prefs;
+import com.zuxos.desktopplus.core.Su;
 import com.zuxos.desktopplus.core.Tone;
 import com.zuxos.desktopplus.core.Ui;
 import com.zuxos.desktopplus.core.theme.Theme;
@@ -463,6 +465,23 @@ public class MainActivity extends Activity {
         addSummary("Three, a moment apart: a message with a picture, a button and a reply box; "
                 + "a long one with two buttons; a plain one. With the monitor's desktop on, they "
                 + "pop up above its tray. Replying updates the first without popping it up again.");
+
+        addCategory("Screen saver", "Android's screen saver, on both screens");
+        addButton("Screen saver settings", this::openScreenSaverSettings);
+        addSummary("Android's own page, which ZUI's settings no longer list: pick the screen "
+                + "saver there.");
+        mWhenButton = addButton(whenLabel(), this::pickWhenToStart);
+        addSummary("Android's own \"When to start\", set with root. It starts a screen saver "
+                + "only while the tablet charges, as it does on the monitor's hub; to Android a "
+                + "USB-C hub is not a dock, so \"While docked\" never starts one there. While "
+                + "ZUI's Standby mode is on, only ZUI's own standby screen shows.");
+        addSwitch("Screen saver on both screens",
+                "While the monitor's desktop is on, the other screen shows a live copy of the "
+                        + "screen saver, filling it. Moving the mouse there or pressing a key "
+                        + "ends it, as on the screen it runs on; a click or key there also "
+                        + "reaches the window under it. Needs System Framework ticked for this "
+                        + "module in LSPosed",
+                Const.KEY_DREAM_BOTH_SCREENS, true);
 
         addCategory("ZUI fixes", "ZUI's prompts and limits, switched off");
         addSwitch("No \"Association Launch App Prompt\"",
@@ -1182,7 +1201,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void addButton(String title, Runnable action) {
+    private Button addButton(String title, Runnable action) {
         beginRow(title);
         Button b = new Button(this);
         b.setText(title);
@@ -1191,6 +1210,123 @@ public class MainActivity extends Activity {
         lp.topMargin = Ui.dp(this, 20);
         lp.gravity = Gravity.START;
         mInto.addView(b, lp);
+        return b;
+    }
+
+    // --- Screen saver ---------------------------------------------------------------------
+
+    /** Android's own four "When to start" choices, in its order. */
+    private static final String[] WHEN_TO_START = {
+            "While charging", "While docked", "While charging or docked", "Never"};
+    /** For each choice: screensaver_enabled, _activate_on_sleep, _activate_on_dock. */
+    private static final int[][] WHEN_KEYS = {{1, 1, 0}, {1, 0, 1}, {1, 1, 1}, {0, -1, -1}};
+
+    private Button mWhenButton;
+
+    private void openScreenSaverSettings() {
+        Intent page = new Intent(Settings.ACTION_DREAM_SETTINGS)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            startActivity(page);
+        } catch (Throwable t) {
+            try {
+                // The page by name, as the xscreensaver app opens it.
+                startActivity(new Intent().setClassName("com.android.settings",
+                                "com.android.settings.Settings$DreamSettingsActivity")
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (Throwable t2) {
+                android.widget.Toast.makeText(this, "Could not open the screen saver settings",
+                        android.widget.Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    /**
+     * Android's "When to start", read from its own settings as its page writes them; -1 when
+     * they cannot be read. The defaults are this firmware's: off, and "while docked".
+     */
+    private int whenToStart() {
+        try {
+            android.content.ContentResolver cr = getContentResolver();
+            if (Settings.Secure.getInt(cr, "screensaver_enabled", 0) == 0) {
+                return 3;
+            }
+            boolean charging = Settings.Secure.getInt(cr, "screensaver_activate_on_sleep", 0) != 0;
+            boolean docked = Settings.Secure.getInt(cr, "screensaver_activate_on_dock", 1) != 0;
+            return charging && docked ? 2 : charging ? 0 : docked ? 1 : 3;
+        } catch (Throwable t) {
+            return -1;
+        }
+    }
+
+    private String whenLabel() {
+        int now = whenToStart();
+        return "When it starts: " + (now < 0 ? "not readable" : WHEN_TO_START[now]);
+    }
+
+    private void pickWhenToStart() {
+        new AlertDialog.Builder(this)
+                .setTitle("When the screen saver starts")
+                .setSingleChoiceItems(WHEN_TO_START, whenToStart(), (dialog, which) -> {
+                    dialog.dismiss();
+                    setWhenToStart(which);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /** Writes the choice as Android's own page does ({@code DreamBackend.setWhenToDream}). */
+    private void setWhenToStart(int which) {
+        int[] keys = WHEN_KEYS[which];
+        List<String> commands = new ArrayList<>();
+        commands.add("settings put secure screensaver_enabled " + keys[0]);
+        if (keys[1] >= 0) {
+            commands.add("settings put secure screensaver_activate_on_sleep " + keys[1]);
+            commands.add("settings put secure screensaver_activate_on_dock " + keys[2]);
+        }
+        Su.run(outcome -> runOnUiThread(() -> {
+            if (isFinishing()) {
+                return;
+            }
+            if (outcome != Su.Outcome.OK) {
+                android.widget.Toast.makeText(this, "Not changed without root: in the screen "
+                                + "saver settings, set \"When to start\" to \""
+                                + WHEN_TO_START[which] + "\"",
+                        android.widget.Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (mWhenButton != null) {
+                mWhenButton.setText(whenLabel());
+            }
+            if (keys[0] == 1) {
+                offerStandbyOff();
+            }
+        }), commands.toArray(new String[0]));
+    }
+
+    /** ZUI's Standby mode lets only its own standby screen show: its own switch turns it off. */
+    private void offerStandbyOff() {
+        int standby;
+        try {
+            standby = Settings.Secure.getInt(getContentResolver(), "standby_mode_switch", 0);
+        } catch (Throwable t) {
+            return;
+        }
+        if (standby != 1) {
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("ZUI's Standby mode is on")
+                .setMessage("While it is, only ZUI's own standby screen shows when the tablet "
+                        + "charges, never this screen saver. Turn ZUI's Standby mode off?")
+                .setPositiveButton("Turn it off", (d, w) -> Su.run(outcome -> runOnUiThread(() ->
+                        android.widget.Toast.makeText(this, outcome == Su.Outcome.OK
+                                        ? "ZUI's Standby mode is off"
+                                        : "Not changed without root: turn Standby mode off in "
+                                        + "ZUI's settings", android.widget.Toast.LENGTH_LONG)
+                                .show()), "settings put secure standby_mode_switch 0"))
+                .setNegativeButton("Keep it", null)
+                .show();
     }
 
     private LinearLayout.LayoutParams rowParams() {

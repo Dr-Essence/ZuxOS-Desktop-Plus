@@ -187,7 +187,34 @@ final class SystemNames {
     static final String IS_DREAMING_ALLOWED = "isDreamingAllowed";
     static final String ZUI_STANDBY_MODE_MANAGER = "android.app.ZuiStandbyModeManager";
     static final String GET_SWITCH_FOR_STANDBY = "getSwitchForStandby";
+    /** The power manager's own "when to start" and power fields, and a power group's state. */
+    static final String GET_WAKEFULNESS_LOCKED = "getWakefulnessLocked";
+    static final String M_DREAMS_ACTIVATE_ON_SLEEP_SETTING = "mDreamsActivateOnSleepSetting";
+    static final String M_DREAMS_ACTIVATE_ON_DOCK_SETTING = "mDreamsActivateOnDockSetting";
+    static final String M_DOCK_STATE = "mDockState";
+    static final String M_IS_POWERED = "mIsPowered";
     static final String DUMP = "dump";
+    /**
+     * A screen saver's copy on the other screen: where its activity is started
+     * ({@code ActivityTaskManagerService.startDreamActivityInternal}), the dream manager's report
+     * that it stopped, the activity and its surface, the other screen's overlay layer, Android's
+     * surface mirror, and the power manager's input from each screen.
+     */
+    static final String START_DREAM_ACTIVITY_INTERNAL = "startDreamActivityInternal";
+    static final String DREAM_MANAGER_SERVICE = "com.android.server.dreams.DreamManagerService";
+    static final String REPORT_DREAMING_STOPPED = "reportDreamingStopped";
+    static final String M_GLOBAL_LOCK = "mGlobalLock";
+    static final String GET_ACTIVITY = "getActivity";
+    static final String FINISHING = "finishing";
+    static final String GET_SURFACE_CONTROL = "getSurfaceControl";
+    static final String GET_OVERLAY_LAYER = "getOverlayLayer";
+    static final String GET_DISPLAY_INFO = "getDisplayInfo";
+    static final String LOGICAL_WIDTH = "logicalWidth";
+    static final String LOGICAL_HEIGHT = "logicalHeight";
+    static final String MIRROR_SURFACE = "mirrorSurface";
+    static final String USER_ACTIVITY_FROM_NATIVE = "userActivityFromNative";
+    static final String STOP_DREAM = "stopDream";
+    static final String M_HANDLER = "mHandler";
     /** The input manager as a service: in the system, the input manager itself. */
     static final String SERVICE_MANAGER = "android.os.ServiceManager";
     static final String INPUT_SERVICE = "input";

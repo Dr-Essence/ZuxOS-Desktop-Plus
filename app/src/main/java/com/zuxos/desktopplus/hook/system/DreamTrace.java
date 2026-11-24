@@ -20,6 +20,12 @@ import de.robv.android.xposed.XposedBridge;
  * less than a minute. So each time the power manager looks, what it read and whether a screen
  * saver runs is written, when that differs from the last time, a few lines an hour at most.
  * Nothing is changed.
+ *
+ * <p>A screen going off without a screen saver is a dream too: SystemUI's always-on display
+ * ({@code DozeService}). So the line says which it is, from the group's state (2 a screen saver,
+ * 3 dozing), and the power manager's own "when to start" fields: a screen saver only when "while
+ * charging" is set, or "while docked" with a dock Android knows ({@code mDockState}, which a USB-C
+ * hub never sets), and only on power.
  */
 public final class DreamTrace {
 
@@ -68,11 +74,27 @@ public final class DreamTrace {
                 Object allowed = Reflect.field(param.thisObject, SystemNames.IS_DREAMING_ALLOWED);
                 Object standbySwitch = sStandbySwitch == null ? null
                         : sStandbySwitch.invoke(null);
-                String line = "dreaming " + dreaming + "; ZUI's standby mode " + standby
-                        + ", its switch " + standbySwitch + ", a screen saver allowed " + allowed
+                Object state = param.args.length == 0 ? null : Reflect.call(param.thisObject,
+                        SystemNames.GET_WAKEFULNESS_LOCKED, param.args[0]);
+                Object onSleep = Reflect.field(param.thisObject,
+                        SystemNames.M_DREAMS_ACTIVATE_ON_SLEEP_SETTING);
+                Object onDock = Reflect.field(param.thisObject,
+                        SystemNames.M_DREAMS_ACTIVATE_ON_DOCK_SETTING);
+                Object dock = Reflect.field(param.thisObject, SystemNames.M_DOCK_STATE);
+                Object powered = Reflect.field(param.thisObject, SystemNames.M_IS_POWERED);
+                boolean docked = dock instanceof Integer && (Integer) dock != 0;
+                boolean ruledOut = !Boolean.TRUE.equals(onSleep)
+                        && !(Boolean.TRUE.equals(onDock) && docked);
+                String line = "dreaming " + dreaming + " (" + kind(state) + "); a screen saver "
+                        + "starts while charging " + onSleep + ", while docked " + onDock
+                        + " (docked " + docked + "), on power " + powered
+                        + "; ZUI's standby mode " + standby + ", its switch " + standbySwitch
+                        + ", a screen saver allowed " + allowed
                         + (Boolean.TRUE.equals(standby) && Boolean.TRUE.equals(standbySwitch)
                         && !Boolean.TRUE.equals(dreaming)
-                        ? " - only ZUI's own standby screen saver can start" : "");
+                        ? " - only ZUI's own standby screen saver can start" : "")
+                        + (ruledOut ? " - Android's \"when to start\" rules a screen saver out"
+                        : !Boolean.TRUE.equals(powered) ? " - none on battery" : "");
                 if (!take(line)) {
                     return;
                 }
@@ -83,6 +105,25 @@ public final class DreamTrace {
             }
         }
     };
+
+    /** The power group's state in words. */
+    private static String kind(Object state) {
+        if (!(state instanceof Integer)) {
+            return "state " + state;
+        }
+        switch ((Integer) state) {
+            case 0:
+                return "asleep";
+            case 1:
+                return "awake";
+            case 2:
+                return "a screen saver";
+            case 3:
+                return "dozing: the always-on display, not a screen saver";
+            default:
+                return "state " + state;
+        }
+    }
 
     /** Whether this line is written: a change, within the hour's lines. */
     private static synchronized boolean take(String line) {

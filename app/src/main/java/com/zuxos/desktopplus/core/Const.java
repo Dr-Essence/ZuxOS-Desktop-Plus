@@ -188,6 +188,8 @@ public final class Const {
     public static final String KEY_KEEP_WINDOW_ON_LAUNCH = "keep_window_on_launch";
     /** The mouse kept on the monitor: as ZUI's monitor desktop comes on, and as screens wake. */
     public static final String KEY_MOUSE_ON_DESKTOP = "mouse_on_desktop";
+    /** A screen saver shows on both screens while ZUI's monitor desktop is on. */
+    public static final String KEY_DREAM_BOTH_SCREENS = "dream_both_screens";
     /** The tablet's Home opens the tablet's launcher, not a chooser, while the monitor is used. */
     public static final String KEY_NO_HOME_CHOOSER = "no_home_chooser";
     /** The monitor's lock screen is ZUI's Smart Connect one, which unlocks the tablet. */

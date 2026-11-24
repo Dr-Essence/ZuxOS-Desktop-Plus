@@ -448,6 +448,11 @@ public final class Cfg {
         return getBool(Const.KEY_MOUSE_ON_DESKTOP, true);
     }
 
+    /** A screen saver shows on both screens while ZUI's monitor desktop is on. */
+    public static boolean dreamBothScreens() {
+        return getBool(Const.KEY_DREAM_BOTH_SCREENS, true);
+    }
+
     /** The tablet's Home opens the tablet's launcher, not a chooser, while the monitor is used. */
     public static boolean noHomeChooser() {
         return getBool(Const.KEY_NO_HOME_CHOOSER, true);

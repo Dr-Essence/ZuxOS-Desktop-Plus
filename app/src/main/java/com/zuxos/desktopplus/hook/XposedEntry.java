@@ -29,6 +29,7 @@ import com.zuxos.desktopplus.hook.recents.RecentsRoute;
 import com.zuxos.desktopplus.hook.sidebar.SidebarAiWait;
 import com.zuxos.desktopplus.hook.system.BarClearance;
 import com.zuxos.desktopplus.hook.system.BarWithDrawer;
+import com.zuxos.desktopplus.hook.system.DreamBothScreens;
 import com.zuxos.desktopplus.hook.system.DreamTrace;
 import com.zuxos.desktopplus.hook.system.GameTipOff;
 import com.zuxos.desktopplus.hook.system.HomeForItsScreen;
@@ -97,6 +98,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     LaunchPromptOff.install(lpparam.classLoader);
                     LaunchTrace.install(lpparam.classLoader);
                     DreamTrace.install(lpparam.classLoader);
+                    DreamBothScreens.install(lpparam.classLoader);
                 }
                 return;
             }

@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.content.pm.ServiceInfo;
 import android.graphics.Region;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
@@ -40,7 +41,9 @@ import java.lang.reflect.Method;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 /**
@@ -145,6 +148,8 @@ public final class RoadmapProbe {
             dumpsys dreams 2>/dev/null | head -40
             dumpsys power 2>/dev/null | grep -i -E 'dream|sandman|standby' | head -20
             logcat -d -b main,system 2>/dev/null | grep -E 'may be start dream|Starting dream|Dreaming[.][.][.]|Stopping dream|ZuiStandbyModeService' | tail -30
+            echo "--- what Android's screen saver page and the screen savers said (their pictures)"
+            logcat -d -b main,system,crash 2>/dev/null | grep -i -E 'dream|screensaver|preview' | grep -v -E 'Starting dream|Stopping dream|ZuiStandbyModeService|ZuxDesktopPlus' | tail -30
             echo "ZUI's touchpad on the tablet: $(dumpsys activity activities 2>/dev/null | grep -c 'touchpad.TouchPadActivity') record(s)"
             echo "--- the monitor's mode and link (colour bands at 144 Hz: too few lanes for full colour)"
             dumpsys display 2>/dev/null | grep -E 'mActiveModeId|mActiveSfDisplayMode|mUserPreferredModeId' | head -8
@@ -210,6 +215,69 @@ public final class RoadmapProbe {
         section(sb, RoadmapProbe::taskbars);
         section(sb, () -> drawerDrag(ctx));
         section(sb, RoadmapProbe::overflow);
+        section(sb, () -> screenSavers(ctx));
+        return sb.toString();
+    }
+
+    /**
+     * Each app's screen savers, and how many give Android's page a picture: the owner's
+     * xscreensaver shows none on this firmware and does elsewhere. A screen saver's picture is
+     * its {@code previewImage}, read as Android's page reads it
+     * ({@code DreamService.getDreamMetadata}).
+     */
+    private static String screenSavers(Context ctx) throws Exception {
+        StringBuilder sb = new StringBuilder(
+                "\nscreen savers and their pictures (screen savers on both screens)\n");
+        PackageManager pm = ctx.getPackageManager();
+        List<ResolveInfo> found = pm.queryIntentServices(
+                new Intent("android.service.dreams.DreamService"), PackageManager.GET_META_DATA);
+        Method read = null;
+        try {
+            read = Class.forName("android.service.dreams.DreamService")
+                    .getMethod("getDreamMetadata", PackageManager.class, ServiceInfo.class);
+        } catch (Throwable t) {
+            sb.append("  Android's reader of a screen saver's details not found (").append(t)
+                    .append(")\n");
+        }
+        // Per app: screen savers, with their details file, with a picture; and one without.
+        Map<String, int[]> apps = new TreeMap<>();
+        Map<String, String> without = new TreeMap<>();
+        for (ResolveInfo r : found) {
+            ServiceInfo service = r.serviceInfo;
+            if (service == null) {
+                continue;
+            }
+            int[] counts = apps.computeIfAbsent(service.packageName, k -> new int[3]);
+            counts[0]++;
+            if (service.metaData != null
+                    && service.metaData.getInt("android.service.dream", 0) != 0) {
+                counts[1]++;
+            }
+            Object picture = null;
+            try {
+                Object details = read == null ? null : read.invoke(null, pm, service);
+                picture = Reflect.field(details, "previewImage");
+            } catch (Throwable t) {
+                without.putIfAbsent(service.packageName, service.name + " (" + t.getCause()
+                        + ")");
+            }
+            if (picture instanceof Drawable) {
+                counts[2]++;
+            } else {
+                without.putIfAbsent(service.packageName, service.name);
+            }
+        }
+        sb.append("  ").append(found.size()).append(" screen saver(s)\n");
+        for (Map.Entry<String, int[]> e : apps.entrySet()) {
+            int[] c = e.getValue();
+            sb.append("  ").append(e.getKey()).append(": ").append(c[0])
+                    .append(", ").append(c[1]).append(" with their details file, ").append(c[2])
+                    .append(" with a picture");
+            if (without.containsKey(e.getKey())) {
+                sb.append("; none for ").append(without.get(e.getKey()));
+            }
+            sb.append('\n');
+        }
         return sb.toString();
     }
 
