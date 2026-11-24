@@ -38,7 +38,6 @@ import com.zuxos.desktopplus.hook.LockShots;
 import com.zuxos.desktopplus.hook.PowerProbe;
 import com.zuxos.desktopplus.hook.Probe;
 import com.zuxos.desktopplus.hook.RoadmapProbe;
-import com.zuxos.desktopplus.hook.UsbMice;
 import com.zuxos.desktopplus.hook.home.OemBridge;
 import com.zuxos.desktopplus.hook.home.StartAnimation;
 import com.zuxos.desktopplus.hook.home.StockUnlockHooks;
@@ -139,7 +138,6 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
         AppCtx.set(activity);
         mExternal = external;
         KeepAlive.start(activity);
-        UsbMice.start(activity);
         LockShots.start(activity);
         if (external) {
             NotifyPopup.start(activity);

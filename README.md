@@ -327,14 +327,11 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
   game while another heavy app was in sight, then opened it as a small floating window; now the
   app just opens as asked. Needs System Framework ticked in LSPosed.
 - **Mouse stays on the monitor** (optional, on by default). ZUI moved the mouse to the monitor's
-  desktop only at the next change of a screen, so after a reboot it stayed on the tablet, and
-  after the screens woke it could be gone until replugged; now ZUI is asked again as its monitor
-  desktop comes on and as a screen wakes, and at the first lock after a reboot the mouse is on the
-  monitor for its lock screen. Needs System Framework ticked in LSPosed.
-- **USB mice wake reliably** (optional, on by default). A USB mouse could stop after the screens
-  went off, or after a minute idle, until it was unplugged and plugged in again. Now each USB
-  mouse is never put to sleep when idle, and from its next plug-in it is reset when the tablet
-  wakes instead, as Linux does for devices that cannot resume. Needs root.
+  desktop only at the next change of a screen, so after a reboot it stayed on the tablet; and each
+  time the screens slept it went to the tablet and back, after which ZUI's pointer across screens
+  left it dead until replugged. Now ZUI is asked again as its monitor desktop comes on, the mouse
+  stays on the monitor while it sleeps, and at the first lock after a reboot it is on the monitor
+  for its lock screen. Needs System Framework ticked in LSPosed.
 - **Windows stay as they are when they open another app** (optional, on by default). A maximised
   app that opened Files' save or open screen, a picker or a chooser turned into a small floating
   window and lost its floating size; now it stays maximised, floating or in Full screen. Needs

@@ -478,20 +478,14 @@ public class MainActivity extends Activity {
                         + "ticked for this module in LSPosed",
                 Const.KEY_KEEP_WINDOW_ON_LAUNCH, true);
         addSwitch("Mouse stays on the monitor",
-                "ZUI puts the mouse on the monitor's desktop only once a screen changes, so after "
-                        + "a reboot it stayed on the tablet, and after the screens woke it could "
-                        + "be gone until replugged. On, ZUI is asked again as its monitor desktop "
-                        + "comes on and as a screen wakes, and at the first lock after a reboot "
-                        + "the mouse is on the monitor for its lock screen. Needs System Framework "
-                        + "ticked for this module in LSPosed",
+                "ZUI put the mouse on the monitor's desktop only once a screen changed, so after "
+                        + "a reboot it stayed on the tablet; and each time the screens slept it "
+                        + "went to the tablet and back, after which it was dead until replugged. "
+                        + "On, ZUI is asked again as its monitor desktop comes on, the mouse stays "
+                        + "on the monitor while it sleeps, and at the first lock after a reboot it "
+                        + "is on the monitor for its lock screen. Needs System Framework ticked "
+                        + "for this module in LSPosed",
                 Const.KEY_MOUSE_ON_DESKTOP, true);
-        addSwitch("USB mice wake reliably",
-                "A USB mouse could stop after the screens went off, or after a minute idle, "
-                        + "until it was unplugged and plugged in again. On, each USB mouse is "
-                        + "never put to sleep when idle, and from its next plug-in it is reset "
-                        + "when the tablet wakes instead, as Linux does for such devices. "
-                        + "Needs root",
-                Const.KEY_USB_MICE_RESET, true);
         addSwitch("No launcher chooser on the tablet",
                 "Android could forget its saved home and ask which launcher to use, at boot and "
                         + "at Home. On, the tablet's home is the default home app Android's "

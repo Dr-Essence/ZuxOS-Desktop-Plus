@@ -131,12 +131,14 @@ public final class RoadmapProbe {
             dumpsys input 2>/dev/null | grep -i -E 'Device [0-9]+:|Enabled:|Sources:|PointerChoreographer|MouseDisplay|PointerDisplay|DefaultMouse' | head -120
             echo "--- who holds the pointer: touch state, pointer capture, gesture monitors (a mouse that stops until replugged)"
             dumpsys input 2>/dev/null | grep -i -E 'TouchStates|TouchedWindow|touchedWindows|Window:|PointerCapture|pointer capture|Capture|GestureMonitor|Monitors|FocusedWindow|FocusedDisplay|pilfer' | head -80
-            echo "--- each USB device asleep or awake, and reset on wake (a mouse that does not come back from a sleep)"
+            echo "--- each USB device asleep or awake (a mouse that does not come back from a sleep)"
             for d in /sys/bus/usb/devices/*; do
               [ -f "$d/product" ] && echo "$(cat "$d/product" 2>/dev/null) ($(cat "$d/idVendor" 2>/dev/null):$(cat "$d/idProduct" 2>/dev/null), ${d##*/}): control $(cat "$d/power/control" 2>/dev/null), now $(cat "$d/power/runtime_status" 2>/dev/null), wakeup $(cat "$d/power/wakeup" 2>/dev/null), sleeps after $(cat "$d/power/autosuspend_delay_ms" 2>/dev/null) ms, quirks $(cat "$d/quirks" 2>/dev/null)"
             done | head -24
-            echo "the kernel's quirk list: $(cat /sys/module/usbcore/parameters/quirks 2>/dev/null)"
             echo "the tablet has slept $(cat /sys/power/suspend_stats/success 2>/dev/null) times; last woken by $(head -3 /sys/kernel/wakeup_reasons/last_resume_reason 2>/dev/null | tr '\n' ' ')"
+            echo "--- ZUI's pointer across screens (a mouse sent to a screen with no pointer: dead until replugged)"
+            echo "projection_mode_last_value $(settings get system projection_mode_last_value 2>/dev/null), extend_screen_position $(settings get global extend_screen_position 2>/dev/null), zui_pointer_display_change $(settings get global zui_pointer_display_change 2>/dev/null)"
+            logcat -d -b main -s PointerChoreographer MouseCursorController InputManagerServiceDelegate InputManager-JNI 2>/dev/null | tail -60
             echo "ZUI's touchpad on the tablet: $(dumpsys activity activities 2>/dev/null | grep -c 'touchpad.TouchPadActivity') record(s)"
             echo "--- the monitor's mode and link (colour bands at 144 Hz: too few lanes for full colour)"
             dumpsys display 2>/dev/null | grep -E 'mActiveModeId|mActiveSfDisplayMode|mUserPreferredModeId' | head -8

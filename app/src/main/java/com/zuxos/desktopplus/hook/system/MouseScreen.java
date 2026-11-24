@@ -24,26 +24,29 @@ import de.robv.android.xposed.XposedBridge;
  * flag when its monitor desktop comes on
  * ({@code OVDesktopController.enterExternalDisplayDesktopMode}) - but never tells the input
  * system, which asks that rule only when the screens change. At boot the screens settle before
- * ZUI's desktop comes on, so the mouse stayed on the tablet. And when the screens wake, the input
- * system has the monitor back before the window manager has taken its new state
- * ({@code DisplayContent.onDisplayInfoUpdated}), so the rule still read it as off and gave the
- * tablet: the mouse was gone from the monitor until it was replugged.
+ * ZUI's desktop comes on, so the mouse stayed on the tablet. So when ZUI turns its monitor desktop
+ * on or off, the input system is handed its own screens again
+ * ({@code InputManagerService.setDisplayViewportsInternal}, with the ones it has), the call a
+ * change of screen makes, and it asks ZUI's rule again. It runs on the display manager's thread,
+ * where those changes are handed over, so it never races one and never runs under the window
+ * manager's lock.
  *
- * <p>So when ZUI turns its monitor desktop on or off, and when the window manager takes a screen's
- * going off or coming back while that desktop is on, the input system is handed its own screens
- * again ({@code InputManagerService.setDisplayViewportsInternal}, with the ones it has), the call
- * a change of screen makes, and it asks ZUI's rule again, which now reads what it lacked. It runs
- * on the display manager's thread, where those changes are handed over, so it never races one and
- * never runs under the window manager's lock. The rule's answer is written as it changes, with
- * what it read.
+ * <p>The rule skips a screen that is off, so each time the screens slept the mouse went to the
+ * tablet and back. ZUI's own pointer across screens keeps, for each mouse, the screen it is on,
+ * and after such a flip it kept sending the mouse to the tablet, where there was no pointer any
+ * more: the input system dropped every move and click ("No mouse pointer controller found for
+ * display 0"), with everything else as it should be, until a replug made the mouse a new device.
+ * So while ZUI's monitor desktop is on and its screen is there, the rule's tablet becomes that
+ * screen, asleep or not: the mouse never leaves the monitor while it sleeps, and moving it still
+ * wakes the tablet, the monitor being one of its screens.
  *
  * <p>At the first lock after a boot ZUI's monitor desktop is not up yet - ZUX Home waits for the
  * first unlock - so the rule gave the tablet, and the monitor's lock screen could not be clicked.
  * So while the lock screen is up before ZUI's monitor desktop, with the monitor set to be that
  * desktop ({@code zui_dp_display_pc_mode} = 1, which ZUI turns off at boot until that desktop is
- * up - so also before the first unlock since boot) and on, the rule's tablet becomes that screen;
- * once ZUI's desktop is up, its rule decides alone. The switch is read at boot and when the
- * settings change ({@link SystemBridge}).
+ * up - so also before the first unlock since boot), the rule's tablet becomes that screen, asleep
+ * or not. The rule's answer is written as it changes, with what it read. The switch is read at
+ * boot and when the settings change ({@link SystemBridge}).
  */
 public final class MouseScreen {
 
@@ -73,8 +76,6 @@ public final class MouseScreen {
     private static Method sLocalService;
     private static Class<?> sUsersClass;
     private static Method sUnlocked;
-    /** The state a screen had as the window manager took a new one, on that thread. */
-    private static final ThreadLocal<Integer> BEFORE = new ThreadLocal<>();
     /** The rule's answer last written, MIN_VALUE before the first; and this hour's lines. */
     private static volatile int sRuleDisplay = Integer.MIN_VALUE;
     private static long sRuleHour = -1;
@@ -127,12 +128,9 @@ public final class MouseScreen {
                         + "ZUI's alone");
                 return;
             }
-            int woke = XposedBridge.hookAllMethods(screen, SystemNames.ON_DISPLAY_INFO_UPDATED,
-                    STATE).size();
             reread();
             L.i("mouse screen: asked again as ZUI's monitor desktop turns on and off x" + hooked
-                    + ", and as a screen goes off or comes back x" + woke
-                    + (sOn ? "" : ", switched off"));
+                    + ", and kept on the monitor while it sleeps" + (sOn ? "" : ", switched off"));
         } catch (Throwable t) {
             L.w("mouse screen: not installed, the mouse's screen is ZUI's alone (" + t + ")");
         }
@@ -161,40 +159,6 @@ public final class MouseScreen {
             } catch (Throwable t) {
                 if (L.once("MouseScreen.post")) {
                     L.w("mouse screen: not asked again, the mouse stays where it was (" + t + ")");
-                }
-            }
-        }
-    };
-
-    /**
-     * A screen's new state reaching the window manager: when it went off or came back while ZUI's
-     * monitor desktop is on, the rule that skips screens that are off is asked again.
-     */
-    private static final XC_MethodHook STATE = new XC_MethodHook() {
-        @Override
-        protected void beforeHookedMethod(MethodHookParam param) {
-            try {
-                BEFORE.set(sOn ? state(param.thisObject) : null);
-            } catch (Throwable t) {
-                BEFORE.remove();
-            }
-        }
-
-        @Override
-        protected void afterHookedMethod(MethodHookParam param) {
-            try {
-                Integer before = BEFORE.get();
-                BEFORE.remove();
-                Integer after = state(param.thisObject);
-                if (before == null || after == null || (before == OFF) == (after == OFF)
-                        || !sOn || !Boolean.TRUE.equals(sDesktopOn.invoke(null))) {
-                    return;
-                }
-                post("screen " + Reflect.call(param.thisObject, SystemNames.GET_DISPLAY_ID)
-                        + (after == OFF ? " off" : " back"));
-            } catch (Throwable t) {
-                if (L.once("MouseScreen.state")) {
-                    L.w("mouse screen: not asked again as a screen woke (" + t + ")");
                 }
             }
         }
@@ -259,7 +223,16 @@ public final class MouseScreen {
             try {
                 Object result = param.getResult();
                 if (Integer.valueOf(0).equals(result) && sOn) {
-                    Integer early = beforeDesktop(param.thisObject);
+                    Integer kept = asleep(param.thisObject);
+                    if (kept != null) {
+                        param.setResult(kept);
+                        result = kept;
+                        if (L.once("MouseScreen.asleep")) {
+                            L.i("mouse screen: the monitor asleep, the mouse kept on it (ZUI's rule"
+                                    + " gave the tablet)");
+                        }
+                    }
+                    Integer early = kept != null ? null : beforeDesktop(param.thisObject);
                     if (early != null) {
                         param.setResult(early);
                         result = early;
@@ -287,10 +260,29 @@ public final class MouseScreen {
     };
 
     /**
+     * ZUI's monitor desktop's screen while that desktop is on and the screen is there, whether it
+     * is on or off; null otherwise.
+     */
+    private static Integer asleep(Object callback) throws Exception {
+        if (sDesktopOn == null || !Boolean.TRUE.equals(sDesktopOn.invoke(null))) {
+            return null;
+        }
+        Object id = sDesktopDisplay.invoke(null);
+        if (!(id instanceof Integer) || (Integer) id <= 0) {
+            return null;
+        }
+        Object root = Reflect.field(Reflect.field(callback, SystemNames.M_SERVICE),
+                SystemNames.M_ROOT);
+        Object screen = root == null ? null : root.getClass()
+                .getMethod(SystemNames.GET_DISPLAY_CONTENT, int.class).invoke(root, id);
+        return screen == null ? null : (Integer) id;
+    }
+
+    /**
      * The monitor that is to be ZUI's desktop, while the lock screen is up before that desktop
-     * is: an external screen that is on, with {@code zui_dp_display_pc_mode} = 1 - or before the
-     * first unlock since boot, which ZUI turns that setting off for until its desktop is up. Null
-     * otherwise, and once ZUI's desktop is up.
+     * is: an external screen, on or asleep, with {@code zui_dp_display_pc_mode} = 1 - or before
+     * the first unlock since boot, which ZUI turns that setting off for until its desktop is up.
+     * Null otherwise, and once ZUI's desktop is up.
      */
     private static Integer beforeDesktop(Object callback) throws Exception {
         if (sDesktopOn == null || sType == null
@@ -318,8 +310,7 @@ public final class MouseScreen {
         for (Object screen : new ArrayList<>((List<?>) screens)) {
             Object info = sScreenInfo.getDeclaringClass().isInstance(screen)
                     ? sScreenInfo.get(screen) : null;
-            if (info != null && sType.getInt(info) == EXTERNAL && sState.getInt(info) != OFF
-                    && sDisplayId.getInt(info) != 0) {
+            if (info != null && sType.getInt(info) == EXTERNAL && sDisplayId.getInt(info) != 0) {
                 return sDisplayId.getInt(info);
             }
         }

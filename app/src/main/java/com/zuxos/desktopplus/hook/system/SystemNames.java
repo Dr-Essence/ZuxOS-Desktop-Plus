@@ -171,17 +171,12 @@ final class SystemNames {
     /** The window manager's answer to which screen the mouse's pointer belongs on. */
     static final String INPUT_MANAGER_CALLBACK = "com.android.server.wm.InputManagerCallback";
     static final String GET_POINTER_DISPLAY_ID = "getPointerDisplayId";
-    /**
-     * What that rule reads: the window manager's flag ZUI sets, and each screen's power state as
-     * the window manager has it, which it takes after the input system has the screen
-     * ({@code DisplayContent.onDisplayInfoUpdated}).
-     */
+    /** What that rule reads: the window manager's flag ZUI sets, and each screen's power state. */
     static final String M_FORCE_DESKTOP_MODE_ON_EXTERNAL_DISPLAYS =
             "mForceDesktopModeOnExternalDisplays";
     static final String M_ROOT = "mRoot";
     static final String GET_DISPLAY_CONTENT = "getDisplayContent";
     static final String DISPLAY_CONTENT = "com.android.server.wm.DisplayContent";
-    static final String ON_DISPLAY_INFO_UPDATED = "onDisplayInfoUpdated";
     static final String M_DISPLAY_INFO = "mDisplayInfo";
     static final String DISPLAY_INFO = "android.view.DisplayInfo";
     static final String STATE = "state";

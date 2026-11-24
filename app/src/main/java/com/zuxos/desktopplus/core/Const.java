@@ -192,8 +192,6 @@ public final class Const {
     public static final String KEY_NO_HOME_CHOOSER = "no_home_chooser";
     /** The monitor's lock screen is ZUI's Smart Connect one, which unlocks the tablet. */
     public static final String KEY_UNLOCK_ON_MONITOR = "unlock_on_monitor";
-    /** USB mice are reset when the tablet wakes, instead of left dead until replugged. */
-    public static final String KEY_USB_MICE_RESET = "usb_mice_reset";
     /** Over an app that hides the bars, the taskbar shows with the drawer and its panels. */
     public static final String KEY_BAR_WITH_DRAWER = "bar_with_drawer";
     /** The game launcher chosen in the settings: a package name, or empty for none. */
