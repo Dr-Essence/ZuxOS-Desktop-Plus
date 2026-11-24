@@ -30,6 +30,8 @@ import com.zuxos.desktopplus.hook.sidebar.SidebarAiWait;
 import com.zuxos.desktopplus.hook.system.BarClearance;
 import com.zuxos.desktopplus.hook.system.BarWithDrawer;
 import com.zuxos.desktopplus.hook.system.GameTipOff;
+import com.zuxos.desktopplus.hook.system.HomeForItsScreen;
+import com.zuxos.desktopplus.hook.system.KeepWindowOnLaunch;
 import com.zuxos.desktopplus.hook.system.LaunchPromptOff;
 import com.zuxos.desktopplus.hook.system.LaunchTrace;
 import com.zuxos.desktopplus.hook.system.MouseScreen;
@@ -86,6 +88,8 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     SystemGamepad.install(lpparam.classLoader);
                     TouchScreens.install(lpparam.classLoader);
                     MouseScreen.install(lpparam.classLoader);
+                    KeepWindowOnLaunch.install(lpparam.classLoader);
+                    HomeForItsScreen.install(lpparam.classLoader);
                     BarClearance.install(lpparam.classLoader);
                     GameTipOff.install(lpparam.classLoader);
                     BarWithDrawer.install(lpparam.classLoader);
@@ -112,7 +116,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     if (Cfg.fullScreen()) {
                         FullScreenMenu.install(lpparam.classLoader);
                     }
-                    LockScreenDisplays.trace(lpparam.classLoader);
+                    LockScreenDisplays.install(lpparam.classLoader);
                 }
                 return;
             }

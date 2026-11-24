@@ -2,6 +2,7 @@ package com.zuxos.desktopplus.hook.system;
 
 import android.content.pm.ActivityInfo;
 import android.graphics.Rect;
+import android.os.SystemClock;
 
 import com.zuxos.desktopplus.core.L;
 import com.zuxos.desktopplus.core.Reflect;
@@ -22,7 +23,8 @@ import de.robv.android.xposed.XposedBridge;
  * abort a start - and says so only in logcat, which keeps a few seconds. So each launch while the
  * desktop is on is written to the module's log, which keeps the whole boot: the app, who
  * launched it, the screen of the window it came from, the screen in focus, ZUI's choice, where it
- * landed and the result. Nothing is changed, and the lines stop after {@link #MAX_LINES}.
+ * landed and the result. Nothing is changed, and there are at most {@link #MAX_LINES} lines an
+ * hour, so a whole day stays in the log, not only its first hour.
  *
  * <p>Each line also has the window's size as it opened, and each size ZUI keeps for an app's
  * next window on the monitor is written down as it is kept ({@code LaunchParamsPersister
@@ -42,6 +44,7 @@ public final class LaunchTrace {
     private static final int MAX_SAVES = 40;
     private static final int MAX_ERRORS = 20;
     private static final int MAX_HOMES = 30;
+    private static final long HOUR_MS = 3_600_000L;
     /** How much of the background-start verdict is kept: its code and reason come first. */
     private static final int VERDICT_CHARS = 90;
 
@@ -57,6 +60,8 @@ public final class LaunchTrace {
     /** What the home resolved to last, so an unchanged one is not written again. */
     private static String sHome;
     private static int sHomes;
+    /** The hour the counts above are for. */
+    private static long sHour = -1;
 
     private LaunchTrace() {
     }
@@ -140,6 +145,7 @@ public final class LaunchTrace {
     private static final XC_MethodHook HOME_RESOLVED = new XC_MethodHook() {
         @Override
         protected void afterHookedMethod(MethodHookParam param) {
+            newHour();
             if (sHomes >= MAX_HOMES || sErrors > MAX_ERRORS) {
                 return;
             }
@@ -157,7 +163,7 @@ public final class LaunchTrace {
                 String why = HOME_FOR.get();
                 L.i("launch trace: the home" + (why != null ? " (" + why + ")" : "")
                         + " resolves to " + to
-                        + (++sHomes == MAX_HOMES ? " (the last line of this boot)" : ""));
+                        + (++sHomes == MAX_HOMES ? " (the last line this hour)" : ""));
             } catch (Throwable t) {
                 if (++sErrors == MAX_ERRORS) {
                     L.w("launch trace: stopped for this boot (" + t + ")");
@@ -169,6 +175,7 @@ public final class LaunchTrace {
     private static final XC_MethodHook AFTER = new XC_MethodHook() {
         @Override
         protected void afterHookedMethod(MethodHookParam param) {
+            newHour();
             if (sLines >= MAX_LINES || sErrors > MAX_ERRORS) {
                 return;
             }
@@ -179,7 +186,7 @@ public final class LaunchTrace {
                 Object result = param.getResult();
                 String line = describe(param.thisObject, param.args, result);
                 if (++sLines == MAX_LINES) {
-                    line += " (the last line of this boot)";
+                    line += " (the last line this hour)";
                 }
                 L.i(line);
             } catch (Throwable t) {
@@ -194,6 +201,7 @@ public final class LaunchTrace {
     private static final XC_MethodHook SAVED_SIZE = new XC_MethodHook() {
         @Override
         protected void afterHookedMethod(MethodHookParam param) {
+            newHour();
             if (sSaves >= MAX_SAVES || sErrors > MAX_ERRORS) {
                 return;
             }
@@ -212,7 +220,7 @@ public final class LaunchTrace {
                     return;
                 }
                 L.i("launch trace: ZUI keeps " + app + "'s window on display " + display + ": "
-                        + kept + (++sSaves == MAX_SAVES ? " (the last line of this boot)" : ""));
+                        + kept + (++sSaves == MAX_SAVES ? " (the last line this hour)" : ""));
             } catch (Throwable t) {
                 if (++sErrors == MAX_ERRORS) {
                     L.w("launch trace: stopped for this boot (" + t + ")");
@@ -225,6 +233,7 @@ public final class LaunchTrace {
     private static final XC_MethodHook HANDED_BACK = new XC_MethodHook() {
         @Override
         protected void afterHookedMethod(MethodHookParam param) {
+            newHour();
             if (sSaves >= MAX_SAVES || sErrors > MAX_ERRORS) {
                 return;
             }
@@ -246,7 +255,7 @@ public final class LaunchTrace {
                     return;
                 }
                 L.i("launch trace: ZUI hands " + app + " back " + back
-                        + (++sSaves == MAX_SAVES ? " (the last line of this boot)" : ""));
+                        + (++sSaves == MAX_SAVES ? " (the last line this hour)" : ""));
             } catch (Throwable t) {
                 if (++sErrors == MAX_ERRORS) {
                     L.w("launch trace: stopped for this boot (" + t + ")");
@@ -254,6 +263,17 @@ public final class LaunchTrace {
             }
         }
     };
+
+    /** The counts start again each hour, so a long day stays in the log. */
+    private static synchronized void newHour() {
+        long hour = SystemClock.elapsedRealtime() / HOUR_MS;
+        if (hour != sHour) {
+            sHour = hour;
+            sLines = 0;
+            sSaves = 0;
+            sHomes = 0;
+        }
+    }
 
     private static String describe(Object starter, Object[] args, Object result) {
         Object record = args.length > 0 ? args[0] : null;

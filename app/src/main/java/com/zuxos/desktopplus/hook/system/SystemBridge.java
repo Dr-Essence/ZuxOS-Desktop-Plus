@@ -26,7 +26,8 @@ import com.zuxos.desktopplus.hook.Targets;
  * <p>Only the launchers this module runs in, the shell and root may ask; the request names a task
  * and nothing else. Its thread also reads the system side's switches again when the settings
  * change, for those that must not be read where they are used ({@link BarClearance},
- * {@link GameTipOff}, {@link LaunchPromptOff}, {@link BarWithDrawer}, {@link MouseScreen}).
+ * {@link GameTipOff}, {@link LaunchPromptOff}, {@link BarWithDrawer}, {@link MouseScreen},
+ * {@link KeepWindowOnLaunch}, {@link HomeForItsScreen}).
  */
 public final class SystemBridge {
 
@@ -93,6 +94,8 @@ public final class SystemBridge {
                     GameTipOff.reread();
                     LaunchPromptOff.reread();
                     MouseScreen.reread();
+                    KeepWindowOnLaunch.reread();
+                    HomeForItsScreen.reread();
                     BarWithDrawer.reread();
                     return;
                 }

@@ -6,6 +6,7 @@ import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.graphics.Rect;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
 import android.view.Display;
@@ -22,6 +23,7 @@ import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.core.Ui;
 import com.zuxos.desktopplus.core.icons.Glyphs;
 import com.zuxos.desktopplus.core.motion.Motion;
+import com.zuxos.desktopplus.logic.BarShade;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -46,7 +48,8 @@ import de.robv.android.xposed.XposedBridge;
  * item's id and the bar's own click listener ({@code DesktopModeTouchEventListener}, the one the
  * menu's items reach), so a click runs what the menu does - ZUI's minimise, its full screen or
  * floating, its close, with its checks and toasts. The pictures are ZUI's desktop-mode buttons,
- * light or dark by the night mode as ZUI picks them. Left of close, our Full screen
+ * light or dark for the bar they sit on ({@link BarShade}: its own colour, else the app's own
+ * top, else the night mode, as ZUI picks them). Left of close, our Full screen
  * ({@link FullScreenWindows#askToggle}), as the menu's row of ours asks for it; first, left of
  * minimise, our pin, which keeps a floating window above all others ({@link KeepOnTop}). The
  * row ends where ZUI's resize corner begins. Like ZUI's dots, the buttons are not reported to
@@ -214,11 +217,13 @@ public final class WindowButtons {
             }
         }
         boolean night = night(caption.getContext());
+        // Our solid bar is ZUI's own colour for the night mode; any other shows what is under it.
+        boolean dark = solid(task) ? night : dark(caption, task, night);
         boolean floating = mode == FREEFORM;
         if (wanted && !floating) {
             KeepOnTop.maximised(sLoader, task.taskId);
         }
-        row.show(wanted, floating, night, task.taskId, displayOf(task),
+        row.show(wanted, floating, dark, task.taskId, displayOf(task),
                 floating && KeepOnTop.shown(task));
         if (wanted && solid(task)) {
             // ZUI clears a maximised window's bar; over a full-screen app's header nothing would
@@ -388,6 +393,31 @@ public final class WindowButtons {
                         : SysUiNames.ZUI_DESKTOP_MODE_CAPTION_BAR_NORMAL_NO_FOCUS);
         int id = ctx.getResources().getIdentifier(name, "color", ctx.getPackageName());
         return id == 0 ? 0 : ctx.getColor(id);
+    }
+
+    /**
+     * Whether the bar under the buttons is dark ({@link BarShade}): its own colour, else the
+     * app's own top as its task description has it, else the night mode. One line a task, when
+     * that is not the night mode.
+     */
+    private static boolean dark(View caption, ActivityManager.RunningTaskInfo task,
+            boolean night) {
+        Drawable background = caption.getBackground();
+        int bar = background instanceof ColorDrawable ? ((ColorDrawable) background).getColor() : 0;
+        Object description = task.taskDescription;
+        Object appearance = description == null ? null
+                : Reflect.call(description, SysUiNames.GET_SYSTEM_BARS_APPEARANCE);
+        Object status = description == null ? null
+                : Reflect.call(description, SysUiNames.GET_STATUS_BAR_COLOR);
+        boolean dark = BarShade.dark(bar, appearance instanceof Integer ? (Integer) appearance : 0,
+                status instanceof Integer ? (Integer) status : 0, night);
+        if (dark != night && L.once("WindowButtons.shade." + task.taskId + dark)) {
+            L.i("window buttons: task " + task.taskId + "'s bar is " + (dark ? "dark" : "light")
+                    + " (bar 0x" + Integer.toHexString(bar) + ", app top " + appearance + "/0x"
+                    + (status instanceof Integer ? Integer.toHexString((Integer) status) : "?")
+                    + ") - its buttons drawn " + (dark ? "light" : "dark"));
+        }
+        return dark;
     }
 
     /** ZUI's own night test for its title bars' light or dark buttons. */
@@ -635,8 +665,8 @@ public final class WindowButtons {
         /** The window the bar stands for now, for our Full screen. */
         int taskId = -1;
         int display = Display.DEFAULT_DISPLAY;
-        /** The shade the bar was last shown in, for the pin's glyph on its click. */
-        boolean night;
+        /** Whether the bar was last shown dark, for the pin's glyph on its click. */
+        boolean dark;
 
         Row(View balance, View buttons, View pill, ImageView pin, ImageView minimize,
                 ImageView toggle, ImageView full, ImageView close) {
@@ -655,7 +685,7 @@ public final class WindowButtons {
          * one's its floating, and only a floating window has the pin. ZUI's "normal" pictures
          * are dark glyphs for a light theme.
          */
-        void show(boolean shown, boolean floating, boolean night, int taskId, int display,
+        void show(boolean shown, boolean floating, boolean dark, int taskId, int display,
                 boolean onTop) {
             int visibility = shown ? View.VISIBLE : View.GONE;
             if (buttons.getVisibility() != visibility) {
@@ -672,9 +702,9 @@ public final class WindowButtons {
             }
             this.taskId = taskId;
             this.display = display;
-            this.night = night;
+            this.dark = dark;
             Ids ids = sIds;
-            int[] pictures = night ? ids.dark : ids.light;
+            int[] pictures = dark ? ids.dark : ids.light;
             minimize.setImageResource(pictures[0]);
             toggle.setId(floating ? ids.fullscreen : ids.freeform);
             toggle.setContentDescription(floating ? "Maximise" : "Restore");
@@ -682,7 +712,7 @@ public final class WindowButtons {
             close.setImageResource(pictures[3]);
             if (full != null) {
                 boolean on = FullScreenWindows.has(taskId);
-                glyph(full, on ? Glyphs.EXIT_FULL_SCREEN : Glyphs.FULL_SCREEN, night);
+                glyph(full, on ? Glyphs.EXIT_FULL_SCREEN : Glyphs.FULL_SCREEN, dark);
                 full.setContentDescription(on ? FullScreenWire.EXIT : FullScreenWire.ENTER);
             }
             if (pin != null) {
@@ -708,7 +738,7 @@ public final class WindowButtons {
         }
 
         private void mark(boolean onTop) {
-            glyph(pin, onTop ? Glyphs.UNPIN : Glyphs.PIN, night);
+            glyph(pin, onTop ? Glyphs.UNPIN : Glyphs.PIN, dark);
             pin.setContentDescription(onTop ? LET_GO : KEEP_ON_TOP);
         }
 
@@ -724,12 +754,12 @@ public final class WindowButtons {
         }
 
         /** One of our glyphs on a button, tinted and sized as ZUI's own buttons are drawn. */
-        private static void glyph(ImageView button, int which, boolean night) {
+        private static void glyph(ImageView button, int which, boolean dark) {
             Drawable glyph = Glyphs.of(which);
             if (glyph == null) {
                 return;
             }
-            glyph.setTint(night ? GLYPH_DARK : GLYPH_LIGHT);
+            glyph.setTint(dark ? GLYPH_DARK : GLYPH_LIGHT);
             // Our glyphs have no size of their own: ZUI's buttons' drawn size.
             LayerDrawable sized = new LayerDrawable(new Drawable[]{glyph});
             int px = Ui.dp(button.getContext(), GLYPH_DP);

@@ -41,11 +41,9 @@ import de.robv.android.xposed.XposedBridge;
  * tied afresh. The screens handed over are written to the log at each change, and so are the
  * mice (they are never tied: they follow the pointer's screen); as one goes - a mouse that
  * stopped is brought back by replugging it - so is the input system's own account of where its
- * pointer and the focus were. Which screen the window manager gives the mouse's pointer each time
- * the screens change ({@code InputManagerCallback.getPointerDisplayId}) is written as it changes:
- * after a boot the pointer sat on the tablet while the monitor had the focus. Nothing runs at load
- * time but the hooks; everything is in try/catch, on the threads the system already runs these
- * on.
+ * pointer and the focus were. Which screen the window manager gives the mouse is
+ * {@link MouseScreen}'s. Nothing runs at load time but the hooks; everything is in try/catch, on
+ * the threads the system already runs these on.
  */
 public final class TouchScreens {
 
@@ -65,11 +63,6 @@ public final class TouchScreens {
             + "|Pointer Capture|PointerCapture|DispatchEnabled|DispatchFrozen|InputFilter)");
     /** At most this many of its lines, in one entry. */
     private static final int STATE_LINES = 80;
-    /** At most this many changes of the mouse's screen written in a boot. */
-    private static final int MAX_POINTER_LINES = 30;
-    /** The mouse's screen the window manager last gave; MIN_VALUE before the first. */
-    private static volatile int sPointerDisplay = Integer.MIN_VALUE;
-    private static int sPointerLines;
     /** The touchscreens we tied, by descriptor, to the screen's unique id. Under its own lock. */
     private static final Map<String, String> TIED = new HashMap<>();
     /** What each tied device is, for the log: its name and sources. Under {@link #TIED}'s lock. */
@@ -112,45 +105,6 @@ public final class TouchScreens {
             L.i("touch screens: the monitor's touchscreen tied to the monitor x" + hooked);
         } catch (Throwable t) {
             L.w("touch screens: not watched, touchscreens left to Android (" + t + ")");
-        }
-        watchPointerDisplay(loader);
-    }
-
-    /** The window manager's choice of the mouse's screen, written when it changes. Read only. */
-    private static void watchPointerDisplay(ClassLoader loader) {
-        try {
-            Class<?> callback = Class.forName(SystemNames.INPUT_MANAGER_CALLBACK, false, loader);
-            int hooked = XposedBridge.hookAllMethods(callback,
-                    SystemNames.GET_POINTER_DISPLAY_ID, new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            pointerDisplay(param.getResult());
-                        }
-                    }).size();
-            L.i("touch screens: the mouse's screen written down as it changes x" + hooked);
-        } catch (Throwable t) {
-            L.w("touch screens: the mouse's screen not written down (" + t + ")");
-        }
-    }
-
-    private static void pointerDisplay(Object result) {
-        try {
-            if (!(result instanceof Integer) || (Integer) result == sPointerDisplay) {
-                return;
-            }
-            int display = (Integer) result;
-            synchronized (TouchScreens.class) {
-                if (display == sPointerDisplay || sPointerLines >= MAX_POINTER_LINES) {
-                    return;
-                }
-                sPointerDisplay = display;
-                sPointerLines++;
-            }
-            L.i("touch screens: the mouse's screen, as the window manager chooses it: " + display
-                    + (display == 0 ? " (the tablet)" : "")
-                    + (sPointerLines == MAX_POINTER_LINES ? " (the last line of this boot)" : ""));
-        } catch (Throwable ignored) {
-            // A line less; the system's answer went through untouched.
         }
     }
 

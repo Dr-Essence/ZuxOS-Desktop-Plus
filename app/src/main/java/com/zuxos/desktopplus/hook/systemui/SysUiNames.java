@@ -134,6 +134,9 @@ final class SysUiNames {
             "zui_desktop_mode_caption_bar_normal_no_focus";
     static final String ZUI_DESKTOP_MODE_CAPTION_BAR_DARK_NO_FOCUS =
             "zui_desktop_mode_caption_bar_dark_no_focus";
+    /** An app's own top, from its {@code TaskDescription}: hidden from the SDK. */
+    static final String GET_SYSTEM_BARS_APPEARANCE = "getSystemBarsAppearance";
+    static final String GET_STATUS_BAR_COLOR = "getStatusBarColor";
 
     // The monitor's status bar.
     static final String ZUI_DP_MODE_MANAGER = "com.android.systemui.dpmode.ZuiDpModeManager";
@@ -156,11 +159,18 @@ final class SysUiNames {
     static final String M_NAV_BAR_FRAME_HEIGHT = "mNavBarFrameHeight";
     static final String M_TASKBAR_FRAME_HEIGHT = "mTaskbarFrameHeight";
 
-    // The lock screen on other screens, read only: ZUI's choice of it for each screen, and
-    // Motorola's Smart Connect one, with a password entry, which ZUI keeps for its own screens.
+    // The lock screen on other screens: ZUI's choice of it for each screen, and Motorola's Smart
+    // Connect one, with a password entry, which ZUI keeps for Motorola's desktops.
     static final String KEYGUARD_DISPLAY_MANAGER = "com.android.keyguard.KeyguardDisplayManager";
     static final String SHOW_PRESENTATION = "showPresentation";
     static final String M_PRESENTATIONS = "mPresentations";
+    /** Whether the lock screen is up, and ZUI's own pass over every screen with it. */
+    static final String M_SHOWING = "mShowing";
+    static final String UPDATE_DISPLAYS = "updateDisplays";
+    static final String MOTO_KEYGUARD_PRESENTATION =
+            "com.android.keyguard.smartconnect.MotoKeyguardPresentation";
+    /** ZUI's monitor desktop, in {@code Settings.System}: 1 while it is on. */
+    static final String DP_DISPLAY_PC_MODE = "zui_dp_display_pc_mode";
     /** {@code Display}'s, hidden from the SDK: internal, external, virtual. */
     static final String GET_TYPE = "getType";
     static final String SYSTEMUI_FEATURES = "com.android.systemui.feature.SystemUIFeatures";

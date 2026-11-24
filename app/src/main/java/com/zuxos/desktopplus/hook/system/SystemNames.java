@@ -58,6 +58,31 @@ final class SystemNames {
     static final String OV_DESKTOP_CONTROLLER = "com.android.server.wm.OVDesktopController";
     static final String IS_UNDER_EXTERNAL_DISPLAY_DESKTOP_MODE =
             "isUnderExternalDisplayDesktopMode";
+    static final String GET_EXTERNAL_DISPLAY_DESKTOP_DISPLAY_ID =
+            "getExternalDisplayDesktopDisplayId";
+    /**
+     * ZUI's "focus" while its monitor desktop is on - the top focused screen - which its package
+     * manager reads to answer a query for a home with the monitor's launcher; the second is its
+     * local service's door to the first.
+     */
+    static final String GET_CURRENT_FOCUS_DISLAY_ID_WHEN_UNDER_EXTEND_DISPLAY_INTERNAL =
+            "getCurrentFocusDislayIdWhenUnderExtendDisplayInternal";
+    static final String OV_DESKTOP_CONTROLLER_INTERNAL =
+            "com.android.server.wm.OVDesktopController$OVDesktopControllerInternal";
+    static final String GET_CURRENT_FOCUS_DISLAY_ID_WHEN_UNDER_EXTEND_DISPLAY =
+            "getCurrentFocusDislayIdWhenUnderExtendDisplay";
+    /**
+     * A launch into a window already open: the window's mode set to the launch's
+     * ({@code TaskDisplayArea.getOrCreateRootTask}), and its bounds laid out again
+     * ({@code LaunchParamsController.layoutTask}).
+     */
+    static final String TASK_DISPLAY_AREA = "com.android.server.wm.TaskDisplayArea";
+    static final String GET_OR_CREATE_ROOT_TASK = "getOrCreateRootTask";
+    static final String LAYOUT_TASK = "layoutTask";
+    static final String M_HAS_BEEN_VISIBLE = "mHasBeenVisible";
+    static final String IS_ROOT_TASK = "isRootTask";
+    /** {@code ActivityOptions}'s, hidden from the SDK. */
+    static final String GET_LAUNCH_WINDOWING_MODE = "getLaunchWindowingMode";
     static final String DRAG_STATE = "com.android.server.wm.DragState";
     static final String M_FLAGS = "mFlags";
     static final String M_UID = "mUid";
@@ -130,6 +155,20 @@ final class SystemNames {
     /** The window manager's answer to which screen the mouse's pointer belongs on. */
     static final String INPUT_MANAGER_CALLBACK = "com.android.server.wm.InputManagerCallback";
     static final String GET_POINTER_DISPLAY_ID = "getPointerDisplayId";
+    /**
+     * What that rule reads: the window manager's flag ZUI sets, and each screen's power state as
+     * the window manager has it, which it takes after the input system has the screen
+     * ({@code DisplayContent.onDisplayInfoUpdated}).
+     */
+    static final String M_FORCE_DESKTOP_MODE_ON_EXTERNAL_DISPLAYS =
+            "mForceDesktopModeOnExternalDisplays";
+    static final String M_ROOT = "mRoot";
+    static final String GET_DISPLAY_CONTENT = "getDisplayContent";
+    static final String DISPLAY_CONTENT = "com.android.server.wm.DisplayContent";
+    static final String ON_DISPLAY_INFO_UPDATED = "onDisplayInfoUpdated";
+    static final String M_DISPLAY_INFO = "mDisplayInfo";
+    static final String DISPLAY_INFO = "android.view.DisplayInfo";
+    static final String STATE = "state";
     /**
      * ZUI's monitor desktop ({@link #OV_DESKTOP_CONTROLLER}) turned on and off: where it sets the
      * window manager's flag its rule for the mouse's screen reads.

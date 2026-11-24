@@ -471,12 +471,31 @@ public class MainActivity extends Activity {
                         + "On, the app opens as asked; pairs denied in ZUI's Security Center stay "
                         + "denied. Needs System Framework ticked for this module in LSPosed",
                 Const.KEY_NO_LAUNCH_PROMPT, true);
-        addSwitch("Mouse on the monitor from boot",
+        addSwitch("Windows stay as they are when they open another app",
+                "A maximised app that opens Files' save or open screen, a picker or a chooser "
+                        + "turned into a small floating window, and lost its floating size. On, "
+                        + "it stays maximised, floating or full screen. Needs System Framework "
+                        + "ticked for this module in LSPosed",
+                Const.KEY_KEEP_WINDOW_ON_LAUNCH, true);
+        addSwitch("Mouse stays on the monitor",
                 "ZUI puts the mouse on the monitor's desktop only once a screen changes, so after "
-                        + "a reboot it stayed on the tablet. On, it moves to the monitor as soon "
-                        + "as ZUI's monitor desktop comes on. Needs System Framework ticked for "
-                        + "this module in LSPosed",
+                        + "a reboot it stayed on the tablet, and after the screens woke it could "
+                        + "be gone until replugged. On, ZUI is asked again as its monitor desktop "
+                        + "comes on and as a screen wakes. Needs System Framework ticked for this "
+                        + "module in LSPosed",
                 Const.KEY_MOUSE_ON_DESKTOP, true);
+        addSwitch("No launcher chooser on the tablet",
+                "With the monitor in use, Home on the tablet could open Android's \"Open with\" "
+                        + "chooser instead of the tablet's home: ZUI gave every home the "
+                        + "monitor's launcher. On, each screen gets its own. Needs System "
+                        + "Framework ticked for this module in LSPosed",
+                Const.KEY_NO_HOME_CHOOSER, true);
+        addSwitch("Unlock on the monitor",
+                "The monitor's lock screen was a clock alone, so unlocking meant reaching for "
+                        + "the tablet. On, it is ZUI's Smart Connect one: click it, then type "
+                        + "the PIN or password, or draw the pattern. If it fails, the clock comes "
+                        + "back. Needs System UI ticked for this module in LSPosed",
+                Const.KEY_UNLOCK_ON_MONITOR, true);
         addSwitch("No \"two high-performance apps\" prompt",
                 "ZUI asks before opening a game while another heavy app is in sight, and then "
                         + "opens it as a small floating window. On, the app just opens as asked. "

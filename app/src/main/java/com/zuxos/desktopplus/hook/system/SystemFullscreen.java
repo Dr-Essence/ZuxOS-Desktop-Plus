@@ -283,6 +283,11 @@ public final class SystemFullscreen {
         }
     };
 
+    /** Whether a launch's intent carries one of our marks for full screen. */
+    static boolean wantsFullScreen(Object intent) {
+        return marked(intent) || (intent instanceof Intent && gameMarked((Intent) intent));
+    }
+
     private static boolean gameMarked(Intent intent) {
         try {
             return intent.hasExtra(EXTRA_GAME);

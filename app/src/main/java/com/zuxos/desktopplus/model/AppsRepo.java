@@ -368,8 +368,23 @@ public final class AppsRepo {
         Rect bounds = sourceBounds(source);
         try {
             if (item.type == Item.TYPE_APP) {
-                mLauncherApps.startMainActivity(new ComponentName(item.pkg, item.cls),
-                        userFor(item.userSerial), bounds, opts);
+                UserHandle user = userFor(item.userSerial);
+                try {
+                    mLauncherApps.startMainActivity(new ComponentName(item.pkg, item.cls), user,
+                            bounds, opts);
+                } catch (SecurityException stale) {
+                    // An app's update can move its launcher entry, as F-Droid's did: the item
+                    // keeps the old one, which Android no longer opens from a launcher.
+                    ComponentName now = launcherEntry(item.pkg, user);
+                    if (now == null || now.getClassName().equals(item.cls)) {
+                        throw stale;
+                    }
+                    mLauncherApps.startMainActivity(now, user, bounds, opts);
+                    if (L.once("AppsRepo.moved." + item.key())) {
+                        L.i("launch: " + item.key() + " is no longer a launcher entry - opened "
+                                + now.flattenToShortString() + ", the app's own now");
+                    }
+                }
                 return true;
             }
             if (item.type == Item.TYPE_SHORTCUT) {
@@ -390,6 +405,12 @@ public final class AppsRepo {
             L.e("launch failed for " + item.key(), t);
         }
         return false;
+    }
+
+    /** The package's launcher entry as it is now; null when it has none. */
+    private ComponentName launcherEntry(String pkg, UserHandle user) {
+        List<LauncherActivityInfo> entries = mLauncherApps.getActivityList(pkg, user);
+        return entries == null || entries.isEmpty() ? null : entries.get(0).getComponentName();
     }
 
     public void showAppInfo(Item item, int displayId) {

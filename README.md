@@ -326,10 +326,20 @@ The full list, with every step's status and what each fix was: [`docs/ROADMAP.md
 - **No "two high-performance apps" prompt** (optional, on by default). ZUI asked before opening a
   game while another heavy app was in sight, then opened it as a small floating window; now the
   app just opens as asked. Needs System Framework ticked in LSPosed.
-- **Mouse on the monitor from boot** (optional, on by default). ZUI moved the mouse to the
-  monitor's desktop only at the next change of a screen, so after a reboot it stayed on the
-  tablet; now it moves as soon as ZUI's monitor desktop comes on. Needs System Framework ticked in
-  LSPosed.
+- **Mouse stays on the monitor** (optional, on by default). ZUI moved the mouse to the monitor's
+  desktop only at the next change of a screen, so after a reboot it stayed on the tablet, and
+  after the screens woke it could be gone until replugged; now ZUI is asked again as its monitor
+  desktop comes on and as a screen wakes. Needs System Framework ticked in LSPosed.
+- **Windows stay as they are when they open another app** (optional, on by default). A maximised
+  app that opened Files' save or open screen, a picker or a chooser turned into a small floating
+  window and lost its floating size; now it stays maximised, floating or in Full screen. Needs
+  System Framework ticked in LSPosed.
+- **No launcher chooser on the tablet** (optional, on by default). With the monitor in use, Home
+  on the tablet could open Android's "Open with" chooser: ZUI gave every home the monitor's
+  launcher. Now each screen gets its own. Needs System Framework ticked in LSPosed.
+- **Unlock on the monitor** (optional, on by default). The monitor's lock screen was a clock
+  alone; now it is ZUI's own Smart Connect one: click it, then type the PIN or password, or draw
+  the pattern. If it fails, the clock comes back. Needs System UI ticked in LSPosed.
 - **Taskbar taps always open the app** (optional, on by default). With another home app on the
   tablet, ZUI's taskbar could lose its recents screen and then closed its drawer without opening
   the app tapped; it opens now.

@@ -438,9 +438,24 @@ public final class Cfg {
         return getBool(Const.KEY_NO_LAUNCH_PROMPT, true);
     }
 
-    /** The mouse on the monitor as soon as ZUI's monitor desktop comes on, at boot included. */
+    /** A window on the monitor stays as it is when the app in it opens another app's screen. */
+    public static boolean keepWindowOnLaunch() {
+        return getBool(Const.KEY_KEEP_WINDOW_ON_LAUNCH, true);
+    }
+
+    /** The mouse kept on the monitor: as ZUI's monitor desktop comes on, and as screens wake. */
     public static boolean mouseOnDesktop() {
         return getBool(Const.KEY_MOUSE_ON_DESKTOP, true);
+    }
+
+    /** The tablet's Home opens the tablet's launcher, not a chooser, while the monitor is used. */
+    public static boolean noHomeChooser() {
+        return getBool(Const.KEY_NO_HOME_CHOOSER, true);
+    }
+
+    /** The monitor's lock screen is ZUI's Smart Connect one, which unlocks the tablet. */
+    public static boolean unlockOnMonitor() {
+        return getBool(Const.KEY_UNLOCK_ON_MONITOR, true);
     }
 
     /** Over an app that hides the bars, the taskbar shows with the drawer and its panels. */

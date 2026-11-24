@@ -184,8 +184,14 @@ public final class Const {
     public static final String KEY_NO_GAME_TIP = "no_game_tip";
     /** ZUI's "Association Launch App Prompt" left out: an app may open another as asked. */
     public static final String KEY_NO_LAUNCH_PROMPT = "no_launch_prompt";
-    /** The mouse on the monitor as soon as ZUI's monitor desktop comes on, at boot included. */
+    /** A window on the monitor stays as it is when the app in it opens another app's screen. */
+    public static final String KEY_KEEP_WINDOW_ON_LAUNCH = "keep_window_on_launch";
+    /** The mouse kept on the monitor: as ZUI's monitor desktop comes on, and as screens wake. */
     public static final String KEY_MOUSE_ON_DESKTOP = "mouse_on_desktop";
+    /** The tablet's Home opens the tablet's launcher, not a chooser, while the monitor is used. */
+    public static final String KEY_NO_HOME_CHOOSER = "no_home_chooser";
+    /** The monitor's lock screen is ZUI's Smart Connect one, which unlocks the tablet. */
+    public static final String KEY_UNLOCK_ON_MONITOR = "unlock_on_monitor";
     /** Over an app that hides the bars, the taskbar shows with the drawer and its panels. */
     public static final String KEY_BAR_WITH_DRAWER = "bar_with_drawer";
     /** The game launcher chosen in the settings: a package name, or empty for none. */
