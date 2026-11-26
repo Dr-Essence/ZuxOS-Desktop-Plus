@@ -163,6 +163,8 @@ public final class RoadmapProbe {
             dmesg 2>/dev/null | grep -i -E 'dp_display|msm_dp|hpd|altmode|typec|ucsi|usbpd|pd_policy|pd_phy' | tail -40
             echo "--- ZUI's monitor desktop starting and stopping, as it logged it"
             logcat -d -b main,system 2>/dev/null | grep -E 'OVDesktopController' | grep -v getCurrentFocus | tail -40
+            echo "--- the keyboard's screen: the focused app's (mSelfReportedDisplayId) and the keyboard's (mDisplayIdToShowIme, mCurTokenDisplayId)"
+            dumpsys input_method 2>/dev/null | grep -E 'mCurId=|mCurTokenDisplayId=|mDisplayIdToShowIme=|mImeWindowVis=|mFocusedWindowClient=' | head -20
             echo "--- the kernel's last lines on USB and input (a mouse that stops sending)"
             dmesg 2>/dev/null | grep -v BATTERY_CHG | grep -i -E 'usb [0-9]|hid|input:|xhci' | tail -40
             echo "--- Motorola's desktop: Smart Connect's apps and Motorola's display settings (#30)"

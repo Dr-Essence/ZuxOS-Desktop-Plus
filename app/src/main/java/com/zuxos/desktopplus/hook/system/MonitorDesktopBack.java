@@ -11,6 +11,7 @@ import com.zuxos.desktopplus.core.Reflect;
 import com.zuxos.desktopplus.logic.MonitorDesktop;
 
 import java.lang.reflect.Method;
+import java.util.Map;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -27,8 +28,9 @@ import de.robv.android.xposed.XposedBridge;
  * screen: ZUI's start finds none, its desktop screen stays -1 and the window manager's
  * {@code mForceDesktopModeOnExternalDisplays} stays off. The new screen is then made without
  * floating windows and without decorations, so Android never starts a home there: a black monitor,
- * Home doing nothing, every app full screen, SystemUI's title bars on ZUI's ordinary path and the
- * mouse given to the tablet, for as long as the monitor stays plugged in.
+ * Home doing nothing, every app full screen, SystemUI's title bars on ZUI's ordinary path, and the
+ * mouse and the keyboard of the monitor's apps on the tablet, for as long as the monitor stays
+ * plugged in.
  *
  * <p>So after ZUI's own step for an added screen
  * ({@code prepareEnterExternalDisplayDesktopModeInternal}, inside the window manager's
@@ -36,8 +38,9 @@ import de.robv.android.xposed.XposedBridge;
  * queued there. It takes the window manager's lock, so the screen is in the window manager by
  * then, and where ZUI's desktop missed it ({@link MonitorDesktop#shouldStart}) it runs ZUI's own
  * start once more, as when the setting turns on after a screen is there: the flag, floating
- * windows, the wallpaper, and ZUI's home a second later. Otherwise it only writes down each
- * external screen added and removed, with ZUI's state, at most {@link #MAX_LINES} lines an hour.
+ * windows, the keyboard's rule, the wallpaper, and ZUI's home a second later. Otherwise it only
+ * writes down each external screen added and removed, with ZUI's state, at most
+ * {@link #MAX_LINES} lines an hour.
  */
 public final class MonitorDesktopBack {
 
@@ -183,11 +186,12 @@ public final class MonitorDesktopBack {
                     desktopThere, flag)) {
                 return;
             }
-            String before = state(wm);
+            String before = state(wm) + ", " + keyboard(wm, screen);
             // ZUI's own start, on its own thread and outside the lock, as its observer calls it.
             sEnter.invoke(controller);
             L.i("monitor desktop: screen " + screen + " came without ZUI's desktop (" + before
-                    + ") - ZUI's own start run again, now " + state(wm));
+                    + ") - ZUI's own start run again, now " + state(wm) + ", "
+                    + keyboard(wm, screen));
         } catch (Throwable t) {
             if (L.once("MonitorDesktopBack.check")) {
                 L.w("monitor desktop: screen " + screen + " left to ZUI (" + t + ")");
@@ -213,6 +217,29 @@ public final class MonitorDesktopBack {
             b.append("unread (").append(t).append(')');
         }
         return b.toString();
+    }
+
+    /**
+     * Where Android shows the keyboard of an app on the screen: the window manager's cached rule,
+     * which is all the keyboard service asks. On a monitor it reads "its own screen" only while
+     * the window manager's flag is on. The map is replaced whole, never changed in place, so it
+     * is read without the lock, as the keyboard service reads it.
+     */
+    private static String keyboard(Object wm, int screen) {
+        Object rules = Reflect.field(wm, SystemNames.M_DISPLAY_IME_POLICY_CACHE);
+        if (!(rules instanceof Map)) {
+            return "its keyboard unread";
+        }
+        // Android's DISPLAY_IME_POLICY_LOCAL and _HIDE; anything else, or no rule for the
+        // screen, is its fallback, the tablet.
+        Object rule = ((Map<?, ?>) rules).get(screen);
+        if (Integer.valueOf(0).equals(rule)) {
+            return "its keyboard on its own screen";
+        }
+        if (Integer.valueOf(2).equals(rule)) {
+            return "its keyboard hidden";
+        }
+        return "its keyboard on the tablet";
     }
 
     /** A screen's type as the window manager has it ({@code DisplayInfo.type}); -1 if unread. */

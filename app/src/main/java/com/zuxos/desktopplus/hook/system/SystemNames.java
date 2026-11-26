@@ -272,6 +272,11 @@ final class SystemNames {
     static final String IS_UNDER_PC_DESKTOP_MODE = "isUnderPcDesktopMode";
     static final String M_WINDOW_MANAGER = "mWindowManager";
     static final String M_CONTEXT = "mContext";
+    /**
+     * The window manager's cached rule for where each screen's keyboard shows, all the keyboard
+     * service asks; ZUI's start refreshes it as it sets the window manager's flag.
+     */
+    static final String M_DISPLAY_IME_POLICY_CACHE = "mDisplayImePolicyCache";
     /** The display manager's thread, where it hands the input system the screens. */
     static final String DISPLAY_THREAD = "com.android.server.DisplayThread";
     static final String GET_HANDLER = "getHandler";
