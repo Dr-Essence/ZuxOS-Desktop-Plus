@@ -1367,6 +1367,11 @@ hooks:
   - every app full screen;
   - ZUI's desktop screen -1, so no screen saver copy and no mouse rule;
   - the lock screen "not up yet".
+- **The keyboard's screen follows the same flag.**
+  - `DisplayWindowSettings.getImePolicyLocked` (line 221) gives a secondary screen its saved policy, else 1: the keyboard on the tablet. It gives 0 only for Motorola's desktop flags.
+  - `DisplayContent.getImePolicy` (line 3416) turns 1 into 0, the keyboard on its own screen, only while `isPublicSecondaryDisplayWithDesktopModeForceEnabled`, i.e. while the flag is set.
+  - The window manager caches the policy per screen (`RootWindowContainer.updateDisplayImePolicyCache`). ZUI's start refreshes that cache right after it sets the flag.
+  - So on a screen ZUI's desktop missed, an app's keyboard and its suggestions show on the tablet (the owner, 2026-11-26, on that screen 5).
 - **Removal:** `onDisplayRemoved` calls ZUI's `onDisplayRemovedForZuiDesktop` before `displayContent.remove()`. For ZUI's desktop screen, `displayRemovedToExitExternalDisplayDesktopMode` clears the desktop and its screen but not the flag; the setting turning off clears the flag, through `exitExternalDisplayDesktopMode`.
 - **SystemUI's idea of ZUI's desktop screen.**
   - `OvcPcModeUtils.setExtendDisplayStatus` follows `zui_dp_display_pc_mode`, and turning off clears the cached screen.
