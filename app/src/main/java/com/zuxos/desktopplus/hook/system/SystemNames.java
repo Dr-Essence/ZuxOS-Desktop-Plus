@@ -201,6 +201,10 @@ final class SystemNames {
      * surface mirror, and the power manager's input from each screen.
      */
     static final String START_DREAM_ACTIVITY_INTERNAL = "startDreamActivityInternal";
+    /** The options that start hands on, and their launch activity type (hidden). */
+    static final String CREATE_SAFE_ACTIVITY_OPTIONS_WITH_BAL_ALLOWED =
+            "createSafeActivityOptionsWithBalAllowed";
+    static final String GET_LAUNCH_ACTIVITY_TYPE = "getLaunchActivityType";
     static final String DREAM_MANAGER_SERVICE = "com.android.server.dreams.DreamManagerService";
     static final String REPORT_DREAMING_STOPPED = "reportDreamingStopped";
     static final String M_GLOBAL_LOCK = "mGlobalLock";
@@ -256,6 +260,18 @@ final class SystemNames {
      */
     static final String ENTER_EXTERNAL_DISPLAY_DESKTOP_MODE = "enterExternalDisplayDesktopMode";
     static final String EXIT_EXTERNAL_DISPLAY_DESKTOP_MODE = "exitExternalDisplayDesktopMode";
+    /**
+     * ZUI's own step for an external screen added ({@code RootWindowContainer.onDisplayAdded})
+     * and removed, the screen it calls its mirror, its work mode, and the controller's handler,
+     * window manager and context.
+     */
+    static final String PREPARE_ENTER_EXTERNAL_DISPLAY_DESKTOP_MODE_INTERNAL =
+            "prepareEnterExternalDisplayDesktopModeInternal";
+    static final String ON_DISPLAY_REMOVED_FOR_ZUI_DESKTOP = "onDisplayRemovedForZuiDesktop";
+    static final String GET_MIRROR_DISPLAY_DESKTOP_DISPLAY_ID = "getMirrorDisplayDesktopDisplayId";
+    static final String IS_UNDER_PC_DESKTOP_MODE = "isUnderPcDesktopMode";
+    static final String M_WINDOW_MANAGER = "mWindowManager";
+    static final String M_CONTEXT = "mContext";
     /** The display manager's thread, where it hands the input system the screens. */
     static final String DISPLAY_THREAD = "com.android.server.DisplayThread";
     static final String GET_HANDLER = "getHandler";

@@ -37,6 +37,7 @@ import com.zuxos.desktopplus.hook.system.InputStallTrace;
 import com.zuxos.desktopplus.hook.system.KeepWindowOnLaunch;
 import com.zuxos.desktopplus.hook.system.LaunchPromptOff;
 import com.zuxos.desktopplus.hook.system.LaunchTrace;
+import com.zuxos.desktopplus.hook.system.MonitorDesktopBack;
 import com.zuxos.desktopplus.hook.system.MouseScreen;
 import com.zuxos.desktopplus.hook.system.SystemBridge;
 import com.zuxos.desktopplus.hook.system.SystemDrag;
@@ -91,6 +92,7 @@ public class XposedEntry implements IXposedHookLoadPackage {
                     SystemGamepad.install(lpparam.classLoader);
                     TouchScreens.install(lpparam.classLoader);
                     MouseScreen.install(lpparam.classLoader);
+                    MonitorDesktopBack.install(lpparam.classLoader);
                     KeepWindowOnLaunch.install(lpparam.classLoader);
                     HomeForItsScreen.install(lpparam.classLoader);
                     BarClearance.install(lpparam.classLoader);

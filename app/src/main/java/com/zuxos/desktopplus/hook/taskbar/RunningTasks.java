@@ -144,9 +144,10 @@ public final class RunningTasks {
                 FRONT.remove(displayId);
                 FRONT_TASK.remove(displayId);
             }
-            if (everything.size() <= 1) {
-                // Nothing but the home screen on this display - or a list this launcher is not
-                // allowed to read, which looks the same. Either way nothing to show.
+            if (onlyOwn(everything, ctx.getPackageName())) {
+                // Nothing but this launcher's own tasks on this display: its home, or a list it
+                // is not allowed to read, which holds only its own. Counted as packages, a lone
+                // app on a screen without its home task read as the home, and the bar was empty.
                 return new LinkedHashSet<>();
             }
             if (out.isEmpty()) {
@@ -164,6 +165,16 @@ public final class RunningTasks {
             L.d("taskbar running: the activity manager will not list tasks (" + t + ")");
         }
         return out;
+    }
+
+    /** Whether every package listed is this launcher's own; true for none at all. */
+    private static boolean onlyOwn(Set<String> packages, String own) {
+        for (String pkg : packages) {
+            if (!pkg.equals(own)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Per display: the package of the task in front, as of the last read of the task list. */

@@ -376,7 +376,7 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
     /** The monitor's display while our desktop is on it, else -1. */
     public static synchronized int externalDisplay() {
         for (DesktopHost host : ACTIVE.values()) {
-            if (host.mExternal) {
+            if (host.mExternal && host.stillThere()) {
                 return host.mDisplayId;
             }
         }
@@ -386,11 +386,21 @@ public class DesktopHost implements CellLayoutView.Callbacks, WidgetFrame.Host,
     /** The activity our desktop lives in on this display, or null. */
     public static synchronized Activity activityOn(int displayId) {
         for (DesktopHost host : ACTIVE.values()) {
-            if (host.mDisplayId == displayId) {
+            if (host.mDisplayId == displayId && host.stillThere()) {
                 return host.mActivity;
             }
         }
         return null;
+    }
+
+    /**
+     * Whether this desktop's activity is alive and still on the screen it was attached on. When
+     * the monitor's screen goes, its launcher can live on, moved to the tablet: a host that kept
+     * the old screen's number sent notification pop-ups to a screen that was gone.
+     */
+    private boolean stillThere() {
+        return !mActivity.isDestroyed() && !mActivity.isFinishing()
+                && displayIdOf(mActivity) == mDisplayId;
     }
 
     /** The monitor whose desktop attached last; null before any or with one shared layout. */

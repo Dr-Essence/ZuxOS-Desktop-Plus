@@ -289,6 +289,8 @@ public final class ScreenBackdrop {
         private final Rect mLastCrop = new Rect();
         /** Hash of the last probe; written and read on the worker only. */
         volatile long mProbeHash;
+        /** This pane's capture listener ({@link Answer}); the worker's only. */
+        Answer mAnswer;
         /**
          * Frames handed out, oldest first. A frame is recycled only once two newer ones have been
          * shown: the render thread may still be drawing the one just replaced.
@@ -689,8 +691,11 @@ public final class ScreenBackdrop {
                 }
                 done.countDown();
             };
-            sCapture.invoke(sWm, display, args, sListener.newInstance(answer));
+            sProbeAnswer = reuse(sProbeAnswer, answer);
+            Answer listener = sProbeAnswer;
+            sCapture.invoke(sWm, display, args, listener.listener);
             boolean answered = done.await(250, java.util.concurrent.TimeUnit.MILLISECONDS);
+            java.lang.ref.Reference.reachabilityFence(listener);
             Object shot;
             synchronized (got) {
                 late[0] = !answered;
@@ -723,6 +728,71 @@ public final class ScreenBackdrop {
     }
 
     // --- the capture itself, on the worker thread ------------------------------------------------
+
+    /**
+     * One capture listener, used again and again.
+     *
+     * <p>Each listener handed to the window manager is a binder the system holds until its own
+     * collector runs. A new one for every capture and every check, dozens a second while a pane is
+     * up, piled up in the system until it killed ZUX Home for them ("Too many Binders sent to
+     * SYSTEM"). A listener used again is one binder for as long as it lives. It is held here with
+     * its consumer, so the collector cannot take either before an answer comes. An answer goes to
+     * the request waiting on it; a listener is handed to a new request only once the last one was
+     * answered, so a late answer never reaches the wrong request.
+     */
+    private static final class Answer implements ObjIntConsumer<Object> {
+        final Object listener;
+        /** The request waiting for this listener's answer; null while none is. */
+        private ObjIntConsumer<Object> mWaiting;
+
+        Answer() throws Exception {
+            listener = sListener.newInstance(this);
+        }
+
+        /** Hands the listener to one request; false while the last one is unanswered. */
+        synchronized boolean take(ObjIntConsumer<Object> request) {
+            if (mWaiting != null) {
+                return false;
+            }
+            mWaiting = request;
+            return true;
+        }
+
+        @Override
+        public void accept(Object shot, int status) {
+            ObjIntConsumer<Object> to;
+            synchronized (this) {
+                to = mWaiting;
+                mWaiting = null;
+            }
+            if (to != null) {
+                to.accept(shot, status);
+            } else {
+                // Nobody waits for it: its buffer is freed here.
+                close(shot);
+            }
+        }
+    }
+
+    /**
+     * The listener for one request: {@code current} when it is free, else a new one, which the
+     * caller keeps in its place. A new one is made only for a request whose listener never got
+     * its last answer, so they stay a handful.
+     */
+    private static Answer reuse(Answer current, ObjIntConsumer<Object> request)
+            throws Exception {
+        if (current != null && current.take(request)) {
+            return current;
+        }
+        Answer fresh = new Answer();
+        fresh.take(request);
+        return fresh;
+    }
+
+    /** The checks' listener: worker thread only. */
+    private static Answer sProbeAnswer;
+    /** The grabs' listener: any thread, guarded by the class. */
+    private static Answer sGrabAnswer;
 
     /** One capture, waited for; null if it failed. Worker thread only. */
     public static Object grab(int display, Rect crop, SurfaceControl own, float scale) {
@@ -796,8 +866,15 @@ public final class ScreenBackdrop {
                 }
                 done.countDown();
             };
-            sCapture.invoke(sWm, display, args, sListener.newInstance(answer));
-            if (!done.await(waitMs, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+            Answer listener;
+            synchronized (ScreenBackdrop.class) {
+                sGrabAnswer = reuse(sGrabAnswer, answer);
+                listener = sGrabAnswer;
+            }
+            sCapture.invoke(sWm, display, args, listener.listener);
+            boolean answered = done.await(waitMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+            java.lang.ref.Reference.reachabilityFence(listener);
+            if (!answered) {
                 synchronized (got) {
                     late.set(true);
                     close(got[0]);
@@ -825,8 +902,9 @@ public final class ScreenBackdrop {
             Object args = sBuilder.getMethod("build").invoke(builder);
             ObjIntConsumer<Object> answer = (shot, status) ->
                     MAIN.post(() -> session.deliver(shot, status, crop, started));
-            Object listener = sListener.newInstance(answer);
-            sCapture.invoke(sWm, display, args, listener);
+            // The pane's own listener, held by its session: one binder for the pane's life.
+            session.mAnswer = reuse(session.mAnswer, answer);
+            sCapture.invoke(sWm, display, args, session.mAnswer.listener);
         } catch (InvocationTargetException e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             refuse(cause.getClass().getSimpleName() + ": " + cause.getMessage());

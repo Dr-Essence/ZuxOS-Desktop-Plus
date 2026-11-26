@@ -149,6 +149,12 @@ final class SysUiNames {
     static final String CAPTURE_LAYERS_EXCLUDING = "captureLayersExcluding";
     static final String AS_BITMAP = "asBitmap";
     static final String GET_HARDWARE_BUFFER = "getHardwareBuffer";
+    /**
+     * Whether ZUI counts a screen as its monitor desktop, which decides the path a title bar's
+     * click takes: its monitor one, or its ordinary one.
+     */
+    static final String OVC_PC_MODE_UTILS = "com.android.wm.shell.ov.utils.OvcPcModeUtils";
+    static final String IS_OPERATION_IN_EXTEND_DISPLAY = "isOperationInExtendDisplay";
 
     // The monitor's status bar.
     static final String ZUI_DP_MODE_MANAGER = "com.android.systemui.dpmode.ZuiDpModeManager";

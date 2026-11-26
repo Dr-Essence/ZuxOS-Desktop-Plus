@@ -9,6 +9,7 @@ import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
+import android.os.SystemClock;
 import android.view.Display;
 import android.view.MotionEvent;
 import android.view.View;
@@ -58,8 +59,9 @@ import de.robv.android.xposed.XposedBridge;
  *
  * <p>With the buttons there the pill's dots go: hidden, so it takes no touches and the bar under
  * it drags the window, and a double-click on it maximises or restores, as ZUI does on the
- * monitor (a click on the bar itself never opens ZUI's menu there). A bar without the buttons,
- * a split screen's, keeps its dots and its menu.
+ * monitor (a click on the bar itself never opens ZUI's menu there). A bar without the buttons -
+ * a split screen's, or one on a screen ZUI does not count as its monitor desktop, where its clicks
+ * take ZUI's ordinary path - keeps its dots and its menu.
  */
 public final class WindowButtons {
 
@@ -200,7 +202,7 @@ public final class WindowButtons {
         ActivityManager.RunningTaskInfo task = (ActivityManager.RunningTaskInfo) field;
         int mode = modeOf(task);
         boolean wanted = Cfg.windowButtons() && displayOf(task) != Display.DEFAULT_DISPLAY
-                && (mode == FREEFORM || mode == FULLSCREEN);
+                && (mode == FREEFORM || mode == FULLSCREEN) && zuiMonitor(displayOf(task));
         Row row = ROWS.get(caption);
         if (row == null) {
             View.OnClickListener click = CLICKS.get(caption);
@@ -472,6 +474,54 @@ public final class WindowButtons {
         return display instanceof Integer ? (Integer) display : Display.DEFAULT_DISPLAY;
     }
 
+    /** ZUI's check of its monitor desktop's screen, and its last answer, kept for a second. */
+    private static Method sMonitorCheck;
+    private static boolean sNoMonitorCheck;
+    private static int sCheckedDisplay = -1;
+    private static boolean sCheckedAnswer;
+    private static long sCheckedAt;
+    private static final long CHECK_MS = 1000L;
+
+    /**
+     * Whether ZUI counts this screen as its monitor desktop
+     * ({@code OvcPcModeUtils.isOperationInExtendDisplay}). Only there does the bar's own click
+     * listener run our buttons as its menu's items; on a screen ZUI's desktop missed, a click took
+     * ZUI's ordinary path instead, and the bar keeps ZUI's pill. Asked at most once a second per
+     * screen, since without a desktop screen ZUI's check asks the system every time. True where
+     * the check is not found, as before it was asked.
+     */
+    private static boolean zuiMonitor(int display) {
+        long now = SystemClock.uptimeMillis();
+        if (display == sCheckedDisplay && now - sCheckedAt < CHECK_MS) {
+            return sCheckedAnswer;
+        }
+        boolean yes = true;
+        try {
+            if (sMonitorCheck == null && !sNoMonitorCheck) {
+                sMonitorCheck = Class.forName(SysUiNames.OVC_PC_MODE_UTILS, false, sLoader)
+                        .getMethod(SysUiNames.IS_OPERATION_IN_EXTEND_DISPLAY, int.class);
+            }
+            if (sMonitorCheck != null) {
+                yes = Boolean.TRUE.equals(sMonitorCheck.invoke(null, display));
+            }
+        } catch (Throwable t) {
+            sNoMonitorCheck = true;
+            sMonitorCheck = null;
+            if (L.once("WindowButtons.monitorCheck")) {
+                L.w("window buttons: ZUI's monitor check not found, the buttons stay on every "
+                        + "monitor bar (" + t + ")");
+            }
+        }
+        if (!yes && L.once("WindowButtons.notMonitor." + display)) {
+            L.i("window buttons: ZUI does not count screen " + display + " as its monitor "
+                    + "desktop - its title bars keep ZUI's pill there");
+        }
+        sCheckedDisplay = display;
+        sCheckedAnswer = yes;
+        sCheckedAt = now;
+        return yes;
+    }
+
     /** ZUI's menu item ids and button pictures, by name, once; null if any is missing. */
     private static Ids ids(Context ctx) {
         if (sIds != null || sNoIds) {
@@ -578,7 +628,8 @@ public final class WindowButtons {
             int mode = modeOf(task);
             if (!Cfg.windowButtons() || displayOf(task) == Display.DEFAULT_DISPLAY
                     || (mode != FREEFORM && mode != FULLSCREEN) || !mVisible.getBoolean(params)
-                    || mLayout.getInt(params) != pill(ctx) || ids(ctx) == null) {
+                    || mLayout.getInt(params) != pill(ctx) || ids(ctx) == null
+                    || !zuiMonitor(displayOf(task))) {
                 return;
             }
             if (mode == FULLSCREEN && mWidth.getInt(params) != 0) {

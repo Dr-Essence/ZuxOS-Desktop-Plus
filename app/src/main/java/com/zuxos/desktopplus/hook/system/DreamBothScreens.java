@@ -1,8 +1,10 @@
 package com.zuxos.desktopplus.hook.system;
 
+import android.app.ActivityOptions;
 import android.os.Build;
 import android.os.Handler;
 import android.os.SystemClock;
+import android.view.Display;
 import android.view.SurfaceControl;
 
 import com.zuxos.desktopplus.core.Cfg;
@@ -25,6 +27,14 @@ import de.robv.android.xposed.XposedBridge;
  * copy of it: Android's own surface mirror ({@code SurfaceControl.mirrorSurface}, as its display
  * mirroring uses), put in that screen's overlay layer above everything, scaled to fill it. The
  * screen saver draws once; the compositor shows it twice.
+ *
+ * <p>The screen saver itself runs on the tablet. ZUI starts it on the screen that has the focus
+ * ({@code TaskLaunchParamsModifier}'s rule for its monitor desktop), and on the monitor it was a
+ * floating window under the monitor's lock screen: five seconds in, the lock came and ZUI's lock
+ * screen there covered it, so only the tablet's copy showed. So while the tablet's screen is on,
+ * its options name the tablet ({@code setLaunchDisplayId}), which ZUI's own rules take before
+ * their monitor rule, as for any start that names a screen; on the tablet the screen saver
+ * covers the lock screen as Android has it, and its copy on the monitor is above everything.
  *
  * <p>Filling, not fitting: the tablet's 16:10 on the monitor's 16:9 loses a few percent at the top
  * and bottom, and needs no black bars of its own. That way the only layer this ever adds is the
@@ -101,12 +111,25 @@ public final class DreamBothScreens {
                     STOPPED).size();
             sInput = power.getDeclaredMethod(SystemNames.USER_ACTIVITY_FROM_NATIVE, long.class,
                     int.class, int.class, int.class);
+            String where = onTablet(tasks);
             L.i("screen saver: a copy on the other screen while the monitor's desktop is on x"
-                    + hooked + ", input on it watched only while it is up"
+                    + hooked + ", input on it watched only while it is up, " + where
                     + (sOn ? "" : ", switched off"));
         } catch (Throwable t) {
             sMirror = null;
             L.w("screen saver: on one screen only, as Android has it (" + t + ")");
+        }
+    }
+
+    /** The screen saver started on the tablet; on its own, as the copy does not need it. */
+    private static String onTablet(Class<?> tasks) {
+        try {
+            XposedBridge.hookMethod(tasks.getDeclaredMethod(
+                    SystemNames.CREATE_SAFE_ACTIVITY_OPTIONS_WITH_BAL_ALLOWED,
+                    ActivityOptions.class), ON_TABLET);
+            return "started on the tablet";
+        } catch (Throwable t) {
+            return "started where ZUI starts it (" + t + ")";
         }
     }
 
@@ -139,6 +162,54 @@ public final class DreamBothScreens {
             }
         }
     };
+
+    /**
+     * Before {@code createSafeActivityOptionsWithBalAllowed(ActivityOptions)}, which
+     * {@code startDreamActivityInternal} hands its {@code makeBasic()} options: a screen saver's
+     * options, with no screen of their own, name the tablet.
+     */
+    private static final XC_MethodHook ON_TABLET = new XC_MethodHook() {
+        @Override
+        protected void beforeHookedMethod(MethodHookParam param) {
+            try {
+                Object arg = param.args.length == 1 ? param.args[0] : null;
+                if (!sOn || !(arg instanceof ActivityOptions)) {
+                    return;
+                }
+                ActivityOptions options = (ActivityOptions) arg;
+                if (options.getLaunchDisplayId() != Display.INVALID_DISPLAY
+                        || !Integer.valueOf(DREAM_TYPE).equals(
+                                Reflect.call(options, SystemNames.GET_LAUNCH_ACTIVITY_TYPE))
+                        || !Boolean.TRUE.equals(sDesktopOn.invoke(null))
+                        || !tabletOn(param.thisObject)) {
+                    return;
+                }
+                options.setLaunchDisplayId(Display.DEFAULT_DISPLAY);
+                if (take()) {
+                    L.i("screen saver: started on the tablet, its copy to go on the monitor");
+                }
+            } catch (Throwable ignored) {
+                // Started where ZUI starts it; its copy still goes on the other screen.
+            }
+        }
+    };
+
+    /**
+     * Whether the tablet's screen is on, as the window manager has it. With it off, the screen
+     * saver stays where ZUI starts it, on the screen that is in use.
+     */
+    private static boolean tabletOn(Object tasks) throws Exception {
+        Object root = Reflect.field(tasks, SystemNames.M_ROOT_WINDOW_CONTAINER);
+        if (root == null) {
+            return false;
+        }
+        Object tablet = root.getClass().getMethod(SystemNames.GET_DISPLAY_CONTENT, int.class)
+                .invoke(root, Display.DEFAULT_DISPLAY);
+        Object state = Reflect.field(Reflect.call(tablet, SystemNames.GET_DISPLAY_INFO),
+                SystemNames.STATE);
+        return state instanceof Integer && (Integer) state != Display.STATE_OFF
+                && (Integer) state != Display.STATE_UNKNOWN;
+    }
 
     private static final XC_MethodHook STOPPED = new XC_MethodHook() {
         @Override

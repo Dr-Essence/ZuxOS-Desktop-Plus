@@ -27,7 +27,8 @@ import com.zuxos.desktopplus.hook.Targets;
  * and nothing else. Its thread also reads the system side's switches again when the settings
  * change, for those that must not be read where they are used ({@link BarClearance},
  * {@link GameTipOff}, {@link LaunchPromptOff}, {@link BarWithDrawer}, {@link MouseScreen},
- * {@link KeepWindowOnLaunch}, {@link HomeForItsScreen}).
+ * {@link KeepWindowOnLaunch}, {@link HomeForItsScreen}, {@link DreamBothScreens},
+ * {@link MonitorDesktopBack}).
  */
 public final class SystemBridge {
 
@@ -98,6 +99,7 @@ public final class SystemBridge {
                     HomeForItsScreen.reread();
                     BarWithDrawer.reread();
                     DreamBothScreens.reread();
+                    MonitorDesktopBack.reread();
                     return;
                 }
                 if (!allowed(getSentFromPackage(), getSentFromUid())) {

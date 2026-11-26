@@ -181,7 +181,7 @@ public final class TaskbarNav {
          * back is done here: it closes what our desktop and our windows have open.
          */
         private void back(View v) {
-            if (homeInFront(v.getContext(), mDisplay)) {
+            if (front(v.getContext(), mDisplay) != APP) {
                 boolean closed = closeOurWindows(mDisplay) || DesktopHost.backOn(mDisplay);
                 record("back", closed ? "closed a panel here (desktop in front)"
                         : "nothing to close (desktop in front)");
@@ -190,7 +190,11 @@ public final class TaskbarNav {
             key(v, KeyEvent.KEYCODE_BACK);
         }
 
-        /** Home, sent once - and not at all when the desktop is already in front. */
+        /**
+         * Home, sent once - and not at all when the desktop is already in front. With no task at
+         * all on the screen, the home's own included, it is sent all the same: the system starts
+         * that screen's home, which is what is missing there.
+         */
         private void home(View v) {
             closeDrawer(mDisplay);
             // Recents first, in the same press: home then lands on the desktop, not on recents.
@@ -198,10 +202,18 @@ public final class TaskbarNav {
                 TaskOverview.close();
             }
             RecentsRoute.closeOn(mDisplay);
-            if (homeInFront(v.getContext(), mDisplay)) {
+            int front = front(v.getContext(), mDisplay);
+            if (front == DESKTOP) {
                 closeOurWindows(mDisplay);
                 DesktopHost.backOn(mDisplay);
                 record("home", "desktop already in front");
+                return;
+            }
+            if (front == NOTHING) {
+                closeOurWindows(mDisplay);
+                String route = TaskbarNav.key(v.getContext(), KeyEvent.KEYCODE_HOME, mDisplay,
+                        () -> v.post(() -> mOriginal.onClick(v)));
+                record("home", route + " - no task on this screen, not even its home");
                 return;
             }
             key(v, KeyEvent.KEYCODE_HOME);
@@ -254,16 +266,23 @@ public final class TaskbarNav {
         return drawer;
     }
 
+    /** What is in front on a display: no task at all, the launcher's own home, or an app. */
+    private static final int NOTHING = 0;
+    private static final int DESKTOP = 1;
+    private static final int APP = 2;
+
     /**
-     * Whether a back or home key sent to this display would land on the launcher's own home -
-     * our desktop - rather than on an app.
+     * What a back or home key sent to this display would land on: {@link #NOTHING} with no task
+     * there at all, {@link #DESKTOP} for the launcher's own home - our desktop - or {@link #APP}.
      *
      * <p>Read from the task list: the task the system calls focused on this display, or, failing
-     * that, the first one listed there. No task at all on the display counts as the desktop, since
-     * a key sent there would have nothing to go to either. The display id and the focus flag are
-     * fields the framework keeps but does not publish, read by name as the probe does.
+     * that, the first one listed there. Back treats no task as the desktop, since a back key sent
+     * there would wait for a window that never comes; home does not, as a screen with no task has
+     * no home either. The display id and the focus flag are fields the framework keeps but does
+     * not publish, read by name as the probe does. Unread, it is an app: the key goes, as ZUI's
+     * would.
      */
-    static boolean homeInFront(Context ctx, int display) {
+    private static int front(Context ctx, int display) {
         try {
             android.app.ActivityManager am = (android.app.ActivityManager)
                     ctx.getSystemService(Context.ACTIVITY_SERVICE);
@@ -283,15 +302,15 @@ public final class TaskbarNav {
             }
             android.app.ActivityManager.RunningTaskInfo front = focused != null ? focused : first;
             if (front == null) {
-                return true;
+                return NOTHING;
             }
             android.content.ComponentName top = front.topActivity != null
                     ? front.topActivity : front.baseActivity;
             return top != null && top.getPackageName().equals(ctx.getPackageName())
-                    && top.getClassName().contains("Launcher");
+                    && top.getClassName().contains("Launcher") ? DESKTOP : APP;
         } catch (Throwable t) {
             L.d("taskbar nav: could not read the front task (" + t + ")");
-            return false;
+            return APP;
         }
     }
 

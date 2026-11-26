@@ -505,6 +505,14 @@ public class MainActivity extends Activity {
                         + "at the first lock after a reboot it is on the monitor for its lock "
                         + "screen. Needs System Framework ticked for this module in LSPosed",
                 Const.KEY_MOUSE_ON_DESKTOP, true);
+        addSwitch("Monitor's desktop back with its screen",
+                "When the monitor's screen dropped and came back within a second, ZUI's desktop "
+                        + "could start before Android had the new screen, and never came up on it: "
+                        + "a black home, Home doing nothing, every app full screen, the mouse "
+                        + "sent to the tablet. On, ZUI's own desktop start runs again once the "
+                        + "screen is there. Needs System Framework ticked for this module in "
+                        + "LSPosed",
+                Const.KEY_MONITOR_DESKTOP_BACK, true);
         addSwitch("No launcher chooser on the tablet",
                 "Android could forget its saved home and ask which launcher to use, at boot and "
                         + "at Home. On, the tablet's home is the default home app Android's "

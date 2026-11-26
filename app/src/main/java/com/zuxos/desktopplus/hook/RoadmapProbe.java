@@ -157,6 +157,12 @@ public final class RoadmapProbe {
             [ -r /sys/kernel/debug/dri/0/state ] && grep -i -A12 -E 'connector.*DP|crtc\\[' /sys/kernel/debug/dri/0/state 2>/dev/null | head -60
             ls /sys/kernel/debug/drm_dp 2>/dev/null | head -40 | tr '\\n' ' ' && echo
             logcat -d -b kernel 2>/dev/null | grep -i -E 'dp_|bpp|link_rate|lane' | tail -30
+            echo "--- the monitor's refresh rate, as each part of the system votes (120 Hz after a replug)"
+            dumpsys display 2>/dev/null | grep -A60 'mVotesByDisplay' | head -70
+            echo "--- the monitor's screen going and coming back: its link and USB-C in the kernel"
+            dmesg 2>/dev/null | grep -i -E 'dp_display|msm_dp|hpd|altmode|typec|ucsi|usbpd|pd_policy|pd_phy' | tail -40
+            echo "--- ZUI's monitor desktop starting and stopping, as it logged it"
+            logcat -d -b main,system 2>/dev/null | grep -E 'OVDesktopController' | grep -v getCurrentFocus | tail -40
             echo "--- the kernel's last lines on USB and input (a mouse that stops sending)"
             dmesg 2>/dev/null | grep -v BATTERY_CHG | grep -i -E 'usb [0-9]|hid|input:|xhci' | tail -40
             echo "--- Motorola's desktop: Smart Connect's apps and Motorola's display settings (#30)"

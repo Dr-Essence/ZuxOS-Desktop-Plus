@@ -453,6 +453,11 @@ public final class Cfg {
         return getBool(Const.KEY_DREAM_BOTH_SCREENS, true);
     }
 
+    /** ZUI's monitor desktop comes up on the monitor's screen when it comes back quickly. */
+    public static boolean monitorDesktopBack() {
+        return getBool(Const.KEY_MONITOR_DESKTOP_BACK, true);
+    }
+
     /** The tablet's Home opens the tablet's launcher, not a chooser, while the monitor is used. */
     public static boolean noHomeChooser() {
         return getBool(Const.KEY_NO_HOME_CHOOSER, true);

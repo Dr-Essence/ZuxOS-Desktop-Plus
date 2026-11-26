@@ -1,7 +1,9 @@
 package com.zuxos.desktopplus.hook.systemui;
 
 import android.app.Dialog;
+import android.app.Presentation;
 import android.content.Context;
+import android.database.ContentObserver;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.UserManager;
@@ -17,7 +19,9 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import de.robv.android.xposed.XC_MethodHook;
@@ -46,6 +50,13 @@ import de.robv.android.xposed.XposedBridge;
  * rest of SystemUI's run; where ZUI puts no lock screen there after all, it is asked again as
  * before. The switch is read each time ZUI chooses. Each screen's line says what ZUI's checks
  * gave and what it put there, when it differs from the last, and why a screen was left to ZUI.
+ *
+ * <p>ZUI turns {@code zui_dp_display_pc_mode} on a moment after a monitor is plugged in, and a
+ * monitor plugged in while the tablet is locked was given its lock screen in between: Android's
+ * clock, kept until the next lock. So the setting is watched, and when it turns on with the lock
+ * screen up, a monitor holding Android's clock gets ZUI's choice again, as ZUI does itself when
+ * its shade moves to another screen: that lock screen dismissed and removed, then ZUI's own pass
+ * over the screens.
  */
 public final class LockScreenDisplays {
 
@@ -167,6 +178,7 @@ public final class LockScreenDisplays {
         CHOOSING.remove();
         try {
             sManager = param.thisObject;
+            watch(param.thisObject);
             if (sBroken || AGAIN.get() != null || param.args.length == 0
                     || !(param.args[0] instanceof Display)) {
                 return;
@@ -201,6 +213,90 @@ public final class LockScreenDisplays {
                 L.w("lock screen: the monitor's lock screen left to ZUI (" + t + ")");
             }
         }
+    }
+
+    /** Whether ZUI's desktop setting is watched: from ZUI's first choice on. Main thread. */
+    private static boolean sWatching;
+
+    /** ZUI's desktop setting watched, to choose the monitor's lock screen again. An event. */
+    private static void watch(Object manager) {
+        if (sWatching) {
+            return;
+        }
+        Object context = Reflect.field(manager, SysUiNames.M_CONTEXT);
+        if (!(context instanceof Context)) {
+            return;
+        }
+        sWatching = true;
+        Context ctx = (Context) context;
+        ctx.getContentResolver().registerContentObserver(
+                Settings.System.getUriFor(SysUiNames.DP_DISPLAY_PC_MODE), false,
+                new ContentObserver(new Handler(Looper.getMainLooper())) {
+                    @Override
+                    public void onChange(boolean selfChange) {
+                        again(ctx);
+                    }
+                });
+    }
+
+    /**
+     * ZUI's monitor desktop came on: with the lock screen up, a monitor holding Android's clock
+     * gets ZUI's choice again - dismissed and removed, then ZUI's own pass, which our check
+     * answers for the monitor as its desktop. Main thread, where ZUI keeps its lock screens.
+     */
+    private static void again(Context ctx) {
+        try {
+            Object manager = sManager;
+            if (manager == null || sBroken || !on()
+                    || Settings.System.getInt(ctx.getContentResolver(),
+                            SysUiNames.DP_DISPLAY_PC_MODE, 0) != 1
+                    || !Boolean.TRUE.equals(Reflect.field(manager, SysUiNames.M_SHOWING))) {
+                return;
+            }
+            Object presentations = Reflect.field(manager, SysUiNames.M_PRESENTATIONS);
+            if (!(presentations instanceof SparseArray)) {
+                return;
+            }
+            SparseArray<?> shown = (SparseArray<?>) presentations;
+            List<Integer> clocks = new ArrayList<>();
+            for (int i = 0; i < shown.size(); i++) {
+                Object presentation = shown.valueAt(i);
+                if (presentation instanceof Presentation
+                        && monitorClock((Presentation) presentation)) {
+                    clocks.add(shown.keyAt(i));
+                }
+            }
+            if (clocks.isEmpty()) {
+                return;
+            }
+            // Found before anything is taken down: without ZUI's pass the clock stays.
+            Method update = manager.getClass().getMethod(SysUiNames.UPDATE_DISPLAYS,
+                    boolean.class);
+            for (int id : clocks) {
+                Object presentation = shown.get(id);
+                // Removed first, as ZUI does: its dismiss listener then leaves the new one alone.
+                shown.remove(id);
+                ((Dialog) presentation).dismiss();
+            }
+            update.invoke(manager, true);
+            if (L.once("LockScreenDisplays.chosenAgain")) {
+                L.i("lock screen: ZUI's monitor desktop came on with the lock screen up - screen "
+                        + clocks + " had Android's clock, ZUI chose again");
+            }
+        } catch (Throwable t) {
+            if (L.once("LockScreenDisplays.againFailed")) {
+                L.w("lock screen: the monitor's lock screen not chosen again (" + t + ")");
+            }
+        }
+    }
+
+    /** A lock screen on an external screen that is not ZUI's Smart Connect one. */
+    private static boolean monitorClock(Presentation presentation) {
+        Display display = presentation.getDisplay();
+        return display != null && display.getDisplayId() != Display.DEFAULT_DISPLAY
+                && Integer.valueOf(EXTERNAL).equals(Reflect.call(display, SysUiNames.GET_TYPE))
+                && !presentation.getClass().getName()
+                        .equals(SysUiNames.MOTO_KEYGUARD_PRESENTATION);
     }
 
     /**
